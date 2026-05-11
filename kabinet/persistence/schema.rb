@@ -1,0 +1,122 @@
+module Kabinet
+  module Persistence
+    module Schema
+      CURRENT_VERSION = 1
+
+      MODULE_KINDS = %w[shelf_module drawer_module].freeze
+      DRAWER_TYPES = %w[undermount side_mount].freeze
+      DOOR_CONFIGS = %w[none single pair].freeze
+
+      class ValidationError < StandardError; end
+
+      def self.mm(value)
+        Float(value).to_l_mm
+      end
+
+      def self.normalize(spec)
+        h = deep_stringify(spec)
+        h['version'] ||= CURRENT_VERSION
+        h['name']    ||= 'Untitled'
+        h['width']      = Float(h['width'])
+        h['max_depth']  = Float(h['max_depth'])
+        h['base_height'] = Float(h['base_height'] || 0)
+        h['ep'] ||= {}
+        h['ep']['left']      = h['ep'].fetch('left', true) ? true : false
+        h['ep']['right']     = h['ep'].fetch('right', true) ? true : false
+        h['ep']['thickness'] = Float(h['ep'].fetch('thickness', Kabinet::Constants::DEFAULT_EP_THICKNESS_MM))
+        h['top_panel'] = if h['top_panel'].nil?
+                           nil
+                         else
+                           { 'thickness' => Float(h['top_panel'].fetch('thickness', Kabinet::Constants::DEFAULT_TOP_PANEL_MM)) }
+                         end
+        h['modules'] = (h['modules'] || []).map { |m| normalize_module(m) }
+        h
+      end
+
+      def self.normalize_module(m)
+        kind = m['kind'].to_s
+        raise ValidationError, "unknown module kind: #{kind}" unless MODULE_KINDS.include?(kind)
+        out = {
+          'kind'           => kind,
+          'width'          => Float(m['width']),
+          'depth'          => Float(m['depth']),
+          'height'         => Float(m['height']),
+          'body_thickness' => Float(m['body_thickness'] || Kabinet::Constants::DEFAULT_BODY_THICKNESS_MM),
+          'back_thickness' => Float(m['back_thickness'] || Kabinet::Constants::DEFAULT_BACK_THICKNESS_MM),
+          'has_back'       => m.fetch('has_back', true) ? true : false
+        }
+        case kind
+        when 'shelf_module'
+          out['door_config']  = m['door_config'] || 'none'
+          unless DOOR_CONFIGS.include?(out['door_config'])
+            raise ValidationError, "invalid door_config: #{out['door_config']}"
+          end
+          out['door_thickness'] = Float(m['door_thickness'] || Kabinet::Constants::DEFAULT_DOOR_THICKNESS_MM)
+          out['shelves']      = (m['shelves'] || []).map { |s|
+            { 'height_from_bottom' => Float(s['height_from_bottom']),
+              'thickness'          => Float(s['thickness'] || out['body_thickness']),
+              'depth_inset'        => Float(s['depth_inset'] || 20) }
+          }
+          out['accessories']  = (m['accessories'] || []).map { |a| normalize_accessory(a) }
+        when 'drawer_module'
+          out['drawer_count'] = Integer(m['drawer_count'] || 1)
+          out['drawer_type']  = m['drawer_type'] || 'undermount'
+          unless DRAWER_TYPES.include?(out['drawer_type'])
+            raise ValidationError, "invalid drawer_type: #{out['drawer_type']}"
+          end
+          out['drawer_thickness'] = Float(m['drawer_thickness'] || Kabinet::Constants::DEFAULT_DOOR_THICKNESS_MM)
+        end
+        out
+      end
+
+      def self.normalize_accessory(a)
+        kind = a['kind'].to_s
+        case kind
+        when 'hanging_rod'
+          { 'kind' => 'hanging_rod',
+            'height_from_bottom' => Float(a['height_from_bottom']),
+            'depth_inset'        => Float(a['depth_inset'] || 75),
+            'diameter'           => Float(a['diameter'] || Kabinet::Constants::HANGING_ROD_DIAMETER_MM) }
+        when 'system_hanger'
+          { 'kind' => 'system_hanger',
+            'height_from_bottom' => Float(a['height_from_bottom']),
+            'rail_height'        => Float(a['rail_height'] || 30),
+            'rail_thickness'     => Float(a['rail_thickness'] || 5) }
+        when 'shelf_accessory'
+          { 'kind' => 'shelf_accessory',
+            'height_from_bottom' => Float(a['height_from_bottom']),
+            'thickness'          => Float(a['thickness'] || 18),
+            'depth_inset'        => Float(a['depth_inset'] || 20) }
+        else
+          raise ValidationError, "unknown accessory kind: #{kind}"
+        end
+      end
+
+      def self.validate!(spec)
+        raise ValidationError, 'spec must be a Hash' unless spec.is_a?(Hash)
+        raise ValidationError, 'width must be > 0' unless spec['width'].to_f > 0
+        raise ValidationError, 'max_depth must be > 0' unless spec['max_depth'].to_f > 0
+        spec['modules'].each_with_index do |m, i|
+          raise ValidationError, "module[#{i}] height must be > 0" unless m['height'].to_f > 0
+          raise ValidationError, "module[#{i}] depth must be > 0" unless m['depth'].to_f > 0
+        end
+        true
+      end
+
+      def self.deep_stringify(obj)
+        case obj
+        when Hash then obj.each_with_object({}) { |(k, v), h| h[k.to_s] = deep_stringify(v) }
+        when Array then obj.map { |v| deep_stringify(v) }
+        else obj
+        end
+      end
+    end
+  end
+end
+
+class Numeric
+  # Convenience: 900.to_l_mm => Length in inches representing 900mm
+  def to_l_mm
+    (self.to_f).mm
+  end
+end
