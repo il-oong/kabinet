@@ -155,7 +155,7 @@ module Kabinet
             safe  = aname.gsub(/[\\\/\:\*\?\"\<\>\|]/, '_')
             default_name = "#{safe}_커트리스트_#{ts}.csv"
 
-            path = UI.savepanel('커트리스트 CSV 저장', Dir.home, default_name)
+            path = ::UI.savepanel('커트리스트 CSV 저장', Dir.home, default_name)
             if path
               path += '.csv' unless path.end_with?('.csv')
               File.open(path, 'wb') { |f| f.write(csv.encode('UTF-8')) }

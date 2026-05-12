@@ -81,6 +81,14 @@ module Kabinet
                    x_origin: ep_left_offset + carcase_inner_w)
         end
 
+        # ── 걸레받이 (Toe kick board) ──────────────────────────────────────
+        # base_height > 0 이면 카케이스 전면에서 TOE_KICK_SETBACK_MM 후퇴한 위치에
+        # 걸레받이 판을 생성. EP가 있으면 EP 사이 폭, 없으면 전체 폭.
+        add_kickboard(root.entities, base_height_mm: @base_height.mm,
+                      carcase_w: carcase_inner_w, total_w: total_w,
+                      ep_left: ep_left, ep_right: ep_right,
+                      ep_left_offset: ep_left_offset)
+
         # Stamp full spec for later regenerate
         if spec_for_persistence
           Kabinet::Persistence::Attributes.write_assembly_spec(root, spec_for_persistence)
@@ -98,6 +106,7 @@ module Kabinet
 
         ep_left_offset = ep_left ? ep_t : 0
         carcase_inner_w = @width.mm
+        total_w = ep_left_offset + carcase_inner_w + (ep_right ? ep_t : 0)
         max_d   = @max_depth.mm
         modules_height_mm = @modules.sum { |m| m['height'].to_f }
         top_t_mm = @top_panel ? @top_panel['thickness'].to_f : 0
@@ -132,6 +141,12 @@ module Kabinet
                    x_origin: ep_left_offset + carcase_inner_w)
         end
 
+        # 걸레받이
+        add_kickboard(root_group.entities, base_height_mm: @base_height.mm,
+                      carcase_w: carcase_inner_w, total_w: total_w,
+                      ep_left: ep_left, ep_right: ep_right,
+                      ep_left_offset: ep_left_offset)
+
         if spec_for_persistence
           Kabinet::Persistence::Attributes.write_assembly_spec(root_group, spec_for_persistence)
         end
@@ -148,6 +163,34 @@ module Kabinet
         else
           raise ArgumentError, "unknown module kind: #{m['kind']}"
         end
+      end
+
+      # 걸레받이(토 킥) 판재 생성.
+      # base_height_mm > 0 일 때만 실행.
+      # EP가 있으면 EP 안쪽 폭만, 없으면 전체 폭.
+      def add_kickboard(entities, base_height_mm:, carcase_w:, total_w:,
+                        ep_left:, ep_right:, ep_left_offset:)
+        return if base_height_mm <= 0
+
+        setback = Kabinet::Constants::TOE_KICK_SETBACK_MM.mm
+        board_t = Kabinet::Constants::TOE_KICK_BOARD_THICK_MM.mm
+
+        if ep_left || ep_right
+          kick_x = ep_left_offset
+          kick_w = carcase_w
+        else
+          kick_x = 0
+          kick_w = total_w
+        end
+
+        kick_local = ::Geom::Transformation.new(
+          ::Geom::Point3d.new(kick_x, setback, 0)
+        )
+        Kabinet::Geometry::Builder.box(
+          entities, kick_w, board_t, base_height_mm,
+          kick_local,
+          role: 'kickboard', label: '걸레받이', material_name: 'body'
+        )
       end
     end
   end

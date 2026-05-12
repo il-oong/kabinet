@@ -5,19 +5,19 @@ module Kabinet
 
       # Full drawing export pipeline for the selected assembly.
       # views: array of symbols :front, :right, :left, :top, :section
-      # output_dir: nil → prompt user with UI.savepanel
+      # output_dir: nil → prompt user with ::UI.savepanel
       def run(views: %i[front right top section], output_dir: nil,
               model: Sketchup.active_model)
         target = Kabinet::Persistence::Attributes.find_assembly_in_selection(model)
         unless target
-          UI.messagebox('Kabinet: 선택된 어셈블리 그룹이 없습니다. 캐비닛 그룹을 선택하세요.')
+          ::UI.messagebox('Kabinet: 선택된 어셈블리 그룹이 없습니다. 캐비닛 그룹을 선택하세요.')
           return
         end
 
         spec  = Kabinet::Persistence::Attributes.read_assembly_spec(target)
         aname = spec ? spec['name'] : 'kabinet'
 
-        dir = output_dir || UI.savepanel('저장 폴더 선택 (파일명 무시)', Dir.home, 'ignore.pdf')
+        dir = output_dir || ::UI.savepanel('저장 폴더 선택 (파일명 무시)', Dir.home, 'ignore.pdf')
         return unless dir
         dir = File.dirname(dir) if File.extname(dir) != ''
         FileUtils.mkdir_p(dir)
@@ -35,10 +35,10 @@ module Kabinet
           ts = Time.now.strftime('%Y%m%d_%H%M%S')
           pdf_path = File.join(dir, "#{sanitize(aname)}_drawings_#{ts}.pdf")
           Kabinet::Output::PdfBundler.bundle(png_paths, output_path: pdf_path)
-          UI.messagebox("도면 출력 완료!\n\n저장 위치: #{dir}\n\n" \
+          ::UI.messagebox("도면 출력 완료!\n\n저장 위치: #{dir}\n\n" \
                         "PNG #{png_paths.size}개 + PDF 1개 생성됨.\n\n#{pdf_path}")
         else
-          UI.messagebox('Kabinet: PNG 생성에 실패했습니다. 루비 콘솔을 확인하세요.')
+          ::UI.messagebox('Kabinet: PNG 생성에 실패했습니다. 루비 콘솔을 확인하세요.')
         end
 
         png_paths

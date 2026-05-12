@@ -11,13 +11,13 @@ const FURNITURE_PRESETS = {
   wardrobe: {
     name: '붙박이장',
     furniture_type: 'wardrobe',
-    width: 1200, max_depth: 580, base_height: 0,
+    width: 1200, max_depth: 580, base_height: 100,
     material: 'LPM',
     ep: { left: true, right: true, thickness: 18 },
     top_panel: { thickness: 18 },
-    // 총 높이: 0 + 2082 + 18 = 2100mm
+    // 총 높이: 100(걸레받이) + 1982 + 18(상판) = 2100mm
     modules: [
-      { kind: 'shelf_module', width: 1200, depth: 580, height: 2082,
+      { kind: 'shelf_module', width: 1200, depth: 580, height: 1982,
         body_thickness: 18, back_thickness: 9, has_back: true,
         door_config: 'pair', door_type: 'swing', door_thickness: 18,
         door_material: 'LPM', handle_type: 'bar', material: 'LPM',
@@ -27,7 +27,7 @@ const FURNITURE_PRESETS = {
         ]
       }
     ],
-    _info: '표준 붙박이장 W1200×D580×H2100 | 양개여닫이, 상의 행거 포함'
+    _info: '표준 붙박이장 W1200×D580×H2100 | 걸레받이100 + 양개여닫이 + 상의 행거'
   },
 
   kitchen_base: {
@@ -37,23 +37,19 @@ const FURNITURE_PRESETS = {
     material: 'LPM',
     ep: { left: false, right: false, thickness: 18 },
     top_panel: { thickness: 20 },
-    // 총 높이: 80 + 150 + 590 + 20 = 840mm (작업대 높이 840~860)
+    // 총 높이: 80(걸레받이) + 740(단일 몸통) + 20(상판) = 840mm
+    // 주방 하부장은 단일 카케이스 몸통으로 구성 (도어+선반 내부 배치)
     modules: [
-      { kind: 'drawer_module', width: 900, depth: 580, height: 150,
-        body_thickness: 18, back_thickness: 9, has_back: true,
-        drawer_count: 1, drawer_type: 'undermount', drawer_thickness: 18,
-        door_material: 'LPM', handle_type: 'bar', material: 'LPM', edge_banding_mm: 1.0
-      },
-      { kind: 'shelf_module', width: 900, depth: 580, height: 590,
+      { kind: 'shelf_module', width: 900, depth: 580, height: 740,
         body_thickness: 18, back_thickness: 9, has_back: true,
         door_config: 'pair', door_type: 'swing', door_thickness: 18,
         door_material: 'LPM', handle_type: 'bar', material: 'LPM',
         edge_banding_mm: 1.0,
-        shelves: [{ height_from_bottom: 280, thickness: 18, depth_inset: 20 }],
+        shelves: [{ height_from_bottom: 330, thickness: 18, depth_inset: 20 }],
         accessories: []
       }
     ],
-    _info: '주방 하부장 W900×D580×H840 (받침80+몸통740+상판20) | 작업대 840mm'
+    _info: '주방 하부장 W900×D580×H840 | 걸레받이80+단일몸통740+상판20. 작업대 840mm'
   },
 
   kitchen_upper: {

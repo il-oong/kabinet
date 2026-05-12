@@ -26,10 +26,9 @@ module Kabinet
         end
         attrs.each { |k, v| Kabinet::Persistence::Attributes.set(group, k, v) }
         group.name = label if label
-        if material_name
-          mat = lookup_or_create_material(material_name)
-          group.material = mat if mat
-        end
+        # 컬러 미적용 — 사용자가 SketchUp 재질 편집기로 직접 지정
+        # material_name 파라미터는 커트리스트 소재 태깅용으로만 보존
+        Kabinet::Persistence::Attributes.set(group, 'material_hint', material_name.to_s) if material_name
         group.locked = true if locked
         group
       end

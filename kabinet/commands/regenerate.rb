@@ -8,13 +8,13 @@ module Kabinet
       def run(updated_spec = nil, group: nil, model: Sketchup.active_model)
         target = group || Kabinet::Persistence::Attributes.find_assembly_in_selection(model)
         unless target
-          UI.messagebox('Kabinet: 선택된 어셈블리 그룹을 찾을 수 없습니다.\n캐비닛 그룹을 선택한 뒤 다시 시도하세요.')
+          ::UI.messagebox('Kabinet: 선택된 어셈블리 그룹을 찾을 수 없습니다.\n캐비닛 그룹을 선택한 뒤 다시 시도하세요.')
           return nil
         end
 
         existing_spec = Kabinet::Persistence::Attributes.read_assembly_spec(target)
         unless existing_spec
-          UI.messagebox('Kabinet: 선택된 그룹에 Kabinet 파라미터가 없습니다.\n이 플러그인으로 생성한 어셈블리만 재생성할 수 있습니다.')
+          ::UI.messagebox('Kabinet: 선택된 그룹에 Kabinet 파라미터가 없습니다.\n이 플러그인으로 생성한 어셈블리만 재생성할 수 있습니다.')
           return nil
         end
 
@@ -35,7 +35,7 @@ module Kabinet
           model.commit_operation
         rescue StandardError => e
           model.abort_operation
-          UI.messagebox("Kabinet 재생성 오류:\n#{e.message}")
+          ::UI.messagebox("Kabinet 재생성 오류:\n#{e.message}")
           raise
         end
 
@@ -68,7 +68,7 @@ module Kabinet
           entity.model.start_operation('ScaleGuard', true)
           entity.transformation = clean_t
           entity.model.commit_operation
-          UI.messagebox("Kabinet: 스케일 도구로 크기를 바꿀 수 없습니다.\n[Extensions > Kabinet > 재생성] 메뉴를 이용하세요.", MB_OK)
+          ::UI.messagebox("Kabinet: 스케일 도구로 크기를 바꿀 수 없습니다.\n[Extensions > Kabinet > 재생성] 메뉴를 이용하세요.", MB_OK)
         end
       rescue StandardError
         # Guard must never crash SU

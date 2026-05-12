@@ -97,6 +97,10 @@ module Kabinet
       'custom'        => '직접 입력'
     }.freeze
 
+    # ── 걸레받이 (Toe Kick) ──────────────────────────────────────────────
+    TOE_KICK_SETBACK_MM      = 50   # 도어 전면에서 걸레받이 판 전면까지 후퇴량
+    TOE_KICK_BOARD_THICK_MM  = 18   # 걸레받이 판재 두께
+
     # ── AttributeDictionary 키 ───────────────────────────────────────────
     DIMENSION_TAG_NAME           = 'Kabinet_Dimensions'.freeze
     ATTR_DICT                    = 'kabinet'.freeze
