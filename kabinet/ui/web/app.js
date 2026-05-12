@@ -160,27 +160,27 @@ const FURNITURE_PRESETS = {
   tv_unit: {
     name: 'TV장',
     furniture_type: 'tv_unit',
-    width: 1800, max_depth: 450, base_height: 60,
+    width: 1800, max_depth: 450, base_height: 80,
     material: 'LPM',
     ep: { left: true, right: true, thickness: 18 },
     top_panel: { thickness: 25 },
-    // 총 높이: 60 + 150 + 365 + 25 = 600mm (좌식 TV장)
+    // 총 높이: 80 + 200 + 495 + 25 = 800mm (입식 표준 TV장)
     modules: [
-      { kind: 'drawer_module', width: 1800, depth: 450, height: 150,
+      { kind: 'drawer_module', width: 1800, depth: 450, height: 200,
         body_thickness: 18, back_thickness: 9, has_back: true,
         drawer_count: 3, drawer_type: 'undermount', drawer_thickness: 18,
         door_material: 'LPM', handle_type: 'channel', material: 'LPM', edge_banding_mm: 1.0
       },
-      { kind: 'shelf_module', width: 1800, depth: 450, height: 365,
+      { kind: 'shelf_module', width: 1800, depth: 450, height: 495,
         body_thickness: 18, back_thickness: 9, has_back: true,
         door_config: 'pair', door_type: 'swing', door_thickness: 18,
         door_material: 'LPM', handle_type: 'channel', material: 'LPM',
         edge_banding_mm: 1.0,
-        shelves: [{ height_from_bottom: 150, thickness: 18, depth_inset: 0 }],
+        shelves: [{ height_from_bottom: 220, thickness: 18, depth_inset: 0 }],
         accessories: []
       }
     ],
-    _info: 'TV장 W1800×D450×H600 | 서랍 3개 + 하부 수납. 좌식형'
+    _info: 'TV장 W1800×D450×H800 | 받침80+서랍200+수납495+상판25. 입식형'
   }
 };
 

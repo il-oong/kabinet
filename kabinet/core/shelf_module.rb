@@ -63,11 +63,17 @@ module Kabinet
           acc.build(group.entities, Kabinet::Geometry::Transforms::IDENTITY, carcase: carcase)
         end
 
-        # Doors
+        # Doors — overlay style: reference from full module width so doors span
+        # from gap_outside to (module_width - gap_outside), covering the side panels.
         unless @door_config == 'none'
-          door = DoorPanel.new(opening_width: opening_width, opening_height: @height,
-                               thickness: @door_thickness, config: @door_config,
-                               gap_top: 0, gap_bottom: 0)
+          door = DoorPanel.new(
+            opening_width:  @width,   # full module width (overlay, not inset)
+            opening_height: @height,
+            thickness:      @door_thickness,
+            config:         @door_config,
+            gap_top:    Kabinet::Constants::DOOR_GAP_TOP_MM.mm,
+            gap_bottom: Kabinet::Constants::DOOR_GAP_BOTTOM_MM.mm
+          )
           door.build(group.entities, Kabinet::Geometry::Transforms::IDENTITY)
         end
 
