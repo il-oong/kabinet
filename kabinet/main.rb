@@ -25,6 +25,7 @@ require File.join(Kabinet::PLUGIN_DIR, 'core', 'accessory')
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'shelf_module')
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'drawer_module')
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'assembly')
+require File.join(Kabinet::PLUGIN_DIR, 'core', 'cut_list')
 
 # Commands
 require File.join(Kabinet::PLUGIN_DIR, 'commands', 'generate')

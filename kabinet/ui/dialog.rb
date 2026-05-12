@@ -140,6 +140,33 @@ module Kabinet
           presets = load_presets
           d.execute_script("kabinet.loadPresets(#{JSON.generate(presets)})")
         end
+
+        # ── Cut list CSV export ────────────────────────────────────────
+        d.add_action_callback('kabinet:export_cutlist') do |_ctx, json_str|
+          begin
+            spec = JSON.parse(json_str)
+            norm = Kabinet::Persistence::Schema.normalize(spec)
+            Kabinet::Persistence::Schema.validate!(norm)
+            rows = Kabinet::Core::CutList.generate(norm)
+            csv  = Kabinet::Core::CutList.to_csv(rows)
+
+            aname = norm['name'] || 'kabinet'
+            ts    = Time.now.strftime('%Y%m%d_%H%M%S')
+            safe  = aname.gsub(/[\\\/\:\*\?\"\<\>\|]/, '_')
+            default_name = "#{safe}_커트리스트_#{ts}.csv"
+
+            path = UI.savepanel('커트리스트 CSV 저장', Dir.home, default_name)
+            if path
+              path += '.csv' unless path.end_with?('.csv')
+              File.open(path, 'wb') { |f| f.write(csv.encode('UTF-8')) }
+              d.execute_script("kabinet.onSuccess('커트리스트 저장 완료: #{File.basename(path)}')")
+            end
+          rescue Kabinet::Persistence::Schema::ValidationError => e
+            d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
+          rescue StandardError => e
+            d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
+          end
+        end
       end
 
       # ── Preset persistence via Sketchup.read/write_default ──────────

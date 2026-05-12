@@ -207,6 +207,104 @@ body {
 .preset-item button:hover { background: var(--border); color: var(--text); }
 .preset-item .del-btn:hover { color: var(--danger); }
 
+/* ── Info box (preset description) ── */
+.info-box {
+  margin-top: 6px;
+  padding: 7px 10px;
+  background: #1a2a3a;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-size: 11px;
+  color: #8bbcdd;
+  line-height: 1.5;
+}
+
+/* ── Value display (read-only numeric) ── */
+.value-display {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* ── Inline button (next to a field) ── */
+.btn-inline {
+  padding: 4px 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: border-color .15s, color .15s;
+}
+.btn-inline:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Height summary bar (modules tab) ── */
+.height-summary {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 7px 10px;
+  margin-bottom: 10px;
+  font-size: 11px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.height-summary:empty { display: none; }
+.hs-label {
+  font-weight: 600;
+  color: var(--accent);
+  margin-right: 4px;
+  white-space: nowrap;
+}
+.hs-parts { color: var(--text-dim); flex: 1; }
+
+/* ── Calc info (hinge count, front height estimate) ── */
+.calc-info {
+  margin-top: 4px;
+  margin-bottom: 6px;
+  padding: 5px 8px;
+  background: var(--bg);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* ── Add-module row ── */
+.add-module-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.add-module-row .btn-add { margin-top: 0; }
+
+/* ── Built-in presets grid ── */
+.built-in-presets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 6px;
+}
+.built-in-presets button {
+  padding: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color .15s, color .15s;
+}
+.built-in-presets button:hover { border-color: var(--accent); color: var(--accent); }
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
