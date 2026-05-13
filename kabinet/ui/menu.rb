@@ -19,6 +19,18 @@ module Kabinet
                           '파라메트릭 가구(붙박이장/주방가구/화장대)를 생성하고\n' \
                           '판 두께를 유지하며 재생성할 수 있습니다.')
         end
+        kabinet_menu.add_separator
+        kabinet_menu.add_item('🔄 플러그인 다시 로드 (개발자용)') do
+          ok = Kabinet.reload!
+          if ok
+            ::UI.messagebox("Kabinet 다시 로드 완료.\n\n" \
+                            "JS/HTML/CSS 변경분은\n" \
+                            "Extensions > Kabinet > 새 어셈블리… 를\n" \
+                            "다시 열면 반영됩니다.")
+          else
+            ::UI.messagebox("다시 로드 중 오류가 발생했습니다.\n루비 콘솔을 확인하세요.")
+          end
+        end
       end
     end
   end
