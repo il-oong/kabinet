@@ -378,9 +378,88 @@ const kabinet = (() => {
   // ── Field helpers ────────────────────────────────────────────────────
   function onField(key, value) {
     state[key] = value;
-    if (key === 'width' || key === 'max_depth' || key === 'base_height') {
+
+    if (key === 'width') {
+      // 전체 폭 → 모든 모듈에 자동 적용
+      if (state.run_mode) {
+        // 런 모드: 섹션 폭을 비율대로 재분배
+        _distributeWidthProportional(value);
+      } else {
+        // 적층 모드: 모든 모듈에 동일 폭 적용
+        state.modules.forEach(m => { m.width = value; });
+        renderModuleList();
+      }
       updateTotalHeight();
+    } else if (key === 'max_depth') {
+      updateTotalHeight();
+    } else if (key === 'base_height') {
+      updateTotalHeight();
+    } else if (key === 'run_height') {
+      updateTotalHeight();
+      updateHeightSummary();
     }
+  }
+
+  // ── 목표 높이 → 모듈 높이 비율 유지 자동 재분배 ────────────────────────
+  function onTargetHeightLive(targetTotal) {
+    if (state.run_mode) return;  // 런 모드는 run_height 단일값으로 제어
+    if (!targetTotal || targetTotal < 50) return;
+    if (state.modules.length === 0) return;
+
+    const topT      = state.top_panel ? (state.top_panel.thickness || 0) : 0;
+    const base      = state.base_height || 0;
+    const remaining = targetTotal - topT - base;
+    if (remaining < 10) return;
+
+    const currentTotal = state.modules.reduce((s, m) => s + (m.height || 0), 0);
+
+    if (currentTotal <= 0) {
+      // 높이 비율 없으면 균등 분배
+      const per = Math.round(remaining / state.modules.length);
+      state.modules.forEach(m => { m.height = per; });
+    } else {
+      // 현재 비율 유지하며 재분배
+      let allocated = 0;
+      state.modules.forEach((m, i) => {
+        if (i === state.modules.length - 1) {
+          // 마지막 모듈에 나머지 할당 (반올림 오차 보정)
+          m.height = remaining - allocated;
+        } else {
+          const h = Math.round(remaining * (m.height || 0) / currentTotal);
+          m.height = Math.max(h, 50);  // 최소 50mm
+          allocated += m.height;
+        }
+      });
+    }
+
+    renderModuleList();
+    updateTotalHeight();
+    updateHeightSummary();
+    // 목표 높이 필드 자체는 건드리지 않음 (사용자가 입력 중)
+  }
+
+  // ── 런 모드: 총 폭 → 섹션 폭 비율 유지 재분배 ─────────────────────────
+  function _distributeWidthProportional(totalW) {
+    if (!state.modules.length || !totalW || totalW < 10) return;
+    const currentTotal = state.modules.reduce((s, m) => s + (m.width || 0), 0);
+
+    if (currentTotal <= 0) {
+      const per = Math.round(totalW / state.modules.length);
+      state.modules.forEach(m => { m.width = per; });
+    } else {
+      let allocated = 0;
+      state.modules.forEach((m, i) => {
+        if (i === state.modules.length - 1) {
+          m.width = totalW - allocated;
+        } else {
+          const w = Math.round(totalW * (m.width || 0) / currentTotal);
+          m.width = Math.max(w, 100);
+          allocated += m.width;
+        }
+      });
+    }
+    renderModuleList();
+    updateHeightSummary();
   }
 
   function onTopPanelToggle(checked) {
@@ -402,18 +481,42 @@ const kabinet = (() => {
   // ── Run mode toggle ──────────────────────────────────────────────────
   function onRunMode(checked) {
     state.run_mode = checked;
-    // Show/hide run-height row
+
+    // 런 높이 행
     const rhRow = document.getElementById('run-height-row');
     if (rhRow) rhRow.style.display = checked ? '' : 'none';
-    // Show/hide total-run-width in assembly tab
+
+    // 섹션 총 폭 표시 행
     const twRow = document.getElementById('total-width-row');
     if (twRow) twRow.style.display = checked ? '' : 'none';
-    // In run_mode, the distribute-height feature works on run_height instead
+
+    // 높이 분배 행 (런 모드에선 불필요)
     const distRow  = document.getElementById('distribute-row');
     const distHint = document.getElementById('distribute-hint');
+    const hintH    = document.getElementById('height-hint');
     if (distRow)  distRow.style.display  = checked ? 'none' : '';
     if (distHint) distHint.style.display = checked ? 'none' : '';
+    if (hintH)    hintH.style.display    = checked ? 'none' : '';
+
+    // 폭 라벨 + 힌트 텍스트 변경
+    const wLabel = document.getElementById('width-label');
+    const wHint  = document.getElementById('width-hint');
+    if (wLabel) wLabel.textContent = checked ? '총 런 폭 (섹션 합계)' : '가구 전체 폭';
+    if (wHint)  wHint.textContent  = checked
+      ? '폭을 바꾸면 각 섹션 폭이 비율대로 자동 재분배됩니다'
+      : '폭을 바꾸면 내부 모듈 폭이 자동으로 따라옵니다';
+
+    // 런 모드 진입 시 f-width 에 섹션 총합 표시
+    if (checked && state.modules.length > 0) {
+      const totalW = state.modules.reduce((s, m) => s + (m.width || 0), 0);
+      if (totalW > 0) {
+        state.width = totalW;
+        setVal('f-width', totalW);
+      }
+    }
+
     updateTotalHeight();
+    updateHeightSummary();
     renderModuleList();
   }
 
@@ -741,6 +844,7 @@ const kabinet = (() => {
     addModule, removeModule, moveModule,
     loadFurniturePreset,
     syncWidthToModules, distributeHeight,
+    onTargetHeightLive,
     updateTotalHeight, updateHeightSummary,
     onRunMode,
     onSuccess, onError,

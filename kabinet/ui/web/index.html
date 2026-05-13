@@ -51,13 +51,12 @@
              oninput="kabinet.onField('name', this.value)">
     </div>
     <div class="field-row">
-      <label>폭 (Width)</label>
+      <label id="width-label">가구 전체 폭</label>
       <input type="number" id="f-width" value="900" min="100" max="3000"
              oninput="kabinet.onField('width', +this.value)">
       <span class="unit">mm</span>
-      <button class="btn-inline" title="전체 모듈에 폭 적용"
-              onclick="kabinet.syncWidthToModules()">모두 적용</button>
     </div>
+    <div class="field-hint" id="width-hint">폭을 바꾸면 내부 모듈 폭이 자동으로 따라옵니다</div>
     <div class="field-row">
       <label>최대 깊이</label>
       <input type="number" id="f-depth" value="580" min="100" max="1200"
@@ -111,10 +110,13 @@
     </div>
     <div class="field-row" id="distribute-row">
       <label>목표 총 높이</label>
-      <input type="number" id="f-target-height" value="2100" min="200" max="3000">
+      <input type="number" id="f-target-height" value="2100" min="200" max="3000"
+             oninput="kabinet.onTargetHeightLive(+this.value)">
       <span class="unit">mm</span>
-      <button class="btn-inline" onclick="kabinet.distributeHeight()">균등 분배</button>
+      <button class="btn-inline" title="모듈 높이를 동일하게 균등 분배"
+              onclick="kabinet.distributeHeight()">균등</button>
     </div>
+    <div class="field-hint" id="height-hint">입력하면 모듈 높이가 비율대로 자동 조정됩니다</div>
     <div class="field-row" id="total-width-row" style="display:none">
       <label>섹션 총 폭</label>
       <span id="total-run-width-display" class="value-display">—</span>

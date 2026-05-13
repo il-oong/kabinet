@@ -219,6 +219,14 @@ body {
   line-height: 1.5;
 }
 
+/* ── Field hint (auto-sync notice below a field) ── */
+.field-hint {
+  padding: 2px 0 4px 110px;
+  font-size: 10px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
 /* ── Value display (read-only numeric) ── */
 .value-display {
   flex: 1;
