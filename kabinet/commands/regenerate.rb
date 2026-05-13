@@ -44,8 +44,7 @@ module Kabinet
         target
       end
 
-      private
-
+      # module_function 블록 안에 있어야 run에서 호출 가능
       def deep_merge(base, override)
         return override unless base.is_a?(Hash) && override.is_a?(Hash)
         base.merge(override) { |_k, old, new_v| deep_merge(old, new_v) }
