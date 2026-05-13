@@ -33,6 +33,11 @@
         <option value="shoe_cabinet">신발장</option>
         <option value="bookshelf">책장</option>
         <option value="tv_unit">TV장</option>
+        <option value="display_800">수납장 800</option>
+        <option value="display_1200">수납장 1200</option>
+        <option value="drawer_tower">서랍장 타워</option>
+        <option value="wardrobe_sliding">슬라이딩 붙박이장</option>
+        <option value="kitchen_run">주방 런 (수평 배열)</option>
       </select>
     </div>
     <div class="info-box" id="preset-info" style="display:none"></div>
@@ -65,6 +70,20 @@
              oninput="kabinet.onField('base_height', +this.value)">
       <span class="unit">mm</span>
     </div>
+    <!-- 수평 런 모드 -->
+    <div class="toggle-row">
+      <label>수평 런 모드</label>
+      <input type="checkbox" id="f-run-mode"
+             onchange="kabinet.onRunMode(this.checked)"
+             title="주방 런·시스템장처럼 모듈을 가로로 배열">
+      <span style="font-size:11px;color:var(--text-dim);margin-left:6px">주방/시스템장</span>
+    </div>
+    <div id="run-height-row" class="field-row" style="display:none">
+      <label>런 공통 높이</label>
+      <input type="number" id="f-run-height" value="740" min="100" max="3000"
+             oninput="kabinet.onField('run_height', +this.value)">
+      <span class="unit">mm</span>
+    </div>
     <div class="field-row">
       <label>소재</label>
       <select id="f-material" onchange="kabinet.onField('material', this.value)">
@@ -83,20 +102,25 @@
   </div>
 
   <!-- 총 높이 관리 -->
-  <div class="section">
+  <div class="section" id="height-mgmt-section">
     <div class="section-title">총 높이 관리</div>
     <div class="field-row">
       <label>현재 총 높이</label>
       <span id="total-height-display" class="value-display">—</span>
       <span class="unit">mm</span>
     </div>
-    <div class="field-row">
+    <div class="field-row" id="distribute-row">
       <label>목표 총 높이</label>
       <input type="number" id="f-target-height" value="2100" min="200" max="3000">
       <span class="unit">mm</span>
       <button class="btn-inline" onclick="kabinet.distributeHeight()">균등 분배</button>
     </div>
-    <div class="field-row" style="font-size:11px;color:var(--text-dim);padding-left:110px">
+    <div class="field-row" id="total-width-row" style="display:none">
+      <label>섹션 총 폭</label>
+      <span id="total-run-width-display" class="value-display">—</span>
+      <span class="unit">mm (모듈 폭 합계)</span>
+    </div>
+    <div class="field-row" style="font-size:11px;color:var(--text-dim);padding-left:110px" id="distribute-hint">
       모듈 높이를 목표 총 높이에 맞게 균등하게 나눕니다
     </div>
   </div>
@@ -232,12 +256,17 @@
     <div class="section-title">기본 프리셋 (가구 유형)</div>
     <div class="built-in-presets">
       <button onclick="kabinet.loadFurniturePreset('wardrobe')">붙박이장</button>
+      <button onclick="kabinet.loadFurniturePreset('wardrobe_sliding')">슬라이딩 붙박이장</button>
       <button onclick="kabinet.loadFurniturePreset('kitchen_base')">주방 하부장</button>
       <button onclick="kabinet.loadFurniturePreset('kitchen_upper')">주방 상부장</button>
+      <button onclick="kabinet.loadFurniturePreset('kitchen_run')">주방 런 (수평)</button>
       <button onclick="kabinet.loadFurniturePreset('vanity')">화장대</button>
       <button onclick="kabinet.loadFurniturePreset('shoe_cabinet')">신발장</button>
       <button onclick="kabinet.loadFurniturePreset('bookshelf')">책장</button>
       <button onclick="kabinet.loadFurniturePreset('tv_unit')">TV장</button>
+      <button onclick="kabinet.loadFurniturePreset('display_800')">수납장 800</button>
+      <button onclick="kabinet.loadFurniturePreset('display_1200')">수납장 1200</button>
+      <button onclick="kabinet.loadFurniturePreset('drawer_tower')">서랍장 타워</button>
     </div>
   </div>
 </div>

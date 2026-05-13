@@ -21,12 +21,15 @@ module Kabinet
         h = deep_stringify(spec)
         h['version']       ||= CURRENT_VERSION
         h['name']          ||= 'Untitled'
-        h['furniture_type']  = h['furniture_type'].to_s  # optional
+        h['furniture_type']  = h['furniture_type'].to_s
         h['width']           = Float(h['width'])
         h['max_depth']       = Float(h['max_depth'])
         h['base_height']     = Float(h['base_height'] || 0)
         h['material']        = h['material'] || 'LPM'
         h['edge_banding_mm'] = Float(h['edge_banding_mm'] || Kabinet::Constants::DEFAULT_EDGE_THICKNESS_MM)
+        # 수평 런 모드: 모듈을 X축(가로)으로 배열
+        h['run_mode']   = h['run_mode'] ? true : false
+        h['run_height'] = Float(h['run_height'] || 740)
 
         h['ep'] ||= {}
         h['ep']['left']      = h['ep'].fetch('left', true) ? true : false

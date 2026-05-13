@@ -46,8 +46,15 @@ function renderModuleList() {
 
 /* ── 모듈 카드 HTML ───────────────────────────────────────────────────── */
 function moduleCardHtml(m, i, total) {
-  const title   = m.kind === 'drawer_module' ? '서랍 모듈' : '선반/수납 모듈';
-  const summary = m.width + '×' + m.depth + '×' + m.height + 'mm';
+  const state = kabinet.getState();
+  const isRun = !!state.run_mode;
+  const title   = isRun
+    ? (m.kind === 'drawer_module' ? '서랍 섹션' : '선반/수납 섹션')
+    : (m.kind === 'drawer_module' ? '서랍 모듈'  : '선반/수납 모듈');
+  const runH    = state.run_height || 740;
+  const summary = isRun
+    ? (m.width + '×' + m.depth + '×' + runH + 'mm (런높이)')
+    : (m.width + '×' + m.depth + '×' + m.height + 'mm');
   const upBtn   = i > 0
     ? '<button class="btn-icon" title="위로" onclick="kabinet.moveModule(' + i + ',-1);event.stopPropagation()">↑</button>' : '';
   const downBtn = i < total - 1
@@ -71,6 +78,10 @@ function moduleCardHtml(m, i, total) {
 
 /* ── 공통 필드 ──────────────────────────────────────────────────────── */
 function commonFields(m, i) {
+  const state = kabinet.getState();
+  const isRun = !!state.run_mode;
+  const runH  = state.run_height || 740;
+
   const matOpts = [
     ['LPM','LPM (저압 멜라민)'],['PET','PET'],['UV_gloss','UV 도장'],
     ['acrylic','아크릴'],['high_gloss','하이그로시'],['phenix','페닉스'],
@@ -79,8 +90,21 @@ function commonFields(m, i) {
     '<option value="' + v + '"' + (m.material === v ? ' selected' : '') + '>' + l + '</option>'
   ).join('');
 
+  // In run_mode, height is driven by run_height (disabled field shows info only)
+  const heightField = isRun
+    ? '<div class="field-row">' +
+        '<label>높이</label>' +
+        '<input type="number" value="' + runH + '" disabled ' +
+               'style="opacity:0.5;cursor:not-allowed">' +
+        '<span class="unit">mm (런 공통 높이)</span></div>'
+    : '<div class="field-row">' +
+        '<label>높이</label>' +
+        '<input type="number" data-mod-idx="' + i + '" data-key="height" ' +
+               'value="' + m.height + '" min="50" max="3000">' +
+        '<span class="unit">mm</span></div>';
+
   return '<div class="field-row">' +
-      '<label>폭</label>' +
+      '<label>' + (isRun ? '섹션 폭' : '폭') + '</label>' +
       '<input type="number" data-mod-idx="' + i + '" data-key="width" ' +
              'value="' + m.width + '" min="100" max="3000">' +
       '<span class="unit">mm</span></div>' +
@@ -89,11 +113,7 @@ function commonFields(m, i) {
       '<input type="number" data-mod-idx="' + i + '" data-key="depth" ' +
              'value="' + m.depth + '" min="100" max="1200">' +
       '<span class="unit">mm</span></div>' +
-    '<div class="field-row">' +
-      '<label>높이</label>' +
-      '<input type="number" data-mod-idx="' + i + '" data-key="height" ' +
-             'value="' + m.height + '" min="50" max="3000">' +
-      '<span class="unit">mm</span></div>' +
+    heightField +
     '<div class="field-row">' +
       '<label>몸통 두께</label>' +
       '<input type="number" data-mod-idx="' + i + '" data-key="body_thickness" ' +
@@ -253,8 +273,10 @@ function syncModuleField(el) {
     if (summary) summary.textContent = m.width + '×' + m.depth + '×' + m.height + 'mm';
   }
 
-  // Refresh height-sensitive displays
-  if (key === 'height' || key === 'door_config') {
+  // Refresh height/width-sensitive displays
+  const state2 = kabinet.getState();
+  if (key === 'height' || key === 'door_config' ||
+      (key === 'width' && state2.run_mode)) {
     kabinet.updateTotalHeight();
     kabinet.updateHeightSummary();
     // Re-render if door_config changed (hinge count changes)

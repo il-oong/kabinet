@@ -177,6 +177,142 @@ const FURNITURE_PRESETS = {
       }
     ],
     _info: 'TV장 W1800×D450×H800 | 받침80+서랍200+수납495+상판25. 입식형'
+  },
+
+  // ── 카탈로그 신규 프리셋 ─────────────────────────────────────────────────
+
+  display_800: {
+    name: '수납장 800',
+    furniture_type: 'display_800',
+    width: 800, max_depth: 400, base_height: 0,
+    material: 'LPM',
+    ep: { left: true, right: true, thickness: 18 },
+    top_panel: { thickness: 18 },
+    // 총 높이: 0 + 1032 + 18 = 1050mm
+    modules: [
+      { kind: 'shelf_module', width: 800, depth: 400, height: 1032,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_material: 'LPM', handle_type: 'bar', material: 'LPM',
+        edge_banding_mm: 1.0,
+        shelves: [
+          { height_from_bottom: 300, thickness: 18, depth_inset: 20 },
+          { height_from_bottom: 600, thickness: 18, depth_inset: 20 },
+          { height_from_bottom: 850, thickness: 18, depth_inset: 20 }
+        ],
+        accessories: []
+      }
+    ],
+    _info: '수납장 W800×D400×H1050 | 양개문·선반3개. 거실/서재 범용 수납'
+  },
+
+  display_1200: {
+    name: '수납장 1200',
+    furniture_type: 'display_1200',
+    width: 1200, max_depth: 400, base_height: 0,
+    material: 'LPM',
+    ep: { left: true, right: true, thickness: 18 },
+    top_panel: { thickness: 18 },
+    // 총 높이: 0 + 1032 + 18 = 1050mm
+    modules: [
+      { kind: 'shelf_module', width: 1200, depth: 400, height: 1032,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_material: 'LPM', handle_type: 'bar', material: 'LPM',
+        edge_banding_mm: 1.0,
+        shelves: [
+          { height_from_bottom: 300, thickness: 18, depth_inset: 20 },
+          { height_from_bottom: 600, thickness: 18, depth_inset: 20 },
+          { height_from_bottom: 850, thickness: 18, depth_inset: 20 }
+        ],
+        accessories: []
+      }
+    ],
+    _info: '수납장 W1200×D400×H1050 | 양개문·선반3개. 거실/서재 범용 수납'
+  },
+
+  drawer_tower: {
+    name: '서랍장 타워',
+    furniture_type: 'drawer_tower',
+    width: 400, max_depth: 450, base_height: 0,
+    material: 'LPM',
+    ep: { left: true, right: true, thickness: 18 },
+    top_panel: { thickness: 18 },
+    // 총 높이: 0 + 1032 + 18 = 1050mm (서랍 4단)
+    modules: [
+      { kind: 'drawer_module', width: 400, depth: 450, height: 1032,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        drawer_count: 4, drawer_type: 'undermount', drawer_thickness: 18,
+        door_material: 'LPM', handle_type: 'bar', material: 'LPM', edge_banding_mm: 1.0
+      }
+    ],
+    _info: '서랍장 타워 W400×D450×H1050 | 서랍 4단. 침실/드레스룸 범용'
+  },
+
+  wardrobe_sliding: {
+    name: '슬라이딩 붙박이장',
+    furniture_type: 'wardrobe_sliding',
+    width: 1600, max_depth: 600, base_height: 100,
+    material: 'LPM',
+    ep: { left: true, right: true, thickness: 18 },
+    top_panel: { thickness: 18 },
+    // 총 높이: 100 + 1982 + 18 = 2100mm
+    modules: [
+      { kind: 'shelf_module', width: 1600, depth: 600, height: 1982,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'sliding', door_thickness: 18,
+        door_material: 'LPM', handle_type: 'channel', material: 'LPM',
+        edge_banding_mm: 1.0,
+        shelves: [
+          { height_from_bottom: 500, thickness: 18, depth_inset: 20 }
+        ],
+        accessories: [
+          { kind: 'hanging_rod', height_from_bottom: 1000, depth_inset: 75, diameter: 32 },
+          { kind: 'hanging_rod', height_from_bottom: 500,  depth_inset: 75, diameter: 32 }
+        ]
+      }
+    ],
+    _info: '슬라이딩 붙박이장 W1600×D600×H2100 | 미닫이 2짝·상하 행거. 드레스룸'
+  },
+
+  // ── 수평 런 모드 프리셋 ───────────────────────────────────────────────────
+
+  kitchen_run: {
+    name: '주방 런 1800',
+    furniture_type: 'kitchen_run',
+    width: 1800, max_depth: 580, base_height: 80,
+    material: 'LPM',
+    run_mode: true,
+    run_height: 660,          // 작업대 하부 내부 높이 (받침80+본체660+상판20=760mm, 작업대는 별도)
+    ep: { left: true, right: true, thickness: 18 },
+    top_panel: { thickness: 20 },
+    // 수평 배열: 600(서랍) + 600(선반도어) + 600(선반도어)
+    // 총 외부 폭: 18(EP좌) + 1800 + 18(EP우) = 1836mm
+    // 총 외부 높이: 80 + 660 + 20 = 760mm (작업대 높이)
+    modules: [
+      { kind: 'drawer_module', width: 600, depth: 580, height: 660,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        drawer_count: 3, drawer_type: 'undermount', drawer_thickness: 18,
+        door_material: 'LPM', handle_type: 'bar', material: 'LPM', edge_banding_mm: 1.0
+      },
+      { kind: 'shelf_module', width: 600, depth: 580, height: 660,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_material: 'LPM', handle_type: 'bar', material: 'LPM',
+        edge_banding_mm: 1.0,
+        shelves: [{ height_from_bottom: 300, thickness: 18, depth_inset: 20 }],
+        accessories: []
+      },
+      { kind: 'shelf_module', width: 600, depth: 580, height: 660,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_material: 'LPM', handle_type: 'bar', material: 'LPM',
+        edge_banding_mm: 1.0,
+        shelves: [{ height_from_bottom: 300, thickness: 18, depth_inset: 20 }],
+        accessories: []
+      }
+    ],
+    _info: '주방 런 1800mm | 서랍(600)+수납(600)+수납(600). 런높이 660 → 작업대 760mm'
   }
 };
 
@@ -192,6 +328,8 @@ const kabinet = (() => {
     base_height: 0,
     material: 'LPM',
     edge_banding_mm: 1.0,
+    run_mode: false,
+    run_height: 740,
     ep: { left: true, right: true, thickness: 18 },
     top_panel: { thickness: 20 },
     modules: []
@@ -261,6 +399,24 @@ const kabinet = (() => {
     state.ep[key] = value;
   }
 
+  // ── Run mode toggle ──────────────────────────────────────────────────
+  function onRunMode(checked) {
+    state.run_mode = checked;
+    // Show/hide run-height row
+    const rhRow = document.getElementById('run-height-row');
+    if (rhRow) rhRow.style.display = checked ? '' : 'none';
+    // Show/hide total-run-width in assembly tab
+    const twRow = document.getElementById('total-width-row');
+    if (twRow) twRow.style.display = checked ? '' : 'none';
+    // In run_mode, the distribute-height feature works on run_height instead
+    const distRow  = document.getElementById('distribute-row');
+    const distHint = document.getElementById('distribute-hint');
+    if (distRow)  distRow.style.display  = checked ? 'none' : '';
+    if (distHint) distHint.style.display = checked ? 'none' : '';
+    updateTotalHeight();
+    renderModuleList();
+  }
+
   // ── Unified width: copy assembly width to all modules ────────────────
   function syncWidthToModules() {
     const w = state.width;
@@ -289,18 +445,32 @@ const kabinet = (() => {
     setStatus('높이를 균등 분배했습니다 (각 ' + perMod + 'mm).', 'ok');
   }
 
-  // ── Total height display ─────────────────────────────────────────────
+  // ── Total height/width display ───────────────────────────────────────
   function updateTotalHeight() {
-    const modsH  = state.modules.reduce((s, m) => s + (m.height || 0), 0);
-    const topT   = state.top_panel ? (state.top_panel.thickness || 0) : 0;
-    const base   = state.base_height || 0;
-    const total  = base + modsH + topT;
-    const el     = document.getElementById('total-height-display');
-    if (el) el.textContent = total;
+    const topT = state.top_panel ? (state.top_panel.thickness || 0) : 0;
+    const base = state.base_height || 0;
 
-    // Also sync target-height input with current total if user hasn't edited it
-    const tgt = document.getElementById('f-target-height');
-    if (tgt && !tgt._userEdited) tgt.value = total;
+    if (state.run_mode) {
+      // Height = base + run_height + top panel
+      const runH  = state.run_height || 740;
+      const total = base + runH + topT;
+      const el    = document.getElementById('total-height-display');
+      if (el) el.textContent = total;
+
+      // Also show total run width from section widths
+      const totalW = state.modules.reduce((s, m) => s + (m.width || 0), 0);
+      const twEl   = document.getElementById('total-run-width-display');
+      if (twEl) twEl.textContent = totalW;
+    } else {
+      const modsH = state.modules.reduce((s, m) => s + (m.height || 0), 0);
+      const total = base + modsH + topT;
+      const el    = document.getElementById('total-height-display');
+      if (el) el.textContent = total;
+
+      // Sync target-height input with current total if user hasn't edited it
+      const tgt = document.getElementById('f-target-height');
+      if (tgt && !tgt._userEdited) tgt.value = total;
+    }
   }
 
   // ── Generate / Regenerate ────────────────────────────────────────────
@@ -440,20 +610,37 @@ const kabinet = (() => {
     const el = document.getElementById('module-height-summary');
     if (!el) return;
     if (state.modules.length === 0) { el.innerHTML = ''; return; }
-    const topT  = state.top_panel ? (state.top_panel.thickness || 0) : 0;
-    const base  = state.base_height || 0;
-    const modsH = state.modules.reduce((s, m) => s + (m.height || 0), 0);
-    const total = base + modsH + topT;
+    const topT = state.top_panel ? (state.top_panel.thickness || 0) : 0;
+    const base = state.base_height || 0;
     const parts = [];
-    if (base > 0) parts.push('받침 ' + base);
-    state.modules.forEach((m, i) => {
-      const tag = m.kind === 'drawer_module' ? '서랍' : '선반';
-      parts.push('M' + (i+1) + '(' + tag + ') ' + m.height);
-    });
-    if (topT > 0) parts.push('상판 ' + topT);
-    el.innerHTML =
-      '<span class="hs-label">총 높이 ' + total + 'mm</span>' +
-      '<span class="hs-parts">' + parts.join(' + ') + '</span>';
+
+    if (state.run_mode) {
+      // Run mode: show section widths + shared height
+      const runH   = state.run_height || 740;
+      const totalW = state.modules.reduce((s, m) => s + (m.width || 0), 0);
+      const totalH = base + runH + topT;
+      if (base > 0)  parts.push('받침 ' + base);
+      state.modules.forEach((m, i) => {
+        const tag = m.kind === 'drawer_module' ? '서랍' : '선반';
+        parts.push('S' + (i+1) + '(' + tag + ') W' + m.width);
+      });
+      if (topT > 0) parts.push('상판 ' + topT);
+      el.innerHTML =
+        '<span class="hs-label">런 높이 ' + totalH + 'mm / 섹션 총 폭 ' + totalW + 'mm</span>' +
+        '<span class="hs-parts">' + parts.join(' + ') + '</span>';
+    } else {
+      const modsH = state.modules.reduce((s, m) => s + (m.height || 0), 0);
+      const total = base + modsH + topT;
+      if (base > 0) parts.push('받침 ' + base);
+      state.modules.forEach((m, i) => {
+        const tag = m.kind === 'drawer_module' ? '서랍' : '선반';
+        parts.push('M' + (i+1) + '(' + tag + ') ' + m.height);
+      });
+      if (topT > 0) parts.push('상판 ' + topT);
+      el.innerHTML =
+        '<span class="hs-label">총 높이 ' + total + 'mm</span>' +
+        '<span class="hs-parts">' + parts.join(' + ') + '</span>';
+    }
   }
 
   // ── Status ───────────────────────────────────────────────────────────
@@ -505,6 +692,14 @@ const kabinet = (() => {
     document.getElementById('f-ep-right').checked = !!(state.ep && state.ep.right);
     setVal('f-ep-t', state.ep ? state.ep.thickness : 18);
 
+    // Run mode
+    const runChk = document.getElementById('f-run-mode');
+    if (runChk) {
+      runChk.checked = !!state.run_mode;
+      onRunMode(!!state.run_mode);   // update visibility of dependent rows
+    }
+    setVal('f-run-height', state.run_height || 740);
+
     if (currentEntityID) {
       const expEl = document.getElementById('f-export-id');
       if (expEl) expEl.value = currentEntityID;
@@ -547,6 +742,7 @@ const kabinet = (() => {
     loadFurniturePreset,
     syncWidthToModules, distributeHeight,
     updateTotalHeight, updateHeightSummary,
+    onRunMode,
     onSuccess, onError,
     getState
   };
