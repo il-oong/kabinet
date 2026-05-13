@@ -97,6 +97,16 @@ module Kabinet
       'custom'        => '직접 입력'
     }.freeze
 
+    # ── 미닫이(슬라이딩) 도어 레일 규격 ────────────────────────────────────
+    # 한국 붙박이장 표준 현수식(상부 행잉) 슬라이딩 도어
+    SLIDING_DOOR_TRACK_SPACING_MM = 65   # 전후 레일 간격 (전면~후면 레일 깊이 차)
+    SLIDING_DOOR_OVERLAP_MM       = 60   # 인접 도어 겹침 너비 (중앙 교차부)
+    SLIDING_DOOR_TOP_GAP_MM       = 15   # 상부 레일 클리어런스 (행잉 롤러 공간)
+    SLIDING_DOOR_BOTTOM_GAP_MM    = 5    # 하부 가이드 핀 클리어런스
+
+    # ── 리프트업 도어 ────────────────────────────────────────────────────
+    LIFT_UP_DOOR_GAP_MM           = 3    # 리프트업 도어 주변 클리어런스
+
     # ── 걸레받이 (Toe Kick) ──────────────────────────────────────────────
     TOE_KICK_SETBACK_MM      = 50   # 도어 전면에서 걸레받이 판 전면까지 후퇴량
     TOE_KICK_BOARD_THICK_MM  = 18   # 걸레받이 판재 두께

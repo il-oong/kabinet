@@ -9,7 +9,7 @@ module Kabinet
       def initialize(width:, depth:, height:,
                      body_thickness: Kabinet::Constants::DEFAULT_BODY_THICKNESS_MM.mm,
                      back_thickness: Kabinet::Constants::DEFAULT_BACK_THICKNESS_MM.mm,
-                     door_config: 'none',
+                     door_config: 'none', door_type: 'swing',
                      door_thickness: Kabinet::Constants::DEFAULT_DOOR_THICKNESS_MM.mm,
                      shelves: [], accessories: [])
         @width = width
@@ -17,10 +17,11 @@ module Kabinet
         @height = height
         @body_thickness = body_thickness
         @back_thickness = back_thickness
-        @door_config = door_config
+        @door_config    = door_config
+        @door_type      = door_type.to_s
         @door_thickness = door_thickness
-        @shelves = shelves
-        @accessories = accessories
+        @shelves        = shelves
+        @accessories    = accessories
       end
 
       def carcase
@@ -63,16 +64,20 @@ module Kabinet
           acc.build(group.entities, Kabinet::Geometry::Transforms::IDENTITY, carcase: carcase)
         end
 
-        # Doors — overlay style: reference from full module width so doors span
-        # from gap_outside to (module_width - gap_outside), covering the side panels.
+        # 도어 — 도어 타입별로 DoorPanel이 geometry를 다르게 생성:
+        #   swing   : 오버레이 여닫이 (측판 덮음)
+        #   sliding : 전후 레일 2개, 도어 교대 배치
+        #   folding : 바이폴드 (반폭 패널 분할)
+        #   lift_up : 단일 상개 패널
         unless @door_config == 'none'
           door = DoorPanel.new(
-            opening_width:  @width,   # full module width (overlay, not inset)
+            opening_width:  @width,
             opening_height: @height,
             thickness:      @door_thickness,
             config:         @door_config,
-            gap_top:    Kabinet::Constants::DOOR_GAP_TOP_MM.mm,
-            gap_bottom: Kabinet::Constants::DOOR_GAP_BOTTOM_MM.mm
+            door_type:      @door_type,
+            gap_top:        Kabinet::Constants::DOOR_GAP_TOP_MM.mm,
+            gap_bottom:     Kabinet::Constants::DOOR_GAP_BOTTOM_MM.mm
           )
           door.build(group.entities, Kabinet::Geometry::Transforms::IDENTITY)
         end
@@ -81,10 +86,16 @@ module Kabinet
       end
 
       def self.from_hash(h)
-        new(width: h['width'].mm, depth: h['depth'].mm, height: h['height'].mm,
-            body_thickness: h['body_thickness'].mm, back_thickness: h['back_thickness'].mm,
-            door_config: h['door_config'], door_thickness: h['door_thickness'].mm,
-            shelves: h['shelves'] || [], accessories: h['accessories'] || [])
+        new(width:          h['width'].mm,
+            depth:          h['depth'].mm,
+            height:         h['height'].mm,
+            body_thickness: h['body_thickness'].mm,
+            back_thickness: h['back_thickness'].mm,
+            door_config:    h['door_config'] || 'none',
+            door_type:      h['door_type']   || 'swing',
+            door_thickness: h['door_thickness'].mm,
+            shelves:        h['shelves']      || [],
+            accessories:    h['accessories']  || [])
       end
 
       private
