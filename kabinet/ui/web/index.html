@@ -14,7 +14,7 @@
   <button onclick="kabinet.switchTab('modules', this)">모듈 구성</button>
   <button onclick="kabinet.switchTab('drawings', this)">도면 출력</button>
   <button onclick="kabinet.switchTab('presets', this)">프리셋</button>
-  <span class="version-badge">v0.6.0</span>
+  <span class="version-badge">v0.7.0</span>
 </div>
 
 <!-- ══ Assembly tab ══════════════════════════════════════════════════════ -->
@@ -186,6 +186,13 @@
              oninput="kabinet.onEP('thickness', +this.value)">
       <span class="unit">mm</span>
     </div>
+    <div class="toggle-row">
+      <label>EP 윗면만 보이게
+        <span style="font-size:10px;color:var(--text-dim)">(상판이 EP 위에 올라감)</span>
+      </label>
+      <input type="checkbox" id="f-ep-top-flush"
+             onchange="kabinet.onEpTopFlush(this.checked)">
+    </div>
   </div>
 
   <div class="btn-row">
@@ -307,6 +314,10 @@
       <button onclick="kabinet.loadFurniturePreset('desk_basic')">기본 책상</button>
       <button onclick="kabinet.loadFurniturePreset('desk_with_pedestal')">책상+페데스탈</button>
       <button onclick="kabinet.loadFurniturePreset('desk_l_shape')">L자 책상</button>
+      <button onclick="kabinet.loadFurniturePreset('open_shelf')">오픈 선반장</button>
+      <button onclick="kabinet.loadFurniturePreset('corner_unit')">코너 수납장</button>
+      <button onclick="kabinet.loadFurniturePreset('desk_with_side_cabinet')">책상+사이드장</button>
+      <button onclick="kabinet.loadFurniturePreset('living_run')">거실 수납 런</button>
     </div>
   </div>
 

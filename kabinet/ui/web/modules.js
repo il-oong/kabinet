@@ -253,6 +253,10 @@ function shelfFields(m, i) {
       '<input type="number" data-mod-idx="' + i + '" data-key="door_thickness" ' +
              'value="' + (m.door_thickness||18) + '" min="9" max="30">' +
       '<span class="unit">mm</span></div>' +
+    '<div class="field-row"><label>측면 갭</label>' +
+      '<input type="number" data-mod-idx="' + i + '" data-key="door_side_gap_mm" ' +
+             'value="' + (m.door_side_gap_mm != null ? m.door_side_gap_mm : 0) + '" min="0" max="5" step="0.5">' +
+      '<span class="unit">mm (0=플러시)</span></div>' +
     '<div class="field-row"><label>손잡이 타입</label>' +
       '<select data-mod-idx="' + i + '" data-key="handle_type">' + handleOpts + '</select></div>' +
     (showHole ?
@@ -261,6 +265,16 @@ function shelfFields(m, i) {
                'value="' + (m.handle_hole_mm||128) + '" min="32" max="320">' +
         '<span class="unit">mm</span></div>' : '') +
     '<div class="calc-info">🔩 ' + hingeInfo + '</div>' +
+    '</details>' +
+
+    // ── 측판 설정 ────────────────────────────────────────
+    '<details><summary class="detail-summary">측판 설정 (세부)</summary>' +
+    '<div class="toggle-row"><label>좌 측판 생략 <span style="font-size:10px;color:var(--text-dim)">(EP 또는 인접 모듈이 측벽)</span></label>' +
+      '<input type="checkbox" data-mod-idx="' + i + '" data-key="suppress_left_side"' +
+      (m.suppress_left_side ? ' checked' : '') + '></div>' +
+    '<div class="toggle-row"><label>우 측판 생략 <span style="font-size:10px;color:var(--text-dim)">(EP 또는 인접 모듈이 측벽)</span></label>' +
+      '<input type="checkbox" data-mod-idx="' + i + '" data-key="suppress_right_side"' +
+      (m.suppress_right_side ? ' checked' : '') + '></div>' +
     '</details>' +
 
     // ── 내부 구성 ────────────────────────────────────────
@@ -478,7 +492,8 @@ function syncModuleField(el) {
   const state = kabinet.getState();
   if (isNaN(idx) || !key || !state.modules[idx]) return;
 
-  const val = el.type === 'number' ? +el.value : el.value;
+  const val = el.type === 'checkbox' ? el.checked :
+              el.type === 'number'   ? +el.value  : el.value;
   state.modules[idx][key] = val;
 
   const card = el.closest('.module-card');

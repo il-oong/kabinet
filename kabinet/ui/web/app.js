@@ -676,6 +676,132 @@ const FURNITURE_PRESETS = {
       }
     ],
     _info: '자녀방 싱글침대장 W2000 (수납500 + 싱글1000 + 서랍4단500) | 전고 H2100mm'
+  },
+
+  // ── 신규 프리셋 ──────────────────────────────────────────────────────────
+
+  open_shelf: {
+    name: '오픈 선반장',
+    furniture_type: 'open_shelf',
+    width: 900, max_depth: 300, base_height: 0,
+    material: 'LPM',
+    ep: { left: true, right: true, thickness: 18 },
+    top_panel: { thickness: 18 },
+    // 총 높이: 0 + 1182 + 18 = 1200mm
+    modules: [
+      { kind: 'shelf_module', width: 900, depth: 300, height: 1182,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'none', door_type: 'none', door_thickness: 18,
+        door_material: 'LPM', handle_type: 'none', handle_hole_mm: 128,
+        door_side_gap_mm: 0,
+        suppress_left_side: false, suppress_right_side: false,
+        material: 'LPM', edge_banding_mm: 1.0,
+        shelves: [
+          { height_from_bottom: 250, thickness: 18, depth_inset: 0 },
+          { height_from_bottom: 500, thickness: 18, depth_inset: 0 },
+          { height_from_bottom: 750, thickness: 18, depth_inset: 0 },
+          { height_from_bottom: 1000, thickness: 18, depth_inset: 0 }
+        ],
+        accessories: [], vertical_dividers: [], cell_shelves: [], cell_drawers: []
+      }
+    ],
+    _info: '오픈 선반장 W900×D300×H1200 | 도어 없음, 선반 4개 (250mm 피치). 책·소품 진열용'
+  },
+
+  corner_unit: {
+    name: '코너 수납장',
+    furniture_type: 'corner_unit',
+    width: 600, max_depth: 600, base_height: 0,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 18 },
+    top_panel: { thickness: 18 },
+    // 총 높이: 0 + 782 + 18 = 800mm — 정사각형 오픈 선반, 코너 배치용
+    modules: [
+      { kind: 'shelf_module', width: 600, depth: 600, height: 782,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'none', door_type: 'none', door_thickness: 18,
+        door_material: 'LPM', handle_type: 'none', handle_hole_mm: 128,
+        door_side_gap_mm: 0,
+        suppress_left_side: false, suppress_right_side: false,
+        material: 'LPM', edge_banding_mm: 1.0,
+        shelves: [
+          { height_from_bottom: 250, thickness: 18, depth_inset: 0 },
+          { height_from_bottom: 500, thickness: 18, depth_inset: 0 }
+        ],
+        accessories: [], vertical_dividers: [], cell_shelves: [], cell_drawers: []
+      }
+    ],
+    _info: '코너 수납장 W600×D600×H800 | 정사각형 오픈선반 2단. EP 없음. 코너에 수동 배치'
+  },
+
+  desk_with_side_cabinet: {
+    name: '책상 + 사이드 수납장',
+    furniture_type: 'desk_with_side_cabinet',
+    width: 1800, max_depth: 700, base_height: 0,
+    material: 'LPM',
+    run_mode: true, run_height: 725,  // 상판 포함 총 750mm
+    ep: { left: true, right: true, thickness: 18 },
+    top_panel: { thickness: 25 },
+    // 런 모드: 책상(1200) + 사이드 수납장(600)
+    modules: [
+      { kind: 'desk_module', width: 1200, depth: 700, height: 725,
+        top_thickness: 25, leg_type: 'box',
+        leg_w: 60, leg_d: 60, leg_inset_x: 30, leg_inset_y: 30,
+        has_modesty_panel: false, pedestal: null, under_unit: null,
+        material: 'LPM', edge_banding_mm: 1.0
+      },
+      { kind: 'shelf_module', width: 600, depth: 400, height: 725,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_material: 'LPM', handle_type: 'bar', handle_hole_mm: 128,
+        door_side_gap_mm: 0,
+        suppress_left_side: false, suppress_right_side: false,
+        material: 'LPM', edge_banding_mm: 1.0,
+        shelves: [{ height_from_bottom: 350, thickness: 18, depth_inset: 20 }],
+        accessories: [], vertical_dividers: [], cell_shelves: [], cell_drawers: []
+      }
+    ],
+    _info: '책상+사이드장 W1800 | 런모드: 책상1200 + 사이드수납장600. 총높이 750mm'
+  },
+
+  living_run: {
+    name: '거실 수납 런',
+    furniture_type: 'living_run',
+    width: 2400, max_depth: 450, base_height: 80,
+    material: 'LPM',
+    run_mode: true,
+    run_height: 420,   // 80(받침) + 420 + 25(상판) = 525mm — 거실 로우보드
+    ep: { left: true, right: true, thickness: 18 },
+    top_panel: { thickness: 25 },
+    // 수평 배열: 600(서랍2단) + 1200(도어수납) + 600(도어수납)
+    modules: [
+      { kind: 'drawer_module', width: 600, depth: 450, height: 420,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        drawer_count: 2, drawer_type: 'undermount', drawer_thickness: 18,
+        door_material: 'LPM', handle_type: 'channel', material: 'LPM', edge_banding_mm: 1.0
+      },
+      { kind: 'shelf_module', width: 1200, depth: 450, height: 420,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_material: 'LPM', handle_type: 'channel', handle_hole_mm: 128,
+        door_side_gap_mm: 0,
+        suppress_left_side: false, suppress_right_side: false,
+        material: 'LPM', edge_banding_mm: 1.0,
+        shelves: [{ height_from_bottom: 200, thickness: 18, depth_inset: 0 }],
+        accessories: [], vertical_dividers: [], cell_shelves: [], cell_drawers: []
+      },
+      { kind: 'shelf_module', width: 600, depth: 450, height: 420,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_material: 'LPM', handle_type: 'channel', handle_hole_mm: 128,
+        door_side_gap_mm: 0,
+        suppress_left_side: false, suppress_right_side: false,
+        material: 'LPM', edge_banding_mm: 1.0,
+        shelves: [{ height_from_bottom: 200, thickness: 18, depth_inset: 0 }],
+        accessories: [], vertical_dividers: [], cell_shelves: [], cell_drawers: []
+      }
+    ],
+    _info: '거실 수납 런 W2400×D450×H525 | 서랍(600)+도어수납(1200+600). 핸들리스 채널. 로우보드'
   }
 };
 
@@ -695,6 +821,7 @@ const kabinet = (() => {
     run_mode: false,
     run_height: 740,
     ep: { left: true, right: true, thickness: 18 },
+    ep_top_flush: false,
     top_panel: { thickness: 20 },
     modules: []
   };
@@ -843,6 +970,10 @@ const kabinet = (() => {
 
   function onEP(key, value) {
     state.ep[key] = value;
+  }
+
+  function onEpTopFlush(checked) {
+    state.ep_top_flush = checked;
   }
 
   // ── Run mode toggle ──────────────────────────────────────────────────
@@ -1072,6 +1203,8 @@ const kabinet = (() => {
               body_thickness: 18, back_thickness: 9, has_back: true,
               door_config: 'none', door_type: 'swing', door_thickness: 18,
               door_material: mat, handle_type: 'none', handle_hole_mm: 128,
+              door_side_gap_mm: 0,
+              suppress_left_side: false, suppress_right_side: false,
               material: mat, edge_banding_mm: 1.0,
               shelves: [], accessories: [],
               vertical_dividers: [], cell_shelves: [], cell_drawers: [] };
@@ -1189,6 +1322,8 @@ const kabinet = (() => {
     document.getElementById('f-ep-left').checked  = !!(state.ep && state.ep.left);
     document.getElementById('f-ep-right').checked = !!(state.ep && state.ep.right);
     setVal('f-ep-t', state.ep ? state.ep.thickness : 18);
+    const epFlushChk = document.getElementById('f-ep-top-flush');
+    if (epFlushChk) epFlushChk.checked = !!state.ep_top_flush;
 
     // Run mode
     const runChk = document.getElementById('f-run-mode');
@@ -1232,7 +1367,7 @@ const kabinet = (() => {
 
   // ── Public API ───────────────────────────────────────────────────────
   return {
-    switchTab, onField, onTopPanelToggle, onTopPanelField, onEP,
+    switchTab, onField, onTopPanelToggle, onTopPanelField, onEP, onEpTopFlush,
     generate, regenerate, loadSelection, loadSpec,
     exportDrawings, exportCutList, loadSelectionForExport,
     savePreset, listPresets, loadPresets, applyPreset, deletePreset,

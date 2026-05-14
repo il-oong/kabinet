@@ -14,11 +14,11 @@ module Kabinet
     # Conversion to SketchUp Length happens inside this class.
     class Assembly
       attr_reader :name, :width, :max_depth, :base_height, :ep, :top_panel, :modules,
-                  :run_mode, :run_height, :has_kickboard
+                  :run_mode, :run_height, :has_kickboard, :ep_top_flush
 
       def initialize(name:, width:, max_depth:, ep:, top_panel:, modules:,
                      base_height: 0, run_mode: false, run_height: 740,
-                     has_kickboard: true)
+                     has_kickboard: true, ep_top_flush: false)
         @name          = name
         @width         = width
         @max_depth     = max_depth
@@ -29,6 +29,7 @@ module Kabinet
         @run_mode      = run_mode
         @run_height    = run_height
         @has_kickboard = has_kickboard
+        @ep_top_flush  = ep_top_flush ? true : false
       end
 
       def self.from_hash(h)
@@ -42,7 +43,8 @@ module Kabinet
           modules:       h['modules'],
           run_mode:      h['run_mode']      || false,
           run_height:    h['run_height']    || 740,
-          has_kickboard: h.fetch('has_kickboard', true) ? true : false
+          has_kickboard: h.fetch('has_kickboard', true) ? true : false,
+          ep_top_flush:  h.fetch('ep_top_flush',  false) ? true : false
         )
       end
 
@@ -185,9 +187,11 @@ module Kabinet
 
         add_top_panel(entities, ep_left_offset, max_d, carcase_inner_w, current_z)
 
+        # ep_top_flush: true → EP 높이를 상판 두께 제외 (상판이 EP 위에 얹힘)
+        ep_h = @ep_top_flush ? (@base_height + modules_h_mm).mm : total_h
         add_ep_panels(entities, ep_left, ep_right, ep_t,
                       0, ep_left_offset + carcase_inner_w,
-                      total_h, max_d)
+                      ep_h, max_d)
 
         if @has_kickboard
           add_kickboard(entities, base_height_mm: @base_height.mm,
@@ -240,9 +244,11 @@ module Kabinet
         add_top_panel(entities, ep_left_offset, max_d, carcase_inner_w, top_z)
 
         # EP panels span full run height
+        # ep_top_flush: true → EP 높이를 상판 두께 제외 (상판이 EP 위에 얹힘)
+        ep_h = @ep_top_flush ? (@base_height + run_h).mm : total_h
         add_ep_panels(entities, ep_left, ep_right, ep_t,
                       0, ep_left_offset + carcase_inner_w,
-                      total_h, max_d)
+                      ep_h, max_d)
 
         # Kickboard spans full run
         if @has_kickboard
