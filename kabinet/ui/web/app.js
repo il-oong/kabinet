@@ -832,7 +832,7 @@ const kabinet = (() => {
   // ── Tab management ───────────────────────────────────────────────────
   function switchTab(name, btn) {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-buttons button').forEach(b => b.classList.remove('active'));
     document.getElementById('tab-' + name).classList.add('active');
     if (btn) btn.classList.add('active');
     if (name === 'modules')  { renderModuleList(); updateHeightSummary(); }

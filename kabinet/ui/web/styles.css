@@ -28,11 +28,17 @@ body {
 /* ── Tabs ── */
 .tab-bar {
   display: flex;
+  align-items: stretch;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
-.tab-bar button {
+.tab-buttons {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+.tab-buttons button {
   flex: 1;
   padding: 9px 4px;
   background: none;
@@ -44,19 +50,21 @@ body {
   font-size: 12px;
   transition: color .15s, border-color .15s;
 }
-.tab-bar button.active {
+.tab-buttons button.active {
   color: var(--accent);
   border-bottom-color: var(--accent);
 }
-.tab-bar button:hover:not(.active) { color: var(--text); }
+.tab-buttons button:hover:not(.active) { color: var(--text); }
 .version-badge {
-  margin-left: auto;
+  flex-shrink: 0;
   padding: 0 8px;
   font-size: 10px;
-  color: var(--text-dim);
+  color: var(--accent);
   align-self: center;
-  opacity: 0.6;
+  opacity: 0.8;
   user-select: none;
+  white-space: nowrap;
+  border-left: 1px solid var(--border);
 }
 
 /* ── Tab panels ── */
