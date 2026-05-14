@@ -106,6 +106,20 @@ body {
 }
 .field-row .unit { color: var(--text-dim); font-size: 11px; width: 24px; }
 
+/* ── Main fields highlight (primary dimensions shown prominently) ── */
+.main-fields {
+  background: var(--surface2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+.main-fields .field-row { margin-bottom: 4px; }
+.main-fields .field-row:last-child { margin-bottom: 0; }
+.main-fields .field-row label { font-weight: 600; color: var(--text); }
+.main-fields .field-row input,
+.main-fields .field-row select { font-weight: 600; }
+
 /* ── Toggle (checkbox-based) ── */
 .toggle-row {
   display: flex;
