@@ -263,9 +263,9 @@ module Kabinet
 
       def build_module(m)
         case m['kind']
-        when 'shelf_module'  then ShelfModule.from_hash(m)
-        when 'drawer_module' then DrawerModule.from_hash(m)
-        when 'desk_module'   then DeskModule.from_hash(m)
+        when 'shelf_module'  then Kabinet::Core::ShelfModule.from_hash(m)
+        when 'drawer_module' then Kabinet::Core::DrawerModule.from_hash(m)
+        when 'desk_module'   then Kabinet::Core::DeskModule.from_hash(m)
         when 'bed_gap'       then nil   # 침대 공간 — 지오메트리 없음, 폭만 차지
         else
           raise ArgumentError, "unknown module kind: #{m['kind']}"

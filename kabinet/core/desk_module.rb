@@ -129,9 +129,9 @@ module Kabinet
 
       def self.from_hash(h)
         new(
-          width:             h['width'].mm,
-          depth:             h['depth'].mm,
-          height:            h['height'].mm,
+          width:             (h['width']  || 1400).mm,
+          depth:             (h['depth']  || 700).mm,
+          height:            (h['height'] || 750).mm,
           top_thickness:     (h['top_thickness']   || 25).mm,
           leg_type:          (h['leg_type']         || 'box'),
           leg_w:             (h['leg_w']            || 60).mm,

@@ -133,14 +133,14 @@ module Kabinet
       end
 
       def self.from_hash(h)
-        new(width:            h['width'].mm,
-            depth:            h['depth'].mm,
-            height:           h['height'].mm,
-            body_thickness:   h['body_thickness'].mm,
-            back_thickness:   h['back_thickness'].mm,
-            drawer_count:     h['drawer_count'],
-            drawer_type:      h['drawer_type'],
-            drawer_thickness: h['drawer_thickness'].mm,
+        new(width:            (h['width']  || 600).mm,
+            depth:            (h['depth']  || 400).mm,
+            height:           (h['height'] || 200).mm,
+            body_thickness:   (h['body_thickness'] || Kabinet::Constants::DEFAULT_BODY_THICKNESS_MM).mm,
+            back_thickness:   (h['back_thickness'] || Kabinet::Constants::DEFAULT_BACK_THICKNESS_MM).mm,
+            drawer_count:     (h['drawer_count'] || 1).to_i,
+            drawer_type:      h['drawer_type'] || 'undermount',
+            drawer_thickness: (h['drawer_thickness'] || Kabinet::Constants::DEFAULT_DOOR_THICKNESS_MM).mm,
             handle_type:      h['handle_type']     || 'none',
             handle_hole_mm:   (h['handle_hole_mm'] || 128).to_i)
       end

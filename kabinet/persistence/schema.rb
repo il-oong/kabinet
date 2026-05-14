@@ -73,14 +73,15 @@ module Kabinet
 
         out = {
           'kind'             => kind,
-          'width'            => Float(m['width']),
-          'depth'            => Float(m['depth']),
-          'height'           => Float(m['height']),
+          'width'            => Float(m['width']  || 0),
+          'depth'            => Float(m['depth']  || 0),
+          'height'           => Float(m['height'] || 0),
           'body_thickness'   => Float(m['body_thickness'] || Kabinet::Constants::DEFAULT_BODY_THICKNESS_MM),
           'back_thickness'   => Float(m['back_thickness'] || Kabinet::Constants::DEFAULT_BACK_THICKNESS_MM),
           'has_back'         => m.fetch('has_back', true) ? true : false,
           'material'         => (m['material'] || 'LPM').to_s,
           'handle_type'      => (m['handle_type'] || 'none').to_s,
+          'handle_hole_mm'   => Integer(m['handle_hole_mm'] || Kabinet::Constants::DEFAULT_HANDLE_HOLE_MM),
           'edge_banding_mm'  => Float(m['edge_banding_mm'] || Kabinet::Constants::DEFAULT_EDGE_THICKNESS_MM)
         }
 
@@ -105,11 +106,27 @@ module Kabinet
           out['suppress_left_side']  = m.fetch('suppress_left_side',  false) ? true : false
           out['suppress_right_side'] = m.fetch('suppress_right_side', false) ? true : false
           out['shelves']      = (m['shelves'] || []).map { |s|
-            { 'height_from_bottom' => Float(s['height_from_bottom']),
+            { 'height_from_bottom' => Float(s['height_from_bottom'] || 0),
               'thickness'          => Float(s['thickness'] || out['body_thickness']),
               'depth_inset'        => Float(s['depth_inset'] || 20) }
           }
-          out['accessories']  = (m['accessories'] || []).map { |a| normalize_accessory(a) }
+          out['accessories']       = (m['accessories'] || []).map { |a| normalize_accessory(a) }
+          out['vertical_dividers'] = (m['vertical_dividers'] || []).map { |d|
+            { 'x'         => Float(d['x'] || 0),
+              'thickness' => Float(d['thickness'] || out['body_thickness']) }
+          }
+          out['cell_shelves'] = (m['cell_shelves'] || []).map { |cs|
+            { 'cell'              => Integer(cs['cell'] || 0),
+              'height_from_bottom'=> Float(cs['height_from_bottom'] || 0),
+              'thickness'         => Float(cs['thickness'] || out['body_thickness']),
+              'depth_inset'       => Float(cs['depth_inset'] || 0) }
+          }
+          out['cell_drawers'] = (m['cell_drawers'] || []).map { |cd|
+            { 'cell'         => Integer(cd['cell'] || 0),
+              'count'        => Integer(cd['count'] || 2),
+              'type'         => (cd['type'] || 'undermount').to_s,
+              'thickness'    => Float(cd['thickness'] || out['body_thickness']) }
+          }
 
         when 'drawer_module'
           out['drawer_count']     = Integer(m['drawer_count'] || 1)

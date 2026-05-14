@@ -159,14 +159,15 @@ module Kabinet
       end
 
       def self.from_hash(h)
-        new(width:             h['width'].mm,
-            depth:             h['depth'].mm,
-            height:            h['height'].mm,
-            body_thickness:    h['body_thickness'].mm,
-            back_thickness:    h['back_thickness'].mm,
+        bt = (h['body_thickness'] || Kabinet::Constants::DEFAULT_BODY_THICKNESS_MM).mm
+        new(width:             (h['width']  || 600).mm,
+            depth:             (h['depth']  || 400).mm,
+            height:            (h['height'] || 700).mm,
+            body_thickness:    bt,
+            back_thickness:    (h['back_thickness'] || Kabinet::Constants::DEFAULT_BACK_THICKNESS_MM).mm,
             door_config:       h['door_config']    || 'none',
             door_type:         h['door_type']      || 'swing',
-            door_thickness:    h['door_thickness'].mm,
+            door_thickness:    (h['door_thickness'] || Kabinet::Constants::DEFAULT_DOOR_THICKNESS_MM).mm,
             shelves:           h['shelves']        || [],
             accessories:       h['accessories']    || [],
             vertical_dividers: h['vertical_dividers'] || [],

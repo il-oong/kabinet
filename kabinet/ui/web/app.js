@@ -1181,17 +1181,18 @@ const kabinet = (() => {
 
   // ── Module list (delegates to modules.js) ────────────────────────────
   function addModule(kind) {
-    const w   = state.width;
+    const w   = state.width   || 900;
+    const d   = state.max_depth || 400;
     const mat = state.material || 'LPM';
     let mod;
     if (kind === 'drawer_module') {
-      mod = { kind, width: w, depth: state.max_depth, height: 200,
+      mod = { kind, width: w, depth: d, height: 200,
               body_thickness: 18, back_thickness: 9, has_back: true,
               drawer_count: 2, drawer_type: 'undermount', drawer_thickness: 18,
               door_material: mat, handle_type: 'none', handle_hole_mm: 128,
               material: mat, edge_banding_mm: 1.0 };
     } else if (kind === 'desk_module') {
-      mod = { kind, width: w, depth: state.max_depth || 700, height: 750,
+      mod = { kind, width: w, depth: d || 700, height: 750,
               top_thickness: 25, leg_type: 'box',
               leg_w: 60, leg_d: 60, leg_inset_x: 30, leg_inset_y: 30,
               has_modesty_panel: false, pedestal: null, under_unit: null,
@@ -1199,7 +1200,7 @@ const kabinet = (() => {
     } else if (kind === 'bed_gap') {
       mod = { kind, width: 1600, label: '침대 공간' };
     } else {
-      mod = { kind, width: w, depth: state.max_depth, height: 400,
+      mod = { kind, width: w, depth: d, height: 400,
               body_thickness: 18, back_thickness: 9, has_back: true,
               door_config: 'none', door_type: 'swing', door_thickness: 18,
               door_material: mat, handle_type: 'none', handle_hole_mm: 128,
@@ -1260,8 +1261,10 @@ const kabinet = (() => {
       const total = base + modsH + topT;
       if (base > 0) parts.push('받침 ' + base);
       state.modules.forEach((m, i) => {
-        const tag = m.kind === 'drawer_module' ? '서랍' : '선반';
-        parts.push('M' + (i+1) + '(' + tag + ') ' + m.height);
+        const tag = m.kind === 'drawer_module' ? '서랍'
+                  : m.kind === 'desk_module'   ? '책상'
+                  : m.kind === 'bed_gap'       ? '침대' : '선반';
+        parts.push('M' + (i+1) + '(' + tag + ') ' + (m.height || '?'));
       });
       if (topT > 0) parts.push('상판 ' + topT);
       el.innerHTML =
