@@ -88,31 +88,35 @@ module Kabinet
         }
 
         # ── Serialize ──────────────────────────────────────────────────
+        # buf 는 모두 ASCII-8BIT(binary). 문자열 리터럴도 모두 .b 로 강제 변환.
         buf = ''.b
-        buf << "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n"
+        buf << "%PDF-1.4\n".b
+        buf << "%\xE2\xE3\xCF\xD3\n".b   # binary comment — marks file as binary to PDF viewers
 
         offsets = {}
         (1..obj_counter).each do |id|
           obj = objects[id]
           next unless obj
           offsets[id] = buf.bytesize
-          buf << "#{id} 0 obj\n#{obj[:dict]}\n"
+          buf << "#{id} 0 obj\n#{obj[:dict]}\n".b
           if obj[:stream]
-            buf << "stream\n"
-            buf << obj[:stream]
-            buf << "\nendstream\n"
+            buf << "stream\n".b
+            # stream body 는 이미 binary (.b 또는 File.binread)
+            s = obj[:stream]
+            buf << (s.encoding == Encoding::ASCII_8BIT ? s : s.b)
+            buf << "\nendstream\n".b
           end
-          buf << "endobj\n"
+          buf << "endobj\n".b
         end
 
         xref_offset = buf.bytesize
-        buf << "xref\n0 #{obj_counter + 1}\n"
-        buf << "0000000000 65535 f \n"
+        buf << "xref\n0 #{obj_counter + 1}\n".b
+        buf << "0000000000 65535 f \n".b
         (1..obj_counter).each do |id|
-          buf << format('%010d 00000 n ', offsets[id] || 0) + "\n"
+          buf << (format('%010d 00000 n ', offsets[id] || 0) + "\n").b
         end
-        buf << "trailer\n<< /Size #{obj_counter + 1} /Root #{catalog_id} 0 R >>\n"
-        buf << "startxref\n#{xref_offset}\n%%EOF\n"
+        buf << "trailer\n<< /Size #{obj_counter + 1} /Root #{catalog_id} 0 R >>\n".b
+        buf << "startxref\n#{xref_offset}\n%%EOF\n".b
 
         File.open(output_path, 'wb') { |f| f.write(buf) }
         output_path
