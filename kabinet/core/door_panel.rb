@@ -215,8 +215,12 @@ module Kabinet
 
         if @handle_type == 'channel'
           # 목찬넬: 패널 바디 자체가 상단 홈 포함 형태
-          Kabinet::Geometry::HandleBuilder.channel_panel(
-            panel_grp.entities, w, @thickness, h)
+          begin
+            Kabinet::Geometry::HandleBuilder.channel_panel(
+              panel_grp.entities, w, @thickness, h)
+          rescue StandardError => e
+            $stderr.puts "[Kabinet] channel_panel 오류 (#{role}): #{e.message}"
+          end
         else
           # 일반 패널 바디
           Kabinet::Geometry::Builder.box(
@@ -226,13 +230,15 @@ module Kabinet
 
           # 손잡이 geometry ('none' / 'push_open' 은 생략)
           unless @handle_type == 'none' || @handle_type == 'push_open'
-            Kabinet::Geometry::HandleBuilder.build(
-              panel_grp.entities, w, @thickness, h,
-              @handle_type, hole_mm: @handle_hole_mm, panel_role: :door)
+            begin
+              Kabinet::Geometry::HandleBuilder.build(
+                panel_grp.entities, w, @thickness, h,
+                @handle_type, hole_mm: @handle_hole_mm, panel_role: :door)
+            rescue StandardError => e
+              $stderr.puts "[Kabinet] 손잡이 생성 오류 (#{role}, #{@handle_type}): #{e.message}"
+            end
           end
         end
-      rescue StandardError
-        nil
       end
     end
   end

@@ -542,6 +542,14 @@ function syncModuleField(el) {
               el.type === 'number'   ? +el.value  : el.value;
   state.modules[idx][key] = val;
 
+  // door_config 변경 시: door_type이 'none'이면 'swing'으로 자동 수정
+  if (key === 'door_config' && val !== 'none') {
+    const m = state.modules[idx];
+    if (!m.door_type || m.door_type === 'none') {
+      m.door_type = 'swing';
+    }
+  }
+
   const card = el.closest('.module-card');
   if (card) {
     const m       = state.modules[idx];

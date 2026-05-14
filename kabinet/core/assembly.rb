@@ -185,10 +185,13 @@ module Kabinet
           current_z += m['height'].mm
         end
 
-        add_top_panel(entities, ep_left_offset, max_d, carcase_inner_w, current_z)
+        # 상판: EP를 포함한 전체 외부 폭으로 생성 (EP 위를 덮음)
+        add_top_panel(entities, 0, max_d, total_w, current_z)
 
-        # ep_top_flush: true → EP 높이를 상판 두께 제외 (상판이 EP 위에 얹힘)
-        ep_h = @ep_top_flush ? (@base_height + modules_h_mm).mm : total_h
+        # EP 높이: 상판이 있으면 EP는 상판 아래까지만 (중복 방지)
+        # ep_top_flush 또는 top_panel 존재 시 carcase 높이까지만
+        has_top = @top_panel && top_t_mm > 0
+        ep_h = (has_top || @ep_top_flush) ? (@base_height + modules_h_mm).mm : total_h
         add_ep_panels(entities, ep_left, ep_right, ep_t,
                       0, ep_left_offset + carcase_inner_w,
                       ep_h, max_d)
@@ -239,13 +242,13 @@ module Kabinet
           current_x += mod_w   # bed_gap 포함 항상 폭 전진
         end
 
-        # Top panel spans full carcase width
+        # 상판: EP를 포함한 전체 외부 폭으로 생성 (EP 위를 덮음)
         top_z = (@base_height + run_h).mm
-        add_top_panel(entities, ep_left_offset, max_d, carcase_inner_w, top_z)
+        add_top_panel(entities, 0, max_d, total_w, top_z)
 
-        # EP panels span full run height
-        # ep_top_flush: true → EP 높이를 상판 두께 제외 (상판이 EP 위에 얹힘)
-        ep_h = @ep_top_flush ? (@base_height + run_h).mm : total_h
+        # EP 높이: 상판이 있으면 EP는 상판 아래까지만 (중복 방지)
+        has_top = @top_panel && top_t_mm > 0
+        ep_h = (has_top || @ep_top_flush) ? (@base_height + run_h).mm : total_h
         add_ep_panels(entities, ep_left, ep_right, ep_t,
                       0, ep_left_offset + carcase_inner_w,
                       ep_h, max_d)
