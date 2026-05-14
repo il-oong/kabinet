@@ -48,17 +48,35 @@ function renderModuleList() {
 function moduleCardHtml(m, i, total) {
   const state = kabinet.getState();
   const isRun = !!state.run_mode;
-  const title   = isRun
-    ? (m.kind === 'drawer_module' ? '서랍 섹션' : '선반/수납 섹션')
-    : (m.kind === 'drawer_module' ? '서랍 모듈'  : '선반/수납 모듈');
+
+  const TITLES = {
+    drawer_module: isRun ? '서랍 섹션'   : '서랍 모듈',
+    shelf_module:  isRun ? '선반/수납 섹션' : '선반/수납 모듈',
+    desk_module:   '책상 모듈',
+    bed_gap:       '🛏 침대 공간'
+  };
+  const title   = TITLES[m.kind] || m.kind;
   const runH    = state.run_height || 740;
-  const summary = isRun
-    ? (m.width + '×' + m.depth + '×' + runH + 'mm (런높이)')
-    : (m.width + '×' + m.depth + '×' + m.height + 'mm');
+  const dispH   = isRun ? runH : (m.height || 0);
+  const summary = m.kind === 'bed_gap'
+    ? (m.label || '침대 공간') + ' ' + m.width + 'mm'
+    : m.width + '×' + (m.depth || '?') + '×' + dispH + 'mm';
+
   const upBtn   = i > 0
     ? '<button class="btn-icon" title="위로" onclick="kabinet.moveModule(' + i + ',-1);event.stopPropagation()">↑</button>' : '';
   const downBtn = i < total - 1
     ? '<button class="btn-icon" title="아래로" onclick="kabinet.moveModule(' + i + ',1);event.stopPropagation()">↓</button>' : '';
+
+  let bodyHtml;
+  if (m.kind === 'bed_gap') {
+    bodyHtml = bedGapFields(m, i);
+  } else if (m.kind === 'desk_module') {
+    bodyHtml = deskFields(m, i);
+  } else if (m.kind === 'drawer_module') {
+    bodyHtml = commonFields(m, i) + drawerFields(m, i);
+  } else {
+    bodyHtml = commonFields(m, i) + shelfFields(m, i);
+  }
 
   return '<div class="module-card">' +
     '<div class="module-card-header">' +
@@ -69,10 +87,7 @@ function moduleCardHtml(m, i, total) {
       '<button class="btn-icon danger" title="삭제" ' +
         'onclick="kabinet.removeModule(' + i + ');event.stopPropagation()">✕</button>' +
     '</div>' +
-    '<div class="module-card-body">' +
-      commonFields(m, i) +
-      (m.kind === 'drawer_module' ? drawerFields(m, i) : shelfFields(m, i)) +
-    '</div>' +
+    '<div class="module-card-body">' + bodyHtml + '</div>' +
   '</div>';
 }
 
@@ -90,75 +105,74 @@ function commonFields(m, i) {
     '<option value="' + v + '"' + (m.material === v ? ' selected' : '') + '>' + l + '</option>'
   ).join('');
 
-  // In run_mode, height is driven by run_height (disabled field shows info only)
   const heightField = isRun
-    ? '<div class="field-row">' +
-        '<label>높이</label>' +
-        '<input type="number" value="' + runH + '" disabled ' +
-               'style="opacity:0.5;cursor:not-allowed">' +
-        '<span class="unit">mm (런 공통 높이)</span></div>'
-    : '<div class="field-row">' +
-        '<label>높이</label>' +
+    ? '<div class="field-row"><label>높이</label>' +
+        '<input type="number" value="' + runH + '" disabled style="opacity:0.5">' +
+        '<span class="unit">mm (런 공통)</span></div>'
+    : '<div class="field-row"><label>높이</label>' +
         '<input type="number" data-mod-idx="' + i + '" data-key="height" ' +
                'value="' + m.height + '" min="50" max="3000">' +
         '<span class="unit">mm</span></div>';
 
-  return '<div class="field-row">' +
+  return '<details open><summary class="detail-summary">기본 치수</summary>' +
+    '<div class="field-row">' +
       '<label>' + (isRun ? '섹션 폭' : '폭') + '</label>' +
       '<input type="number" data-mod-idx="' + i + '" data-key="width" ' +
              'value="' + m.width + '" min="100" max="3000">' +
       '<span class="unit">mm</span></div>' +
-    '<div class="field-row">' +
-      '<label>깊이</label>' +
+    '<div class="field-row"><label>깊이</label>' +
       '<input type="number" data-mod-idx="' + i + '" data-key="depth" ' +
              'value="' + m.depth + '" min="100" max="1200">' +
       '<span class="unit">mm</span></div>' +
     heightField +
-    '<div class="field-row">' +
-      '<label>몸통 두께</label>' +
+    '<div class="field-row"><label>몸통 두께</label>' +
       '<input type="number" data-mod-idx="' + i + '" data-key="body_thickness" ' +
              'value="' + m.body_thickness + '" min="9" max="36">' +
       '<span class="unit">mm</span></div>' +
-    '<div class="field-row">' +
-      '<label>뒷판 두께</label>' +
+    '<div class="field-row"><label>뒷판 두께</label>' +
       '<input type="number" data-mod-idx="' + i + '" data-key="back_thickness" ' +
              'value="' + m.back_thickness + '" min="6" max="18">' +
       '<span class="unit">mm</span></div>' +
-    '<div class="field-row">' +
-      '<label>소재</label>' +
-      '<select data-mod-idx="' + i + '" data-key="material">' + matOpts + '</select></div>';
+    '<div class="field-row"><label>소재</label>' +
+      '<select data-mod-idx="' + i + '" data-key="material">' + matOpts + '</select></div>' +
+    '</details>';
 }
 
 /* ── 서랍 모듈 필드 ─────────────────────────────────────────────────── */
 function drawerFields(m, i) {
   const handleOpts = handleOptions(m.handle_type);
-
-  // 서랍 전판 예상 높이
-  const bt   = m.body_thickness || 18;
-  const dc   = m.drawer_count  || 1;
+  const bt    = m.body_thickness || 18;
+  const dc    = m.drawer_count  || 1;
   const openH = m.height - 2 * bt;
   const frontH = Math.round((openH - 4 - 3 * (dc - 1)) / dc);
+  const showHole = (m.handle_type === 'bar');
 
-  return '<div class="field-row">' +
-      '<label>서랍 수</label>' +
+  return '<details open><summary class="detail-summary">주요 설정</summary>' +
+    '<div class="field-row"><label>서랍 수</label>' +
       '<input type="number" data-mod-idx="' + i + '" data-key="drawer_count" ' +
              'value="' + (m.drawer_count||1) + '" min="1" max="6">' +
       '<span class="unit">개</span></div>' +
-    '<div class="field-row">' +
-      '<label>슬라이드 타입</label>' +
+    '<div class="field-row"><label>슬라이드 타입</label>' +
       '<select data-mod-idx="' + i + '" data-key="drawer_type">' +
         '<option value="undermount"' + (m.drawer_type==='undermount'?' selected':'') + '>언더레일 (Blum)</option>' +
         '<option value="side_mount"' + (m.drawer_type==='side_mount'?' selected':'') + '>사이드마운트</option>' +
       '</select></div>' +
-    '<div class="field-row">' +
-      '<label>전판 두께</label>' +
+    '<div class="field-row"><label>전판 두께</label>' +
       '<input type="number" data-mod-idx="' + i + '" data-key="drawer_thickness" ' +
              'value="' + (m.drawer_thickness||18) + '" min="9" max="30">' +
       '<span class="unit">mm</span></div>' +
-    '<div class="field-row">' +
-      '<label>손잡이</label>' +
+    '<div class="calc-info">📐 전판 높이 약 <strong>' + frontH + 'mm</strong> × ' + dc + '개</div>' +
+    '</details>' +
+
+    '<details><summary class="detail-summary">손잡이 설정</summary>' +
+    '<div class="field-row"><label>손잡이 타입</label>' +
       '<select data-mod-idx="' + i + '" data-key="handle_type">' + handleOpts + '</select></div>' +
-    '<div class="calc-info">📐 전판 높이 약 <strong>' + frontH + 'mm</strong> × ' + dc + '개</div>';
+    (showHole ?
+      '<div class="field-row"><label>홀간 거리</label>' +
+        '<input type="number" data-mod-idx="' + i + '" data-key="handle_hole_mm" ' +
+               'value="' + (m.handle_hole_mm||128) + '" min="32" max="320">' +
+        '<span class="unit">mm</span></div>' : '') +
+    '</details>';
 }
 
 /* ── 선반/수납 모듈 필드 ─────────────────────────────────────────────── */
@@ -168,87 +182,289 @@ function shelfFields(m, i) {
     ({none:'없음', single:'단문', pair:'양개문'}[v]) + '</option>').join('');
 
   const dtOpts = [
-    ['swing','여닫이 (Swing)'],
-    ['sliding','미닫이 (Sliding)'],
-    ['folding','접이식 (Folding)'],
-    ['lift_up','리프트업 (Lift-Up)'],
-    ['none','없음']
+    ['swing','여닫이 (Swing)'],['sliding','미닫이 (Sliding)'],
+    ['folding','접이식 (Folding)'],['lift_up','리프트업 (Lift-Up)'],['none','없음']
   ].map(([v,l]) =>
     '<option value="' + v + '"' + ((m.door_type||'swing')===v?' selected':'') + '>' + l + '</option>'
   ).join('');
 
   const handleOpts = handleOptions(m.handle_type);
+  const dc         = m.door_config || 'none';
+  const hasDoor    = dc !== 'none';
+  const doorH      = m.height - 4;
+  const hingeN     = hasDoor ? hingeCount(doorH) : 0;
+  const hingeInfo  = hasDoor ? '경첩 ' + hingeN + '개 (도어 높이 ' + doorH + 'mm)' : '도어 없음';
+  const showHole   = (m.handle_type === 'bar');
 
-  // 힌지 정보
-  const dc        = m.door_config || 'none';
-  const doorH     = m.height - 4;   // gap_top(2) + gap_bottom(2)
-  const hingeN    = dc !== 'none' ? hingeCount(doorH) : 0;
-  const hingeInfo = dc !== 'none'
-    ? '경첩 ' + hingeN + '개 (도어 높이 ' + doorH + 'mm 기준)'
-    : '도어 없음';
-
+  // ── 전체폭 선반 목록
   const shelvesList = (m.shelves || []).map((s, si) =>
     '<div class="sub-item">' +
-      '<span>선반 at ' + s.height_from_bottom + 'mm · T' + s.thickness + '</span>' +
+      '<span>선반 ' + s.height_from_bottom + 'mm · T' + s.thickness + '</span>' +
       '<button onclick="removeShelf(' + i + ',' + si + ')">✕</button>' +
     '</div>').join('');
 
+  // ── 액세서리 목록
   const accList = (m.accessories || []).map((a, ai) => {
-    const label = {
-      hanging_rod: '옷걸이봉', system_hanger: '시스템행거', shelf_accessory: '선반 액세서리'
-    }[a.kind] || a.kind;
+    const label = {hanging_rod:'옷걸이봉',system_hanger:'시스템행거',shelf_accessory:'선반 액세서리'}[a.kind] || a.kind;
     return '<div class="sub-item">' +
-             '<span>' + label + ' at ' + a.height_from_bottom + 'mm</span>' +
-             '<button onclick="removeAccessory(' + i + ',' + ai + ')">✕</button>' +
-           '</div>';
+      '<span>' + label + ' at ' + a.height_from_bottom + 'mm</span>' +
+      '<button onclick="removeAccessory(' + i + ',' + ai + ')">✕</button>' +
+    '</div>';
   }).join('');
 
-  return '<div class="field-row">' +
-      '<label>도어 구성</label>' +
+  // ── 세로 분할판 목록
+  const divList = (m.vertical_dividers || []).map((d, di) =>
+    '<div class="sub-item">' +
+      '<span>분할 at ' + d.x + 'mm · T' + (d.thickness||18) + '</span>' +
+      '<button onclick="removeDivider(' + i + ',' + di + ')">✕</button>' +
+    '</div>').join('');
+
+  // ── 셀 수 계산
+  const cellCount = (m.vertical_dividers || []).length + 1;
+  const cellLabel = cellCount === 1 ? '(분할판 없음 — 단일 칸)' : cellCount + '개 셀 (0~' + (cellCount-1) + ')';
+
+  // ── 셀별 선반 목록
+  const csLabel = (m.cell_shelves || []).map((cs, csi) =>
+    '<div class="sub-item">' +
+      '<span>셀' + cs.cell + ' · ' + cs.height_from_bottom + 'mm · T' + (cs.thickness||18) + '</span>' +
+      '<button onclick="removeCellShelf(' + i + ',' + csi + ')">✕</button>' +
+    '</div>').join('');
+
+  // ── 셀별 서랍 목록
+  const cdLabel = (m.cell_drawers || []).map((cd, cdi) =>
+    '<div class="sub-item">' +
+      '<span>셀' + cd.cell + ' 서랍 ' + (cd.count||2) + '개 · ' + (cd.type||'undermount') + '</span>' +
+      '<button onclick="removeCellDrawer(' + i + ',' + cdi + ')">✕</button>' +
+    '</div>').join('');
+
+  return (
+    // ── 도어 설정 ────────────────────────────────────────
+    '<details open><summary class="detail-summary">도어 설정</summary>' +
+    '<div class="field-row"><label>도어 구성</label>' +
       '<select data-mod-idx="' + i + '" data-key="door_config">' + dcOpts + '</select></div>' +
-    '<div class="field-row">' +
-      '<label>도어 타입</label>' +
+    '<div class="field-row"><label>도어 타입</label>' +
       '<select data-mod-idx="' + i + '" data-key="door_type">' + dtOpts + '</select></div>' +
-    '<div class="field-row">' +
-      '<label>도어 두께</label>' +
+    '<div class="field-row"><label>도어 장착</label>' +
+      '<select data-mod-idx="' + i + '" data-key="door_mount">' +
+        '<option value="overlay"' + ((m.door_mount||'overlay')==='overlay'?' selected':'') + '>오버레이 (측판 위 덮음)</option>' +
+        '<option value="inset"'   + ((m.door_mount||'overlay')==='inset'  ?' selected':'') + '>인셋 (내부 면일치)</option>' +
+      '</select></div>' +
+    '<div class="field-row"><label>도어 두께</label>' +
       '<input type="number" data-mod-idx="' + i + '" data-key="door_thickness" ' +
              'value="' + (m.door_thickness||18) + '" min="9" max="30">' +
       '<span class="unit">mm</span></div>' +
-    '<div class="field-row">' +
-      '<label>손잡이</label>' +
+    '<div class="field-row"><label>손잡이 타입</label>' +
       '<select data-mod-idx="' + i + '" data-key="handle_type">' + handleOpts + '</select></div>' +
+    (showHole ?
+      '<div class="field-row"><label>홀간 거리</label>' +
+        '<input type="number" data-mod-idx="' + i + '" data-key="handle_hole_mm" ' +
+               'value="' + (m.handle_hole_mm||128) + '" min="32" max="320">' +
+        '<span class="unit">mm</span></div>' : '') +
     '<div class="calc-info">🔩 ' + hingeInfo + '</div>' +
+    '</details>' +
 
+    // ── 내부 구성 ────────────────────────────────────────
+    '<details><summary class="detail-summary">내부 구성</summary>' +
+
+    // 전체폭 선반
     '<div class="sub-list">' +
-      '<div class="sub-list-title">내부 선반</div>' +
+      '<div class="sub-list-title">전체폭 선반</div>' +
       '<div id="shelves-' + i + '">' +
         (shelvesList || '<span style="color:var(--text-dim);font-size:11px">없음</span>') +
       '</div>' +
-      '<button class="btn-add" style="margin-top:4px" onclick="promptAddShelf(' + i + ')">＋ 선반 추가</button>' +
+      '<button class="btn-add" style="margin-top:4px" onclick="promptAddShelf(' + i + ')">＋ 선반</button>' +
     '</div>' +
 
+    // 세로 분할판
     '<div class="sub-list">' +
-      '<div class="sub-list-title">액세서리</div>' +
+      '<div class="sub-list-title">🔲 세로 분할판 ' +
+        '<span style="font-size:10px;color:var(--text-dim);font-weight:normal">' + cellLabel + '</span>' +
+      '</div>' +
+      '<div id="dividers-' + i + '">' +
+        (divList || '<span style="color:var(--text-dim);font-size:11px">없음 (단일 공간)</span>') +
+      '</div>' +
+      '<button class="btn-add" style="margin-top:4px" onclick="promptAddDivider(' + i + ')">＋ 세로 분할</button>' +
+    '</div>' +
+
+    // 셀별 선반
+    '<div class="sub-list">' +
+      '<div class="sub-list-title">📐 셀별 선반</div>' +
+      '<div id="cshelves-' + i + '">' +
+        (csLabel || '<span style="color:var(--text-dim);font-size:11px">없음</span>') +
+      '</div>' +
+      '<button class="btn-add" style="margin-top:4px" onclick="promptAddCellShelf(' + i + ')">＋ 셀 선반</button>' +
+    '</div>' +
+
+    // 셀별 서랍
+    '<div class="sub-list">' +
+      '<div class="sub-list-title">🗂 셀별 서랍 컬럼</div>' +
+      '<div id="cdrawers-' + i + '">' +
+        (cdLabel || '<span style="color:var(--text-dim);font-size:11px">없음</span>') +
+      '</div>' +
+      '<button class="btn-add" style="margin-top:4px" onclick="promptAddCellDrawer(' + i + ')">＋ 셀 서랍</button>' +
+    '</div>' +
+    '</details>' +
+
+    // ── 액세서리 ─────────────────────────────────────────
+    '<details><summary class="detail-summary">액세서리</summary>' +
+    '<div class="sub-list">' +
       '<div id="accs-' + i + '">' +
         (accList || '<span style="color:var(--text-dim);font-size:11px">없음</span>') +
       '</div>' +
       '<div style="display:flex;gap:4px;margin-top:4px">' +
         '<button class="btn-add" onclick="promptAddAccessory(' + i + ',\'hanging_rod\')">옷걸이봉</button>' +
         '<button class="btn-add" onclick="promptAddAccessory(' + i + ',\'system_hanger\')">행거레일</button>' +
-        '<button class="btn-add" onclick="promptAddAccessory(' + i + ',\'shelf_accessory\')">선반</button>' +
       '</div>' +
+    '</div>' +
+    '</details>'
+  );
+}
+
+/* ── 침대 공간 필드 (bed_gap) ────────────────────────────────────────── */
+function bedGapFields(m, i) {
+  const bedSizes = [
+    [1000, '싱글 1000mm'], [1200, '더블 1200mm'],
+    [1400, '퀸 small 1400mm'], [1600, '퀸 1600mm'],
+    [1800, '킹 1800mm'], [2000, '슈퍼킹 2000mm']
+  ];
+  const sizeOpts = bedSizes.map(([w, l]) =>
+    '<option value="' + w + '"' + (+m.width === w ? ' selected' : '') + '>' + l + '</option>'
+  ).join('');
+
+  return '<div style="background:var(--bg);border:1px dashed var(--border);border-radius:var(--radius);' +
+         'padding:10px;margin-bottom:6px;text-align:center;font-size:12px;color:var(--text-dim)">' +
+         '🛏 침대 공간 — 지오메트리 없음, 런 모드에서 폭만 차지합니다</div>' +
+    '<div class="field-row"><label>침대 폭</label>' +
+      '<select data-mod-idx="' + i + '" data-key="width">' + sizeOpts + '</select>' +
+      '<span class="unit">mm</span></div>' +
+    '<div class="field-row"><label>직접 입력</label>' +
+      '<input type="number" data-mod-idx="' + i + '" data-key="width" ' +
+             'value="' + (m.width||1600) + '" min="800" max="2400">' +
+      '<span class="unit">mm</span></div>' +
+    '<div class="field-row"><label>레이블</label>' +
+      '<input type="text" data-mod-idx="' + i + '" data-key="label" ' +
+             'value="' + (m.label||'침대 공간') + '"></div>';
+}
+
+/* ── 책상 모듈 필드 ──────────────────────────────────────────────────── */
+function deskFields(m, i) {
+  const legOpts = [['box','사각 다리 (플랫팩)'],['round','원형 다리 (12면)']].map(([v,l]) =>
+    '<option value="' + v + '"' + ((m.leg_type||'box')===v?' selected':'') + '>' + l + '</option>'
+  ).join('');
+
+  // 페데스탈 상태
+  const ped     = m.pedestal     || {};
+  const hasPed  = ped.enabled !== false && Object.keys(ped).length > 0;
+  const pedPos  = ped.position   || 'right';
+
+  // 상판 하부 서랍 상태
+  const uu      = m.under_unit   || {};
+  const hasUU   = uu.enabled !== false && Object.keys(uu).length > 0;
+  const uuPos   = uu.position    || 'right';
+
+  // 치수 정보
+  const top_t   = m.top_thickness || 25;
+  const legH    = (m.height || 750) - top_t;
+
+  return '<div class="sub-section-title" style="font-weight:600;margin:6px 0 4px;color:var(--accent)">📐 치수 / 구조</div>' +
+    '<div class="field-row"><label>폭</label>' +
+      '<input type="number" data-mod-idx="' + i + '" data-key="width" ' +
+             'value="' + (m.width||1400) + '" min="300" max="3000">' +
+      '<span class="unit">mm</span></div>' +
+    '<div class="field-row"><label>깊이</label>' +
+      '<input type="number" data-mod-idx="' + i + '" data-key="depth" ' +
+             'value="' + (m.depth||700) + '" min="300" max="1200">' +
+      '<span class="unit">mm</span></div>' +
+    '<div class="field-row"><label>전체 높이</label>' +
+      '<input type="number" data-mod-idx="' + i + '" data-key="height" ' +
+             'value="' + (m.height||750) + '" min="400" max="1200">' +
+      '<span class="unit">mm</span></div>' +
+    '<div class="field-row"><label>상판 두께</label>' +
+      '<input type="number" data-mod-idx="' + i + '" data-key="top_thickness" ' +
+             'value="' + top_t + '" min="15" max="60">' +
+      '<span class="unit">mm</span></div>' +
+    '<div class="calc-info">📏 다리 높이: <strong>' + legH + 'mm</strong></div>' +
+
+    '<div class="sub-section-title" style="font-weight:600;margin:10px 0 4px;color:var(--accent)">🦵 다리</div>' +
+    '<div class="field-row"><label>다리 타입</label>' +
+      '<select data-mod-idx="' + i + '" data-key="leg_type">' + legOpts + '</select></div>' +
+    '<div class="field-row"><label>다리 폭</label>' +
+      '<input type="number" data-mod-idx="' + i + '" data-key="leg_w" ' +
+             'value="' + (m.leg_w||60) + '" min="20" max="200">' +
+      '<span class="unit">mm</span></div>' +
+    '<div class="field-row"><label>다리 깊이</label>' +
+      '<input type="number" data-mod-idx="' + i + '" data-key="leg_d" ' +
+             'value="' + (m.leg_d||60) + '" min="20" max="200">' +
+      '<span class="unit">mm</span></div>' +
+    '<div class="field-row"><label>좌우 안쪽 여백</label>' +
+      '<input type="number" data-mod-idx="' + i + '" data-key="leg_inset_x" ' +
+             'value="' + (m.leg_inset_x||30) + '" min="0" max="200">' +
+      '<span class="unit">mm</span></div>' +
+    '<div class="field-row"><label>앞뒤 안쪽 여백</label>' +
+      '<input type="number" data-mod-idx="' + i + '" data-key="leg_inset_y" ' +
+             'value="' + (m.leg_inset_y||30) + '" min="0" max="200">' +
+      '<span class="unit">mm</span></div>' +
+    deskToggleRow('가림판 (모데스티)', m.has_modesty_panel, i, 'has_modesty_panel') +
+
+    // ── 페데스탈
+    '<div class="sub-section-title" style="font-weight:600;margin:10px 0 4px;color:var(--accent)">🗄 지지 서랍장 (페데스탈)</div>' +
+    deskToggleRow('페데스탈 사용', hasPed, i, '_ped_enabled', 'toggleDeskPed(' + i + ',this.checked)') +
+    '<div id="ped-fields-' + i + '" style="' + (hasPed?'':'display:none') + '">' +
+      '<div class="field-row"><label>위치</label>' +
+        '<select onchange="deskNestedField(' + i + ',\'pedestal\',\'position\',this.value)">' +
+          '<option value="right"' + (pedPos==='right'?' selected':'') + '>우측</option>' +
+          '<option value="left"'  + (pedPos==='left'?' selected':'')  + '>좌측</option>' +
+        '</select></div>' +
+      '<div class="field-row"><label>폭</label>' +
+        numInput('deskNestedField(' + i + ",\\'pedestal\\',\\'width\\',+this.value)", ped.width||450, 150, 900) +
+        '<span class="unit">mm</span></div>' +
+      '<div class="field-row"><label>서랍 수</label>' +
+        numInput('deskNestedField(' + i + ",\\'pedestal\\',\\'drawer_count\\',+this.value)", ped.drawer_count||3, 1, 6) +
+        '<span class="unit">개</span></div>' +
+    '</div>' +
+
+    // ── 상판 하부 서랍
+    '<div class="sub-section-title" style="font-weight:600;margin:10px 0 4px;color:var(--accent)">📦 상판 하부 서랍 유닛</div>' +
+    deskToggleRow('하부 서랍 사용', hasUU, i, '_uu_enabled', 'toggleDeskUU(' + i + ',this.checked)') +
+    '<div id="uu-fields-' + i + '" style="' + (hasUU?'':'display:none') + '">' +
+      '<div class="field-row"><label>위치</label>' +
+        '<select onchange="deskNestedField(' + i + ',\'under_unit\',\'position\',this.value)">' +
+          '<option value="right"'  + (uuPos==='right'?' selected':'')  + '>우측</option>' +
+          '<option value="left"'   + (uuPos==='left'?' selected':'')   + '>좌측</option>' +
+          '<option value="center"' + (uuPos==='center'?' selected':'') + '>중앙</option>' +
+        '</select></div>' +
+      '<div class="field-row"><label>폭</label>' +
+        numInput('deskNestedField(' + i + ",\\'under_unit\\',\\'width\\',+this.value)", uu.width||400, 150, 800) +
+        '<span class="unit">mm</span></div>' +
+      '<div class="field-row"><label>높이</label>' +
+        numInput('deskNestedField(' + i + ",\\'under_unit\\',\\'height\\',+this.value)", uu.height||130, 80, 300) +
+        '<span class="unit">mm</span></div>' +
+      '<div class="field-row"><label>서랍 수</label>' +
+        numInput('deskNestedField(' + i + ",\\'under_unit\\',\\'drawer_count\\',+this.value)", uu.drawer_count||1, 1, 4) +
+        '<span class="unit">개</span></div>' +
     '</div>';
+}
+
+/* helper: number input snippet */
+function numInput(onchange, val, min, max) {
+  return '<input type="number" value="' + val + '" min="' + min + '" max="' + max +
+         '" oninput="' + onchange + '">';
+}
+
+/* helper: toggle row for desk fields (no data-mod-idx, manual handler) */
+function deskToggleRow(label, checked, modIdx, key, customHandler) {
+  const handler = customHandler ||
+    ('deskBoolField(' + modIdx + ",'" + key + "',this.checked)");
+  return '<div class="toggle-row"><label>' + label + '</label>' +
+    '<input type="checkbox"' + (checked ? ' checked' : '') +
+    ' onchange="' + handler + '"></div>';
 }
 
 /* ── 손잡이 옵션 HTML ─────────────────────────────────────────────────── */
 function handleOptions(current) {
   const types = [
-    ['none',       '없음'],
-    ['bar',        '바 핸들 (Bar)'],
-    ['knob',       '원형 손잡이 (Knob)'],
-    ['cup_pull',   '컵 풀 (Cup Pull)'],
-    ['channel',    '채널 (Handleless)'],
-    ['push_open',  '푸시 오픈']
+    ['none','없음'],['bar','바 핸들'],['knob','원형 손잡이'],
+    ['cup_pull','컵 풀'],['channel','채널 (핸들리스)'],['push_open','푸시 오픈']
   ];
   return types.map(([v, l]) =>
     '<option value="' + v + '"' + ((current || 'none') === v ? ' selected' : '') + '>' + l + '</option>'
@@ -265,26 +481,58 @@ function syncModuleField(el) {
   const val = el.type === 'number' ? +el.value : el.value;
   state.modules[idx][key] = val;
 
-  // Update summary in card header
   const card = el.closest('.module-card');
   if (card) {
     const m       = state.modules[idx];
     const summary = card.querySelector('.mod-summary');
-    if (summary) summary.textContent = m.width + '×' + m.depth + '×' + m.height + 'mm';
+    if (summary) {
+      const runH  = state.run_mode ? state.run_height || 740 : m.height;
+      summary.textContent = m.kind === 'bed_gap'
+        ? (m.label || '침대 공간') + ' ' + m.width + 'mm'
+        : m.width + '×' + (m.depth || '?') + '×' + runH + 'mm';
+    }
   }
 
-  // Refresh height/width-sensitive displays
-  const state2 = kabinet.getState();
-  if (key === 'height' || key === 'door_config' ||
-      (key === 'width' && state2.run_mode)) {
+  if (key === 'height' || key === 'door_config' || key === 'handle_type' ||
+      (key === 'width' && state.run_mode) || key === 'label') {
     kabinet.updateTotalHeight();
     kabinet.updateHeightSummary();
-    // Re-render if door_config changed (hinge count changes)
-    if (key === 'door_config') renderModuleList();
+    if (key === 'door_config' || key === 'handle_type') renderModuleList();
   }
 }
 
-/* ── 선반 CRUD ──────────────────────────────────────────────────────── */
+/* ── 책상 특수 필드 핸들러 ───────────────────────────────────────────── */
+function deskBoolField(modIdx, key, value) {
+  kabinet.getState().modules[modIdx][key] = value;
+}
+
+function deskNestedField(modIdx, section, key, value) {
+  const m = kabinet.getState().modules[modIdx];
+  if (!m[section]) m[section] = {};
+  m[section][key] = value;
+}
+
+function toggleDeskPed(modIdx, enabled) {
+  const m = kabinet.getState().modules[modIdx];
+  if (!m.pedestal) m.pedestal = {};
+  m.pedestal.enabled = enabled;
+  document.getElementById('ped-fields-' + modIdx).style.display = enabled ? '' : 'none';
+  if (enabled && !m.pedestal.position) {
+    m.pedestal = { enabled: true, position: 'right', width: 450, drawer_count: 3, drawer_type: 'undermount' };
+  }
+}
+
+function toggleDeskUU(modIdx, enabled) {
+  const m = kabinet.getState().modules[modIdx];
+  if (!m.under_unit) m.under_unit = {};
+  m.under_unit.enabled = enabled;
+  document.getElementById('uu-fields-' + modIdx).style.display = enabled ? '' : 'none';
+  if (enabled && !m.under_unit.position) {
+    m.under_unit = { enabled: true, position: 'right', width: 400, height: 130, drawer_count: 1, drawer_type: 'undermount' };
+  }
+}
+
+/* ── 전체폭 선반 CRUD ───────────────────────────────────────────────── */
 function promptAddShelf(modIdx) {
   const hStr = prompt('선반 높이 (바닥에서, mm):', '200');
   if (!hStr) return;
@@ -305,6 +553,84 @@ function removeShelf(modIdx, shelfIdx) {
   renderModuleList();
 }
 
+/* ── 세로 분할판 CRUD ───────────────────────────────────────────────── */
+function promptAddDivider(modIdx) {
+  const m    = kabinet.getState().modules[modIdx];
+  const innerW = m.width - 2 * (m.body_thickness || 18);
+  const xStr = prompt(
+    '분할판 위치 (내부 좌측에서, mm)\n내부 폭: ' + innerW + 'mm', '300');
+  if (xStr === null) return;
+  const x = parseFloat(xStr);
+  if (!x || x <= 0 || x >= innerW) {
+    alert('위치가 범위를 벗어났습니다. 1 ~ ' + (innerW-1) + ' 사이로 입력하세요.'); return;
+  }
+  if (!m.vertical_dividers) m.vertical_dividers = [];
+  m.vertical_dividers.push({ x, thickness: 18 });
+  m.vertical_dividers.sort((a, b) => a.x - b.x);
+  renderModuleList();
+}
+
+function removeDivider(modIdx, divIdx) {
+  const m = kabinet.getState().modules[modIdx];
+  m.vertical_dividers.splice(divIdx, 1);
+  // 셀 번호가 달라지므로 cell_shelves, cell_drawers도 초기화 (안전)
+  renderModuleList();
+}
+
+/* ── 셀별 선반 CRUD ─────────────────────────────────────────────────── */
+function promptAddCellShelf(modIdx) {
+  const m         = kabinet.getState().modules[modIdx];
+  const cellCount = (m.vertical_dividers || []).length + 1;
+  const cellStr   = prompt('셀 번호 (0~' + (cellCount-1) + ', 좌→우):', '0');
+  if (cellStr === null) return;
+  const cell = parseInt(cellStr);
+  if (isNaN(cell) || cell < 0 || cell >= cellCount) {
+    alert('셀 번호가 범위를 벗어났습니다.'); return;
+  }
+  const hStr = prompt('선반 높이 (바닥에서, mm):', '200');
+  if (!hStr) return;
+  const tStr = prompt('선반 두께 (mm):', '18');
+  if (!m.cell_shelves) m.cell_shelves = [];
+  m.cell_shelves.push({
+    cell,
+    height_from_bottom: parseFloat(hStr) || 200,
+    thickness:          parseFloat(tStr) || 18,
+    depth_inset:        0
+  });
+  renderModuleList();
+}
+
+function removeCellShelf(modIdx, csIdx) {
+  kabinet.getState().modules[modIdx].cell_shelves.splice(csIdx, 1);
+  renderModuleList();
+}
+
+/* ── 셀별 서랍 CRUD ─────────────────────────────────────────────────── */
+function promptAddCellDrawer(modIdx) {
+  const m         = kabinet.getState().modules[modIdx];
+  const cellCount = (m.vertical_dividers || []).length + 1;
+  const cellStr   = prompt('서랍을 채울 셀 번호 (0~' + (cellCount-1) + ', 좌→우):', '0');
+  if (cellStr === null) return;
+  const cell = parseInt(cellStr);
+  if (isNaN(cell) || cell < 0 || cell >= cellCount) {
+    alert('셀 번호가 범위를 벗어났습니다.'); return;
+  }
+  const countStr = prompt('서랍 수:', '2');
+  if (!countStr) return;
+  const count = parseInt(countStr) || 2;
+
+  if (!m.cell_drawers) m.cell_drawers = [];
+  // 같은 셀에 기존 항목이 있으면 교체
+  m.cell_drawers = m.cell_drawers.filter(cd => cd.cell !== cell);
+  m.cell_drawers.push({ cell, count, type: 'undermount', thickness: 18 });
+  renderModuleList();
+}
+
+function removeCellDrawer(modIdx, cdIdx) {
+  kabinet.getState().modules[modIdx].cell_drawers.splice(cdIdx, 1);
+  renderModuleList();
+}
+
 /* ── 액세서리 CRUD ──────────────────────────────────────────────────── */
 function promptAddAccessory(modIdx, kind) {
   const hStr = prompt('설치 높이 (바닥에서, mm):', kind === 'hanging_rod' ? '950' : '300');
@@ -314,14 +640,9 @@ function promptAddAccessory(modIdx, kind) {
   if (!m.accessories) m.accessories = [];
   const acc = { kind, height_from_bottom: parseFloat(hStr) || 300 };
   if (kind === 'hanging_rod') {
-    acc.diameter    = 32;
-    acc.depth_inset = 75;
+    acc.diameter = 32; acc.depth_inset = 75;
   } else if (kind === 'system_hanger') {
-    acc.rail_height    = 30;
-    acc.rail_thickness = 5;
-  } else if (kind === 'shelf_accessory') {
-    acc.thickness   = 18;
-    acc.depth_inset = 20;
+    acc.rail_height = 30; acc.rail_thickness = 5;
   }
   m.accessories.push(acc);
   renderModuleList();

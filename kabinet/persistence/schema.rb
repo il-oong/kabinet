@@ -3,11 +3,12 @@ module Kabinet
     module Schema
       CURRENT_VERSION = 1
 
-      MODULE_KINDS = %w[shelf_module drawer_module].freeze
-      DRAWER_TYPES = %w[undermount side_mount].freeze
-      DOOR_CONFIGS = %w[none single pair].freeze
-      DOOR_TYPES   = %w[swing sliding folding lift_up none].freeze
-      HANDLE_TYPES = %w[bar knob cup_pull channel push_open none].freeze
+      MODULE_KINDS      = %w[shelf_module drawer_module desk_module bed_gap].freeze
+      DRAWER_TYPES      = %w[undermount side_mount].freeze
+      DOOR_CONFIGS      = %w[none single pair].freeze
+      DOOR_TYPES        = %w[swing sliding folding lift_up none].freeze
+      HANDLE_TYPES      = %w[bar knob cup_pull channel push_open none].freeze
+      DOOR_MOUNT_STYLES = %w[overlay inset].freeze
       MATERIALS    = %w[LPM PET MDF_paint UV_gloss acrylic high_gloss phenix plywood
                         solid_wood HPL 기타].freeze
 
@@ -28,8 +29,9 @@ module Kabinet
         h['material']        = h['material'] || 'LPM'
         h['edge_banding_mm'] = Float(h['edge_banding_mm'] || Kabinet::Constants::DEFAULT_EDGE_THICKNESS_MM)
         # 수평 런 모드: 모듈을 X축(가로)으로 배열
-        h['run_mode']   = h['run_mode'] ? true : false
-        h['run_height'] = Float(h['run_height'] || 740)
+        h['run_mode']      = h['run_mode'] ? true : false
+        h['run_height']    = Float(h['run_height'] || 740)
+        h['has_kickboard'] = h.fetch('has_kickboard', true) ? true : false
 
         h['ep'] ||= {}
         h['ep']['left']      = h['ep'].fetch('left', true) ? true : false
@@ -49,6 +51,24 @@ module Kabinet
       def self.normalize_module(m)
         kind = m['kind'].to_s
         raise ValidationError, "unknown module kind: #{kind}" unless MODULE_KINDS.include?(kind)
+
+        # 침대 공간 — 폭만 있는 단순 마커
+        if kind == 'bed_gap'
+          return { 'kind' => 'bed_gap',
+                   'width' => Float(m['width'] || 1600),
+                   'label' => (m['label'] || '침대 공간').to_s }
+        end
+
+        # 책상 모듈 — 하위 필드 그대로 통과
+        if kind == 'desk_module'
+          out = m.dup
+          out['kind'] = 'desk_module'
+          out['width']  = Float(m['width']  || 1400)
+          out['depth']  = Float(m['depth']  || 700)
+          out['height'] = Float(m['height'] || 750)
+          return out
+        end
+
         out = {
           'kind'             => kind,
           'width'            => Float(m['width']),
@@ -76,6 +96,7 @@ module Kabinet
           out['door_type']    = 'swing' unless DOOR_TYPES.include?(out['door_type'])
           out['door_thickness'] = Float(m['door_thickness'] || Kabinet::Constants::DEFAULT_DOOR_THICKNESS_MM)
           out['door_material']  = (m['door_material'] || out['material']).to_s
+          out['door_mount']     = DOOR_MOUNT_STYLES.include?(m['door_mount'].to_s) ? m['door_mount'].to_s : 'overlay'
           out['shelves']      = (m['shelves'] || []).map { |s|
             { 'height_from_bottom' => Float(s['height_from_bottom']),
               'thickness'          => Float(s['thickness'] || out['body_thickness']),
@@ -91,6 +112,7 @@ module Kabinet
           end
           out['drawer_thickness'] = Float(m['drawer_thickness'] || Kabinet::Constants::DEFAULT_DOOR_THICKNESS_MM)
           out['door_material']    = (m['door_material'] || out['material']).to_s
+          out['handle_hole_mm']   = Integer(m['handle_hole_mm'] || Kabinet::Constants::DEFAULT_HANDLE_HOLE_MM)
         end
         out
       end
@@ -123,6 +145,7 @@ module Kabinet
         raise ValidationError, 'width must be > 0'     unless spec['width'].to_f > 0
         raise ValidationError, 'max_depth must be > 0' unless spec['max_depth'].to_f > 0
         spec['modules'].each_with_index do |m, i|
+          next if m['kind'] == 'bed_gap'  # bed_gap has no height/depth
           raise ValidationError, "module[#{i}] height must be > 0" unless m['height'].to_f > 0
           raise ValidationError, "module[#{i}] depth must be > 0"  unless m['depth'].to_f > 0
         end

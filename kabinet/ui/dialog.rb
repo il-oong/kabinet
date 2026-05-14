@@ -100,18 +100,25 @@ module Kabinet
         # ── Export drawings ────────────────────────────────────────────
         d.add_action_callback('kabinet:export_drawings') do |_ctx, json_str|
           begin
-            payload = JSON.parse(json_str)
-            views   = (payload['views'] || %w[front right top section]).map(&:to_sym)
-            entity_id = payload['entityID']
-            model   = Sketchup.active_model
-            grp     = entity_id ? find_entity_by_id(model, entity_id) :
-                                   Kabinet::Persistence::Attributes.find_assembly_in_selection(model)
+            payload   = JSON.parse(json_str)
+            views     = (payload['views'] || %w[front right top section]).map(&:to_sym)
+            entity_id = payload['entityID'].to_s.strip
+            model     = Sketchup.active_model
+
+            grp = if entity_id.length > 0
+                    find_entity_by_id(model, entity_id)
+                  end
+            # 폴백 1: 현재 선택
+            grp ||= Kabinet::Persistence::Attributes.find_assembly_in_selection(model)
+            # 폴백 2: 모델 안 Kabinet 어셈블리 중 가장 마지막 것
+            grp ||= Kabinet::Persistence::Attributes.find_all_assemblies(model).last
+
             if grp
               model.selection.clear
               model.selection.add(grp)
               Kabinet::Commands::Export.run(views: views)
             else
-              d.execute_script("kabinet.onError('어셈블리를 선택하세요.')")
+              d.execute_script("kabinet.onError('모델에 Kabinet 어셈블리가 없습니다. 먼저 생성하세요.')")
             end
           rescue StandardError => e
             d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
