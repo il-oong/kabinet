@@ -91,7 +91,7 @@ const FURNITURE_PRESETS = {
       },
       { kind: 'shelf_module', width: 900, depth: 350, height: 200,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'none', door_type: 'none', door_thickness: 18,
+        door_config: 'none', door_type: 'swing', door_thickness: 18,
         door_material: 'LPM', handle_type: 'none', material: 'LPM',
         edge_banding_mm: 1.0,
         shelves: [],
@@ -141,7 +141,7 @@ const FURNITURE_PRESETS = {
     modules: [
       { kind: 'shelf_module', width: 900, depth: 300, height: 1782,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'none', door_type: 'none', door_thickness: 18,
+        door_config: 'none', door_type: 'swing', door_thickness: 18,
         door_material: 'LPM', handle_type: 'none', material: 'LPM',
         edge_banding_mm: 1.0,
         shelves: [
@@ -370,7 +370,7 @@ const FURNITURE_PRESETS = {
     modules: [
       { kind: 'shelf_module', width: 1200, depth: 400, height: 1032,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'none', door_type: 'none', door_thickness: 18,
+        door_config: 'none', door_type: 'swing', door_thickness: 18,
         door_material: 'LPM', handle_type: 'none', material: 'LPM',
         edge_banding_mm: 1.0,
         shelves: [],
