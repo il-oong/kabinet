@@ -14,32 +14,37 @@ module Kabinet
     # Conversion to SketchUp Length happens inside this class.
     class Assembly
       attr_reader :name, :width, :max_depth, :base_height, :ep, :top_panel, :modules,
-                  :run_mode, :run_height
+                  :run_mode, :run_height, :has_kickboard, :ep_top_flush
 
       def initialize(name:, width:, max_depth:, ep:, top_panel:, modules:,
-                     base_height: 0, run_mode: false, run_height: 740)
-        @name        = name
-        @width       = width
-        @max_depth   = max_depth
-        @base_height = base_height
-        @ep          = ep
-        @top_panel   = top_panel
-        @modules     = modules
-        @run_mode    = run_mode
-        @run_height  = run_height
+                     base_height: 0, run_mode: false, run_height: 740,
+                     has_kickboard: true, ep_top_flush: false)
+        @name          = name
+        @width         = width
+        @max_depth     = max_depth
+        @base_height   = base_height
+        @ep            = ep
+        @top_panel     = top_panel
+        @modules       = modules
+        @run_mode      = run_mode
+        @run_height    = run_height
+        @has_kickboard = has_kickboard
+        @ep_top_flush  = ep_top_flush ? true : false
       end
 
       def self.from_hash(h)
         new(
-          name:        h['name'],
-          width:       h['width'],
-          max_depth:   h['max_depth'],
-          base_height: h['base_height'] || 0,
-          ep:          h['ep'],
-          top_panel:   h['top_panel'],
-          modules:     h['modules'],
-          run_mode:    h['run_mode']   || false,
-          run_height:  h['run_height'] || 740
+          name:          h['name'],
+          width:         h['width'],
+          max_depth:     h['max_depth'],
+          base_height:   h['base_height'] || 0,
+          ep:            h['ep'],
+          top_panel:     h['top_panel'],
+          modules:       h['modules'],
+          run_mode:      h['run_mode']      || false,
+          run_height:    h['run_height']    || 740,
+          has_kickboard: h.fetch('has_kickboard', true) ? true : false,
+          ep_top_flush:  h.fetch('ep_top_flush',  false) ? true : false
         )
       end
 
@@ -147,9 +152,17 @@ module Kabinet
 
       def do_stack(entities)
         ep_left, ep_right, ep_t = ep_params
-        ep_left_offset  = ep_left ? ep_t : 0
-        carcase_inner_w = @width.mm
-        total_w = ep_left_offset + carcase_inner_w + (ep_right ? ep_t : 0)
+        ep_t_mm         = (@ep['thickness'] || Kabinet::Constants::DEFAULT_EP_THICKNESS_MM).to_f
+        ep_left_offset  = ep_left  ? ep_t : 0   # SU Length
+        ep_right_offset = ep_right ? ep_t : 0   # SU Length
+
+        # @width = 가구 전체 폭 (EP 포함 외부 치수 mm)
+        # 카케이스 내부 폭 = 전체 폭 − 좌EP − 우EP
+        total_w            = @width.mm
+        carcase_inner_w_mm = @width.to_f \
+                             - (ep_left  ? ep_t_mm : 0.0) \
+                             - (ep_right ? ep_t_mm : 0.0)
+        carcase_inner_w    = carcase_inner_w_mm.mm   # SU Length
 
         modules_h_mm = @modules.sum { |m| m['height'].to_f }
         top_t        = top_t_mm
@@ -163,22 +176,29 @@ module Kabinet
           local = ::Geom::Transformation.new(
             ::Geom::Point3d.new(ep_left_offset, y_offset, current_z)
           )
-          mod_group = build_module(m).build(entities, local,
-                                            role: "#{m['kind']}_#{idx}")
+          # 모듈 폭을 카케이스 내부 폭으로 강제 지정 (spec의 width 값 무관)
+          m_actual  = m.merge('width' => carcase_inner_w_mm)
+          mod_group = build_module(m_actual).build(entities, local,
+                                                   role: "#{m['kind']}_#{idx}",
+                                                   suppress_bottom: idx > 0)
           Kabinet::Persistence::Attributes.set(mod_group, 'module_index', idx)
           current_z += m['height'].mm
         end
 
         add_top_panel(entities, ep_left_offset, max_d, carcase_inner_w, current_z)
 
+        # ep_top_flush: true → EP 높이를 상판 두께 제외 (상판이 EP 위에 얹힘)
+        ep_h = @ep_top_flush ? (@base_height + modules_h_mm).mm : total_h
         add_ep_panels(entities, ep_left, ep_right, ep_t,
                       0, ep_left_offset + carcase_inner_w,
-                      total_h, max_d)
+                      ep_h, max_d)
 
-        add_kickboard(entities, base_height_mm: @base_height.mm,
-                      carcase_w: carcase_inner_w, total_w: total_w,
-                      ep_left: ep_left, ep_right: ep_right,
-                      ep_left_offset: ep_left_offset)
+        if @has_kickboard
+          add_kickboard(entities, base_height_mm: @base_height.mm,
+                        carcase_w: carcase_inner_w, total_w: total_w,
+                        ep_left: ep_left, ep_right: ep_right,
+                        ep_left_offset: ep_left_offset)
+        end
       end
 
       # ── RUN MODE (modules/sections side-by-side along X) ─────────────────
@@ -205,17 +225,18 @@ module Kabinet
         current_x = ep_left_offset
         @modules.each_with_index do |m, idx|
           mod_w     = m['width'].to_f.mm
-          mod_depth = m['depth'].mm
+          mod_depth = m.key?('depth') ? m['depth'].to_f.mm : max_d
           y_offset  = max_d - mod_depth
-          # Override height with run_height
-          m_run = m.merge('height' => run_h)
-          local = ::Geom::Transformation.new(
-            ::Geom::Point3d.new(current_x, y_offset, @base_height.mm)
-          )
-          mod_group = build_module(m_run).build(entities, local,
-                                                role: "#{m['kind']}_#{idx}")
-          Kabinet::Persistence::Attributes.set(mod_group, 'module_index', idx)
-          current_x += mod_w
+          # Override height with run_height (bed_gap has no height key — OK since no geometry)
+          m_run   = m.merge('height' => run_h)
+          mod_obj = build_module(m_run)
+          if mod_obj
+            local = ::Geom::Transformation.new(
+              ::Geom::Point3d.new(current_x, y_offset, @base_height.mm))
+            mod_group = mod_obj.build(entities, local, role: "#{m['kind']}_#{idx}")
+            Kabinet::Persistence::Attributes.set(mod_group, 'module_index', idx)
+          end
+          current_x += mod_w   # bed_gap 포함 항상 폭 전진
         end
 
         # Top panel spans full carcase width
@@ -223,15 +244,19 @@ module Kabinet
         add_top_panel(entities, ep_left_offset, max_d, carcase_inner_w, top_z)
 
         # EP panels span full run height
+        # ep_top_flush: true → EP 높이를 상판 두께 제외 (상판이 EP 위에 얹힘)
+        ep_h = @ep_top_flush ? (@base_height + run_h).mm : total_h
         add_ep_panels(entities, ep_left, ep_right, ep_t,
                       0, ep_left_offset + carcase_inner_w,
-                      total_h, max_d)
+                      ep_h, max_d)
 
         # Kickboard spans full run
-        add_kickboard(entities, base_height_mm: @base_height.mm,
-                      carcase_w: carcase_inner_w, total_w: total_w,
-                      ep_left: ep_left, ep_right: ep_right,
-                      ep_left_offset: ep_left_offset)
+        if @has_kickboard
+          add_kickboard(entities, base_height_mm: @base_height.mm,
+                        carcase_w: carcase_inner_w, total_w: total_w,
+                        ep_left: ep_left, ep_right: ep_right,
+                        ep_left_offset: ep_left_offset)
+        end
       end
 
       # ── Module factory ───────────────────────────────────────────────────
@@ -240,6 +265,8 @@ module Kabinet
         case m['kind']
         when 'shelf_module'  then ShelfModule.from_hash(m)
         when 'drawer_module' then DrawerModule.from_hash(m)
+        when 'desk_module'   then DeskModule.from_hash(m)
+        when 'bed_gap'       then nil   # 침대 공간 — 지오메트리 없음, 폭만 차지
         else
           raise ArgumentError, "unknown module kind: #{m['kind']}"
         end

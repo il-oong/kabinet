@@ -4,16 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabinet</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=0.7.0">
 </head>
 <body>
 
 <!-- ══ Tab bar ══════════════════════════════════════════════════════════ -->
 <div class="tab-bar">
-  <button class="active" onclick="kabinet.switchTab('assembly', this)">어셈블리</button>
-  <button onclick="kabinet.switchTab('modules', this)">모듈 구성</button>
-  <button onclick="kabinet.switchTab('drawings', this)">도면 출력</button>
-  <button onclick="kabinet.switchTab('presets', this)">프리셋</button>
+  <div class="tab-buttons">
+    <button class="active" onclick="kabinet.switchTab('assembly', this)">어셈블리</button>
+    <button onclick="kabinet.switchTab('modules', this)">모듈 구성</button>
+    <button onclick="kabinet.switchTab('drawings', this)">도면 출력</button>
+    <button onclick="kabinet.switchTab('presets', this)">프리셋</button>
+  </div>
+  <span class="version-badge">v0.7.0</span>
 </div>
 
 <!-- ══ Assembly tab ══════════════════════════════════════════════════════ -->
@@ -37,7 +40,24 @@
         <option value="display_1200">수납장 1200</option>
         <option value="drawer_tower">서랍장 타워</option>
         <option value="wardrobe_sliding">슬라이딩 붙박이장</option>
+        <option value="shelf_grid">격자형 수납장 (자유 설계)</option>
         <option value="kitchen_run">주방 런 (수평 배열)</option>
+        <optgroup label="── 침대장">
+        <option value="bed_surround">침대장 (베드 서라운드)</option>
+        <option value="bed_surround_with_bridge">침대장 + 브릿지 상부장</option>
+        </optgroup>
+        <optgroup label="── 책상">
+        <option value="desk_basic">기본 책상</option>
+        <option value="desk_with_pedestal">책상 + 지지 서랍장</option>
+        <option value="desk_l_shape">L자 책상 (런 모드)</option>
+        </optgroup>
+        <optgroup label="── 자녀방">
+        <option value="kids_wardrobe">자녀방 붙박이장</option>
+        <option value="kids_upper_open">오픈 상부장</option>
+        <option value="kids_upper_door">도어 상부장</option>
+        <option value="kids_desk_upper">자녀방 책상+상부장</option>
+        <option value="kids_bed_single">자녀방 싱글 침대장</option>
+        </optgroup>
       </select>
     </div>
     <div class="info-box" id="preset-info" style="display:none"></div>
@@ -68,6 +88,12 @@
       <input type="number" id="f-base" value="0" min="0" max="300"
              oninput="kabinet.onField('base_height', +this.value)">
       <span class="unit">mm</span>
+    </div>
+    <div class="toggle-row">
+      <label>걸레받이 (토킥)</label>
+      <input type="checkbox" id="f-kickboard" checked
+             onchange="kabinet.onField('has_kickboard', this.checked)">
+      <span style="font-size:11px;color:var(--text-dim);margin-left:6px">받침 앞 마감판</span>
     </div>
     <!-- 수평 런 모드 -->
     <div class="toggle-row">
@@ -162,6 +188,13 @@
              oninput="kabinet.onEP('thickness', +this.value)">
       <span class="unit">mm</span>
     </div>
+    <div class="toggle-row">
+      <label>EP 윗면만 보이게
+        <span style="font-size:10px;color:var(--text-dim)">(상판이 EP 위에 올라감)</span>
+      </label>
+      <input type="checkbox" id="f-ep-top-flush"
+             onchange="kabinet.onEpTopFlush(this.checked)">
+    </div>
   </div>
 
   <div class="btn-row">
@@ -181,10 +214,18 @@
 
   <div class="add-module-row">
     <button class="btn-add" onclick="kabinet.addModule('shelf_module')">
-      ＋ 선반/수납 모듈
+      ＋ 선반/수납
     </button>
     <button class="btn-add" onclick="kabinet.addModule('drawer_module')">
-      ＋ 서랍 모듈
+      ＋ 서랍
+    </button>
+    <button class="btn-add" onclick="kabinet.addModule('desk_module')"
+            title="책상(다리+상판) 모듈 추가">
+      ＋ 책상
+    </button>
+    <button class="btn-add" onclick="kabinet.addModule('bed_gap')"
+            title="침대 공간 (런 모드에서 폭만 차지, 지오메트리 없음)">
+      🛏 침대공간
     </button>
   </div>
 
@@ -269,6 +310,28 @@
       <button onclick="kabinet.loadFurniturePreset('display_800')">수납장 800</button>
       <button onclick="kabinet.loadFurniturePreset('display_1200')">수납장 1200</button>
       <button onclick="kabinet.loadFurniturePreset('drawer_tower')">서랍장 타워</button>
+      <button onclick="kabinet.loadFurniturePreset('shelf_grid')">격자형 수납장</button>
+      <button onclick="kabinet.loadFurniturePreset('bed_surround')">침대장</button>
+      <button onclick="kabinet.loadFurniturePreset('bed_surround_with_bridge')">침대장+브릿지</button>
+      <button onclick="kabinet.loadFurniturePreset('desk_basic')">기본 책상</button>
+      <button onclick="kabinet.loadFurniturePreset('desk_with_pedestal')">책상+페데스탈</button>
+      <button onclick="kabinet.loadFurniturePreset('desk_l_shape')">L자 책상</button>
+      <button onclick="kabinet.loadFurniturePreset('open_shelf')">오픈 선반장</button>
+      <button onclick="kabinet.loadFurniturePreset('corner_unit')">코너 수납장</button>
+      <button onclick="kabinet.loadFurniturePreset('desk_with_side_cabinet')">책상+사이드장</button>
+      <button onclick="kabinet.loadFurniturePreset('living_run')">거실 수납 런</button>
+    </div>
+  </div>
+
+  <!-- 자녀방 기본 프리셋 -->
+  <div class="section">
+    <div class="section-title">자녀방 프리셋</div>
+    <div class="built-in-presets">
+      <button onclick="kabinet.loadFurniturePreset('kids_wardrobe')">자녀방 붙박이장</button>
+      <button onclick="kabinet.loadFurniturePreset('kids_upper_open')">오픈 상부장</button>
+      <button onclick="kabinet.loadFurniturePreset('kids_upper_door')">도어 상부장</button>
+      <button onclick="kabinet.loadFurniturePreset('kids_desk_upper')">책상+상부장</button>
+      <button onclick="kabinet.loadFurniturePreset('kids_bed_single')">싱글 침대장</button>
     </div>
   </div>
 </div>
@@ -276,7 +339,7 @@
 <!-- ══ Status bar ════════════════════════════════════════════════════════ -->
 <div id="status-bar" class="status-bar">준비됨</div>
 
-<script src="app.js"></script>
-<script src="modules.js"></script>
+<script src="app.js?v=0.7.0"></script>
+<script src="modules.js?v=0.7.0"></script>
 </body>
 </html>

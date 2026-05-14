@@ -28,11 +28,17 @@ body {
 /* ── Tabs ── */
 .tab-bar {
   display: flex;
+  align-items: stretch;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
-.tab-bar button {
+.tab-buttons {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+.tab-buttons button {
   flex: 1;
   padding: 9px 4px;
   background: none;
@@ -44,11 +50,22 @@ body {
   font-size: 12px;
   transition: color .15s, border-color .15s;
 }
-.tab-bar button.active {
+.tab-buttons button.active {
   color: var(--accent);
   border-bottom-color: var(--accent);
 }
-.tab-bar button:hover:not(.active) { color: var(--text); }
+.tab-buttons button:hover:not(.active) { color: var(--text); }
+.version-badge {
+  flex-shrink: 0;
+  padding: 0 8px;
+  font-size: 10px;
+  color: var(--accent);
+  align-self: center;
+  opacity: 0.8;
+  user-select: none;
+  white-space: nowrap;
+  border-left: 1px solid var(--border);
+}
 
 /* ── Tab panels ── */
 .tab-panel { display: none; flex: 1; overflow-y: auto; padding: 12px; }
@@ -312,6 +329,74 @@ body {
   transition: border-color .15s, color .15s;
 }
 .built-in-presets button:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── 책상 모듈 / 자유 설계 추가 스타일 ── */
+.sub-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  margin: 10px 0 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+/* 셀 분할판 뱃지 */
+.cell-badge {
+  display: inline-block;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-right: 4px;
+}
+/* 책상 페데스탈/하부유닛 서브 패널 */
+#ped-fields-0, #uu-fields-0,
+[id^="ped-fields-"], [id^="uu-fields-"] {
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+/* 모듈 추가 버튼 3개 배치 */
+.add-module-row { flex-wrap: wrap; }
+
+/* ── 접이식 세부 설정 섹션 (details/summary) ── */
+details {
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
+}
+details:first-child { border-top: none; margin-top: 0; }
+summary.detail-summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 2px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  user-select: none;
+}
+summary.detail-summary::before {
+  content: '▶';
+  font-size: 9px;
+  transition: transform .15s;
+  flex-shrink: 0;
+}
+details[open] > summary.detail-summary::before {
+  transform: rotate(90deg);
+}
+summary.detail-summary::-webkit-details-marker { display: none; }
+details > .field-row,
+details > .toggle-row,
+details > .calc-info,
+details > .sub-list {
+  margin-left: 2px;
+}
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }

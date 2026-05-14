@@ -48,8 +48,8 @@ module Kabinet
       end
 
       def install_observer(root)
-        return unless defined?(Kabinet::ScaleGuardObserver)
-        observer = Kabinet::ScaleGuardObserver.new
+        return unless defined?(Kabinet::Commands::ScaleAutoRegenObserver)
+        observer = Kabinet::Commands::ScaleAutoRegenObserver.new
         root.add_observer(observer)
       rescue StandardError
         # observer is best-effort; never break generation if it fails

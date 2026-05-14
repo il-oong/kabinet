@@ -15,6 +15,7 @@ require File.join(Kabinet::PLUGIN_DIR, 'persistence', 'schema')
 require File.join(Kabinet::PLUGIN_DIR, 'geometry', 'transforms')
 require File.join(Kabinet::PLUGIN_DIR, 'geometry', 'builder')
 require File.join(Kabinet::PLUGIN_DIR, 'geometry', 'joinery')
+require File.join(Kabinet::PLUGIN_DIR, 'geometry', 'handle_builder')
 
 # Domain
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'panel')
@@ -24,6 +25,7 @@ require File.join(Kabinet::PLUGIN_DIR, 'core', 'ep_finish_panel')
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'accessory')
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'shelf_module')
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'drawer_module')
+require File.join(Kabinet::PLUGIN_DIR, 'core', 'desk_module')
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'assembly')
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'cut_list')
 
@@ -48,122 +50,68 @@ module Kabinet
     file_loaded(__FILE__)
   end
 
-  # ── GitHub 원클릭 업데이트 ─────────────────────────────────────────────
+  # ── 로컬 소스 → 설치 폴더 동기화 + 핫 리로드 ──────────────────────────
   # 루비 콘솔에서: Kabinet.update!
-  # 또는 메뉴: Extensions > Kabinet > ⬆ 업데이트
   #
-  # GitHub master 브랜치에서 모든 파일을 내려받아 Plugins 폴더에 덮어쓴 뒤
-  # 자동으로 reload! 를 호출합니다. .rbz 재설치 불필요.
-  def self.update!(branch: 'master')
-    require 'net/http'
-    require 'uri'
-    require 'fileutils'
-    require 'openssl'
+  # 개발 소스 폴더의 모든 .rb / 웹 파일을 설치된 Plugins 폴더로 복사한 뒤
+  # reload! 를 호출합니다. .rbz 재설치 불필요.
+  #
+  # 소스 폴더가 다르면: Kabinet.update!(src: 'D:/my/kabinet')
+  SOURCE_DIR = 'C:/Users/testos/Desktop/개인/스케치업 루비'.freeze unless defined?(SOURCE_DIR)
 
-    base_raw    = "https://raw.githubusercontent.com/il-oong/kabinet/#{branch}/"
-    plugins_dir = Sketchup.find_support_file('Plugins')
+  def self.update!(src: SOURCE_DIR)
+    require 'fileutils'
+
+    src_root = File.join(src, 'kabinet')
+    dst_root = PLUGIN_DIR   # 설치된 kabinet/ 폴더
+
+    unless Dir.exist?(src_root)
+      puts "Kabinet.update! 오류: 소스 폴더가 없습니다 → #{src_root}"
+      return false
+    end
 
     all_files = %w[
-      kabinet_loader.rb
-      kabinet/main.rb
-      kabinet/version.rb
-      kabinet/constants.rb
-      kabinet/persistence/attributes.rb
-      kabinet/persistence/schema.rb
-      kabinet/geometry/transforms.rb
-      kabinet/geometry/builder.rb
-      kabinet/geometry/joinery.rb
-      kabinet/core/panel.rb
-      kabinet/core/carcase.rb
-      kabinet/core/door_panel.rb
-      kabinet/core/ep_finish_panel.rb
-      kabinet/core/accessory.rb
-      kabinet/core/shelf_module.rb
-      kabinet/core/drawer_module.rb
-      kabinet/core/assembly.rb
-      kabinet/core/cut_list.rb
-      kabinet/commands/generate.rb
-      kabinet/commands/regenerate.rb
-      kabinet/commands/export.rb
-      kabinet/output/dimensions.rb
-      kabinet/output/views.rb
-      kabinet/output/png_export.rb
-      kabinet/output/pdf_bundler.rb
-      kabinet/ui/dialog.rb
-      kabinet/ui/menu.rb
-      kabinet/ui/web/index.html
-      kabinet/ui/web/app.js
-      kabinet/ui/web/modules.js
-      kabinet/ui/web/styles.css
+      main.rb version.rb constants.rb
+      persistence/attributes.rb persistence/schema.rb
+      geometry/transforms.rb geometry/builder.rb
+      geometry/joinery.rb geometry/handle_builder.rb
+      core/panel.rb core/carcase.rb core/door_panel.rb
+      core/ep_finish_panel.rb core/accessory.rb
+      core/shelf_module.rb core/drawer_module.rb
+      core/desk_module.rb core/assembly.rb core/cut_list.rb
+      commands/generate.rb commands/regenerate.rb commands/export.rb
+      output/dimensions.rb output/views.rb
+      output/png_export.rb output/pdf_bundler.rb
+      ui/dialog.rb ui/menu.rb
+      ui/web/index.html ui/web/app.js
+      ui/web/modules.js ui/web/styles.css
     ]
 
-    puts "Kabinet: GitHub(#{branch})에서 업데이트 중..."
-    updated = 0
-    errors  = []
+    puts "Kabinet.update! — #{src_root} → #{dst_root}"
+    copied = 0; errors = []
 
     all_files.each do |rel|
-      url  = URI("#{base_raw}#{rel}")
-      dest = File.join(plugins_dir, *rel.split('/'))
-
+      from = File.join(src_root, rel)
+      to   = File.join(dst_root, rel)
+      unless File.exist?(from)
+        puts "  건너뜀 (없음): #{rel}"
+        next
+      end
       begin
-        FileUtils.mkdir_p(File.dirname(dest))
-        body = _fetch_url(url)
-        if body
-          File.binwrite(dest, body)
-          updated += 1
-          puts "  ✓ #{rel}"
-        else
-          errors << rel
-          puts "  ✗ #{rel}"
-        end
-      rescue StandardError => e
-        errors << "#{rel}: #{e.message}"
+        FileUtils.mkdir_p(File.dirname(to))
+        FileUtils.cp(from, to)
+        puts "  ✓ #{rel}"
+        copied += 1
+      rescue => e
         puts "  ✗ #{rel}: #{e.message}"
+        errors << rel
       end
     end
 
-    puts "Kabinet: #{updated}/#{all_files.size}개 파일 갱신 완료."
-    unless errors.empty?
-      puts "  실패 #{errors.size}건:"
-      errors.each { |e| puts "    - #{e}" }
-    end
-
-    reload! if updated > 0
+    puts "#{copied}개 복사 완료#{errors.empty? ? '' : ", 실패 #{errors.size}건"}."
+    reload! if copied > 0
     errors.empty?
   end
-
-  # HTTP GET 헬퍼 (SSL 검증 실패 시 VERIFY_NONE 으로 재시도)
-  def self._fetch_url(uri, redirect_limit: 5)
-    return nil if redirect_limit <= 0
-
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl     = (uri.scheme == 'https')
-    http.verify_mode = OpenSSL::SSL::VERIFY_PEER
-    http.open_timeout = 15
-    http.read_timeout = 30
-
-    begin
-      response = http.get(uri.request_uri)
-    rescue OpenSSL::SSL::SSLError
-      # Windows 루트 인증서 문제 등 → 검증 없이 재시도
-      http2 = Net::HTTP.new(uri.host, uri.port)
-      http2.use_ssl     = true
-      http2.verify_mode = OpenSSL::SSL::VERIFY_NONE
-      http2.open_timeout = 15
-      http2.read_timeout = 30
-      response = http2.get(uri.request_uri)
-    end
-
-    case response.code.to_i
-    when 200
-      response.body
-    when 301, 302, 307, 308
-      _fetch_url(URI(response['location']), redirect_limit: redirect_limit - 1)
-    else
-      nil
-    end
-  end
-  private_class_method :_fetch_url
 
   # ── 개발자용 핫 리로드 ──────────────────────────────────────────────────
   # 루비 콘솔에서: Kabinet.reload!
@@ -174,10 +122,10 @@ module Kabinet
     files = [
       'version', 'constants',
       'persistence/attributes', 'persistence/schema',
-      'geometry/transforms', 'geometry/builder', 'geometry/joinery',
+      'geometry/transforms', 'geometry/builder', 'geometry/joinery', 'geometry/handle_builder',
       'core/panel', 'core/carcase', 'core/door_panel',
       'core/ep_finish_panel', 'core/accessory',
-      'core/shelf_module', 'core/drawer_module',
+      'core/shelf_module', 'core/drawer_module', 'core/desk_module',
       'core/assembly', 'core/cut_list',
       'commands/generate', 'commands/regenerate', 'commands/export',
       'output/dimensions', 'output/views',

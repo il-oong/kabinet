@@ -4,12 +4,15 @@ module Kabinet
     # All numeric inputs in SU Length (call .mm on the Numeric beforehand).
     class Carcase
       attr_reader :width, :depth, :height, :body_thickness, :back_thickness,
-                  :has_back, :joinery_style
+                  :has_back, :joinery_style, :suppress_bottom,
+                  :suppress_left_side, :suppress_right_side
 
       def initialize(width:, depth:, height:,
                      body_thickness: Kabinet::Constants::DEFAULT_BODY_THICKNESS_MM.mm,
                      back_thickness: Kabinet::Constants::DEFAULT_BACK_THICKNESS_MM.mm,
-                     has_back: true, joinery_style: :sides_full)
+                     has_back: true, joinery_style: :sides_full,
+                     suppress_bottom: false,
+                     suppress_left_side: false, suppress_right_side: false)
         @width = width
         @depth = depth
         @height = height
@@ -17,13 +20,19 @@ module Kabinet
         @back_thickness = back_thickness
         @has_back = has_back
         @joinery_style = joinery_style
+        @suppress_bottom = suppress_bottom
+        @suppress_left_side  = suppress_left_side
+        @suppress_right_side = suppress_right_side
       end
 
       def panel_specs
         Kabinet::Geometry::Joinery.carcase_panels(
           width: @width, depth: @depth, height: @height,
           body_t: @body_thickness, back_t: @back_thickness,
-          has_back: @has_back, style: @joinery_style
+          has_back: @has_back, style: @joinery_style,
+          suppress_bottom: @suppress_bottom,
+          suppress_left_side: @suppress_left_side,
+          suppress_right_side: @suppress_right_side
         )
       end
 
