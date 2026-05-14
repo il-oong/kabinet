@@ -6,39 +6,76 @@ module Kabinet
       DEFAULT_WIDTH  = 2480  # roughly A4 at 300dpi landscape
       DEFAULT_HEIGHT = 1754
 
-      # Export each page as JPEG (PDF 임베드 호환) and also PNG (뷰어용).
-      # Returns array of JPEG file paths (used by PdfBundler).
-      def export_pages(page_names, output_dir:, assembly_name:, width: DEFAULT_WIDTH,
+      # Export each scene page as JPEG (PDF embed) + PNG (viewer use).
+      #
+      # page_infos: array of { name:, label:, view: } hashes — from Views.generate
+      # Returns array of { jpg_path:, png_path:, label: } hashes (used by PdfBundler).
+      def export_pages(page_infos, output_dir:, assembly_name:, width: DEFAULT_WIDTH,
                        height: DEFAULT_HEIGHT, model: Sketchup.active_model)
-        paths = []
+        results = []
         ts = timestamp
-        page_names.each do |page_name|
+
+        page_infos.each do |info|
+          page_name = info[:name] || info['name']
+          label     = info[:label] || info['label'] || page_name
+
           page = model.pages.find { |p| p.name == page_name }
           next unless page
 
+          # ── 페이지 활성화 (카메라 + 렌더링 옵션 복원)
           model.pages.selected_page = page
+
+          # ── 렌더링 스타일 강제 적용 (Hidden Line — 2D 도면)
+          # page.update 로 저장됐지만 write_image 직전에 한 번 더 보장
+          apply_drawing_style(model)
+
           model.active_view.zoom_extents
           model.active_view.invalidate
 
-          base = "#{sanitize(assembly_name)}_#{sanitize(page_name)}_#{ts}"
+          base = "#{sanitize(assembly_name)}_#{sanitize(label)}_#{ts}"
 
           # ① JPEG — PDF 임베드용
           jpg_path = File.join(output_dir, "#{base}.jpg")
-          model.active_view.write_image(
-            filename: jpg_path, width: width, height: height,
-            antialias: true, transparent: false
-          )
+          write_image(model, jpg_path, width, height)
 
-          # ② PNG — 고품질 뷰어용 (선택)
+          # ② PNG — 고품질 뷰어용
           png_path = File.join(output_dir, "#{base}.png")
-          model.active_view.write_image(
-            filename: png_path, width: width, height: height,
-            antialias: true, transparent: false
-          )
+          write_image(model, png_path, width, height)
 
-          paths << jpg_path if File.exist?(jpg_path)
+          results << { jpg_path: jpg_path, png_path: png_path, label: label } if File.exist?(jpg_path)
         end
-        paths
+
+        results
+      end
+
+      # ── Private helpers ────────────────────────────────────────────────
+
+      def apply_drawing_style(model)
+        opts = model.rendering_options
+        opts['RenderMode']       = 1      # Hidden Line
+        opts['DrawEdges']        = true
+        opts['DrawFaces']        = true
+        opts['DrawHorizon']      = false
+        opts['Shadows']          = false
+        opts['FogOn']            = false
+        opts['BackgroundColor']  = Sketchup::Color.new(255, 255, 255) rescue nil
+        opts['GroundColor']      = Sketchup::Color.new(255, 255, 255) rescue nil
+        opts['SkyColor']         = Sketchup::Color.new(255, 255, 255) rescue nil
+      rescue StandardError
+        nil
+      end
+
+      def write_image(model, path, width, height)
+        model.active_view.write_image(
+          filename:    path,
+          width:       width,
+          height:      height,
+          antialias:   true,
+          transparent: false
+        )
+      rescue StandardError => e
+        # Best effort — do not crash the export pipeline over a single image
+        nil
       end
 
       def sanitize(str)

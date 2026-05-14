@@ -30,35 +30,38 @@ module Kabinet
         ents  = model.entities
 
         case view_name
-        when :front
-          # Width along bottom
+        when :front, :section
+          # 정면도 / 단면도: 폭(X) + 높이(Z)
+          # 폭 — 하단
           add_linear(ents, tag,
                      ::Geom::Point3d.new(min_p.x, min_p.y, min_p.z),
                      ::Geom::Point3d.new(max_p.x, min_p.y, min_p.z),
                      ::Geom::Vector3d.new(0, -OFFSET, 0))
-          # Height along left side
+          # 높이 — 좌측
           add_linear(ents, tag,
                      ::Geom::Point3d.new(min_p.x, min_p.y, min_p.z),
                      ::Geom::Point3d.new(min_p.x, min_p.y, max_p.z),
                      ::Geom::Vector3d.new(-OFFSET, 0, 0))
-        when :side
-          # Depth along bottom
+        when :right, :left, :side
+          # 측면도: 깊이(Y) + 높이(Z)
+          # 깊이 — 하단
           add_linear(ents, tag,
                      ::Geom::Point3d.new(min_p.x, min_p.y, min_p.z),
                      ::Geom::Point3d.new(min_p.x, max_p.y, min_p.z),
                      ::Geom::Vector3d.new(0, 0, -OFFSET))
-          # Height
+          # 높이 — 뒷면
           add_linear(ents, tag,
                      ::Geom::Point3d.new(min_p.x, max_p.y, min_p.z),
                      ::Geom::Point3d.new(min_p.x, max_p.y, max_p.z),
                      ::Geom::Vector3d.new(0, OFFSET, 0))
         when :top
-          # Width
+          # 평면도: 폭(X) + 깊이(Y)
+          # 폭 — 전면
           add_linear(ents, tag,
                      ::Geom::Point3d.new(min_p.x, min_p.y, max_p.z),
                      ::Geom::Point3d.new(max_p.x, min_p.y, max_p.z),
                      ::Geom::Vector3d.new(0, -OFFSET, 0))
-          # Depth
+          # 깊이 — 우측
           add_linear(ents, tag,
                      ::Geom::Point3d.new(max_p.x, min_p.y, max_p.z),
                      ::Geom::Point3d.new(max_p.x, max_p.y, max_p.z),
@@ -72,6 +75,22 @@ module Kabinet
         dim
       rescue StandardError => e
         SKETCHUP_CONSOLE.puts("Kabinet Dimension error: #{e.message}") if defined?(SKETCHUP_CONSOLE)
+        nil
+      end
+
+      # Kabinet 치수선 태그에 속한 모든 엔티티를 모델에서 제거.
+      # Views.generate 호출 전에 실행해 중복 치수선을 방지.
+      def clear_kabinet_dimensions(model)
+        tag_name = Kabinet::Constants::DIMENSION_TAG_NAME
+        tag = model.layers[tag_name]
+        return unless tag
+        to_erase = model.entities.select do |e|
+          e.respond_to?(:layer) && e.layer == tag
+        rescue StandardError
+          false
+        end
+        model.entities.erase_entities(to_erase) unless to_erase.empty?
+      rescue StandardError
         nil
       end
 
