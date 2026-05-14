@@ -58,9 +58,17 @@ function moduleCardHtml(m, i, total) {
   const title   = TITLES[m.kind] || m.kind;
   const runH    = state.run_height || 740;
   const dispH   = isRun ? runH : (m.height || 0);
-  const summary = m.kind === 'bed_gap'
-    ? (m.label || '침대 공간') + ' ' + m.width + 'mm'
-    : m.width + '×' + (m.depth || '?') + '×' + dispH + 'mm';
+  let summary;
+  if (m.kind === 'bed_gap') {
+    summary = (m.label || '침대 공간') + ' ' + m.width + 'mm';
+  } else if (m.kind === 'shelf_module') {
+    const dcLabel = {none:'오픈', single:'단문', pair:'양개'}[m.door_config || 'none'] || '';
+    summary = m.width + '×' + (m.depth || '?') + '×' + dispH + 'mm' + (dcLabel ? '  ' + dcLabel : '');
+  } else if (m.kind === 'drawer_module') {
+    summary = m.width + '×' + (m.depth || '?') + '×' + dispH + 'mm  서랍 ' + (m.drawer_count || 1) + '단';
+  } else {
+    summary = m.width + '×' + (m.depth || '?') + '×' + dispH + 'mm';
+  }
 
   const upBtn   = i > 0
     ? '<button class="btn-icon" title="위로" onclick="kabinet.moveModule(' + i + ',-1);event.stopPropagation()">↑</button>' : '';
@@ -91,7 +99,7 @@ function moduleCardHtml(m, i, total) {
   '</div>';
 }
 
-/* ── 공통 필드 ──────────────────────────────────────────────────────── */
+/* ── 공통 필드 (W / D / H 주요치수 + 세부치수 접이) ─────────────────── */
 function commonFields(m, i) {
   const state = kabinet.getState();
   const isRun = !!state.run_mode;
@@ -114,72 +122,91 @@ function commonFields(m, i) {
                'value="' + m.height + '" min="50" max="3000">' +
         '<span class="unit">mm</span></div>';
 
-  return '<details open><summary class="detail-summary">기본 치수</summary>' +
-    '<div class="field-row">' +
-      '<label>' + (isRun ? '섹션 폭' : '폭') + '</label>' +
-      '<input type="number" data-mod-idx="' + i + '" data-key="width" ' +
-             'value="' + m.width + '" min="100" max="3000">' +
-      '<span class="unit">mm</span></div>' +
-    '<div class="field-row"><label>깊이</label>' +
-      '<input type="number" data-mod-idx="' + i + '" data-key="depth" ' +
-             'value="' + m.depth + '" min="100" max="1200">' +
-      '<span class="unit">mm</span></div>' +
-    heightField +
-    '<div class="field-row"><label>몸통 두께</label>' +
-      '<input type="number" data-mod-idx="' + i + '" data-key="body_thickness" ' +
-             'value="' + m.body_thickness + '" min="9" max="36">' +
-      '<span class="unit">mm</span></div>' +
-    '<div class="field-row"><label>뒷판 두께</label>' +
-      '<input type="number" data-mod-idx="' + i + '" data-key="back_thickness" ' +
-             'value="' + m.back_thickness + '" min="6" max="18">' +
-      '<span class="unit">mm</span></div>' +
-    '<div class="field-row"><label>소재</label>' +
-      '<select data-mod-idx="' + i + '" data-key="material">' + matOpts + '</select></div>' +
+  // ── 주요 치수 (항상 표시) ─────────────────────────────────────────
+  const mainBlock =
+    '<div class="main-fields">' +
+      '<div class="field-row">' +
+        '<label>' + (isRun ? '섹션 폭' : '폭') + '</label>' +
+        '<input type="number" data-mod-idx="' + i + '" data-key="width" ' +
+               'value="' + m.width + '" min="100" max="3000">' +
+        '<span class="unit">mm</span></div>' +
+      '<div class="field-row"><label>깊이</label>' +
+        '<input type="number" data-mod-idx="' + i + '" data-key="depth" ' +
+               'value="' + m.depth + '" min="100" max="1200">' +
+        '<span class="unit">mm</span></div>' +
+      heightField +
+    '</div>';
+
+  // ── 세부 치수 (접이) ────────────────────────────────────────────────
+  const detailBlock =
+    '<details><summary class="detail-summary">세부 치수 / 소재</summary>' +
+      '<div class="field-row"><label>몸통 두께</label>' +
+        '<input type="number" data-mod-idx="' + i + '" data-key="body_thickness" ' +
+               'value="' + m.body_thickness + '" min="9" max="36">' +
+        '<span class="unit">mm</span></div>' +
+      '<div class="field-row"><label>뒷판 두께</label>' +
+        '<input type="number" data-mod-idx="' + i + '" data-key="back_thickness" ' +
+               'value="' + m.back_thickness + '" min="6" max="18">' +
+        '<span class="unit">mm</span></div>' +
+      '<div class="field-row"><label>소재</label>' +
+        '<select data-mod-idx="' + i + '" data-key="material">' + matOpts + '</select></div>' +
     '</details>';
+
+  return mainBlock + detailBlock;
 }
 
 /* ── 서랍 모듈 필드 ─────────────────────────────────────────────────── */
 function drawerFields(m, i) {
   const handleOpts = handleOptions(m.handle_type);
-  const bt    = m.body_thickness || 18;
-  const dc    = m.drawer_count  || 1;
-  const openH = m.height - 2 * bt;
+  const bt     = m.body_thickness || 18;
+  const dc     = m.drawer_count  || 1;
+  const openH  = m.height - 2 * bt;
   const frontH = Math.round((openH - 4 - 3 * (dc - 1)) / dc);
   const showHole = (m.handle_type === 'bar');
 
-  return '<details open><summary class="detail-summary">주요 설정</summary>' +
-    '<div class="field-row"><label>서랍 수</label>' +
-      '<input type="number" data-mod-idx="' + i + '" data-key="drawer_count" ' +
-             'value="' + (m.drawer_count||1) + '" min="1" max="6">' +
-      '<span class="unit">개</span></div>' +
-    '<div class="field-row"><label>슬라이드 타입</label>' +
-      '<select data-mod-idx="' + i + '" data-key="drawer_type">' +
-        '<option value="undermount"' + (m.drawer_type==='undermount'?' selected':'') + '>언더레일 (Blum)</option>' +
-        '<option value="side_mount"' + (m.drawer_type==='side_mount'?' selected':'') + '>사이드마운트</option>' +
-      '</select></div>' +
-    '<div class="field-row"><label>전판 두께</label>' +
-      '<input type="number" data-mod-idx="' + i + '" data-key="drawer_thickness" ' +
-             'value="' + (m.drawer_thickness||18) + '" min="9" max="30">' +
-      '<span class="unit">mm</span></div>' +
-    '<div class="calc-info">📐 전판 높이 약 <strong>' + frontH + 'mm</strong> × ' + dc + '개</div>' +
-    '</details>' +
+  // ── 주요 설정 (항상 표시)
+  const mainBlock =
+    '<div class="main-fields">' +
+      '<div class="field-row"><label>서랍 수</label>' +
+        '<input type="number" data-mod-idx="' + i + '" data-key="drawer_count" ' +
+               'value="' + (m.drawer_count||1) + '" min="1" max="6">' +
+        '<span class="unit">개</span></div>' +
+      '<div class="calc-info" style="margin:0;font-size:11px;color:var(--text-dim)">' +
+        '전판 높이 약 ' + frontH + 'mm × ' + dc + '개' +
+      '</div>' +
+    '</div>';
 
-    '<details><summary class="detail-summary">손잡이 설정</summary>' +
-    '<div class="field-row"><label>손잡이 타입</label>' +
-      '<select data-mod-idx="' + i + '" data-key="handle_type">' + handleOpts + '</select></div>' +
-    (showHole ?
-      '<div class="field-row"><label>홀간 거리</label>' +
-        '<input type="number" data-mod-idx="' + i + '" data-key="handle_hole_mm" ' +
-               'value="' + (m.handle_hole_mm||128) + '" min="32" max="320">' +
-        '<span class="unit">mm</span></div>' : '') +
+  // ── 서랍 세부 (접이)
+  const detailBlock =
+    '<details><summary class="detail-summary">서랍 세부 옵션</summary>' +
+      '<div class="field-row"><label>슬라이드 타입</label>' +
+        '<select data-mod-idx="' + i + '" data-key="drawer_type">' +
+          '<option value="undermount"' + (m.drawer_type==='undermount'?' selected':'') + '>언더레일 (Blum)</option>' +
+          '<option value="side_mount"' + (m.drawer_type==='side_mount'?' selected':'') + '>사이드마운트</option>' +
+        '</select></div>' +
+      '<div class="field-row"><label>전판 두께</label>' +
+        '<input type="number" data-mod-idx="' + i + '" data-key="drawer_thickness" ' +
+               'value="' + (m.drawer_thickness||18) + '" min="9" max="30">' +
+        '<span class="unit">mm</span></div>' +
+    '</details>' +
+    '<details><summary class="detail-summary">손잡이</summary>' +
+      '<div class="field-row"><label>손잡이 타입</label>' +
+        '<select data-mod-idx="' + i + '" data-key="handle_type">' + handleOpts + '</select></div>' +
+      (showHole ?
+        '<div class="field-row"><label>홀간 거리</label>' +
+          '<input type="number" data-mod-idx="' + i + '" data-key="handle_hole_mm" ' +
+                 'value="' + (m.handle_hole_mm||128) + '" min="32" max="320">' +
+          '<span class="unit">mm</span></div>' : '') +
     '</details>';
+
+  return mainBlock + detailBlock;
 }
 
 /* ── 선반/수납 모듈 필드 ─────────────────────────────────────────────── */
 function shelfFields(m, i) {
   const dcOpts = ['none','single','pair'].map(v =>
     '<option value="' + v + '"' + (m.door_config===v?' selected':'') + '>' +
-    ({none:'없음', single:'단문', pair:'양개문'}[v]) + '</option>').join('');
+    ({none:'없음 (오픈)', single:'단문 (1개)', pair:'양개문 (2개)'}[v]) + '</option>').join('');
 
   const dtOpts = [
     ['swing','여닫이 (Swing)'],['sliding','미닫이 (Sliding)'],
@@ -193,7 +220,7 @@ function shelfFields(m, i) {
   const hasDoor    = dc !== 'none';
   const doorH      = m.height - 4;
   const hingeN     = hasDoor ? hingeCount(doorH) : 0;
-  const hingeInfo  = hasDoor ? '경첩 ' + hingeN + '개 (도어 높이 ' + doorH + 'mm)' : '도어 없음';
+  const hingeInfo  = hasDoor ? '경첩 ' + hingeN + '개 (도어 높이 ' + doorH + 'mm)' : '오픈 선반 (도어 없음)';
   const showHole   = (m.handle_type === 'bar');
 
   // ── 전체폭 선반 목록
@@ -237,42 +264,61 @@ function shelfFields(m, i) {
       '<button onclick="removeCellDrawer(' + i + ',' + cdi + ')">✕</button>' +
     '</div>').join('');
 
-  return (
-    // ── 도어 설정 ────────────────────────────────────────
-    '<details open><summary class="detail-summary">도어 설정</summary>' +
-    '<div class="field-row"><label>도어 구성</label>' +
-      '<select data-mod-idx="' + i + '" data-key="door_config">' + dcOpts + '</select></div>' +
-    '<div class="field-row"><label>도어 타입</label>' +
-      '<select data-mod-idx="' + i + '" data-key="door_type">' + dtOpts + '</select></div>' +
-    '<div class="field-row"><label>도어 장착</label>' +
-      '<select data-mod-idx="' + i + '" data-key="door_mount">' +
-        '<option value="overlay"' + ((m.door_mount||'overlay')==='overlay'?' selected':'') + '>오버레이 (측판 위 덮음)</option>' +
-        '<option value="inset"'   + ((m.door_mount||'overlay')==='inset'  ?' selected':'') + '>인셋 (내부 면일치)</option>' +
-      '</select></div>' +
-    '<div class="field-row"><label>도어 두께</label>' +
-      '<input type="number" data-mod-idx="' + i + '" data-key="door_thickness" ' +
-             'value="' + (m.door_thickness||18) + '" min="9" max="30">' +
-      '<span class="unit">mm</span></div>' +
-    '<div class="field-row"><label>측면 갭</label>' +
-      '<input type="number" data-mod-idx="' + i + '" data-key="door_side_gap_mm" ' +
-             'value="' + (m.door_side_gap_mm != null ? m.door_side_gap_mm : 0) + '" min="0" max="5" step="0.5">' +
-      '<span class="unit">mm (0=플러시)</span></div>' +
-    '<div class="field-row"><label>손잡이 타입</label>' +
-      '<select data-mod-idx="' + i + '" data-key="handle_type">' + handleOpts + '</select></div>' +
-    (showHole ?
-      '<div class="field-row"><label>홀간 거리</label>' +
-        '<input type="number" data-mod-idx="' + i + '" data-key="handle_hole_mm" ' +
-               'value="' + (m.handle_hole_mm||128) + '" min="32" max="320">' +
-        '<span class="unit">mm</span></div>' : '') +
-    '<div class="calc-info">🔩 ' + hingeInfo + '</div>' +
-    '</details>' +
+  // ── 도어 주요 (항상 표시) ──────────────────────────────────────────
+  const doorMain =
+    '<div class="main-fields">' +
+      '<div class="field-row"><label>도어 구성</label>' +
+        '<select data-mod-idx="' + i + '" data-key="door_config">' + dcOpts + '</select></div>' +
+      (hasDoor
+        ? '<div class="field-row"><label>도어 타입</label>' +
+            '<select data-mod-idx="' + i + '" data-key="door_type">' + dtOpts + '</select></div>'
+        : '') +
+      '<div class="calc-info" style="margin:0;font-size:11px;color:var(--text-dim)">' +
+        hingeInfo +
+      '</div>' +
+    '</div>';
 
-    // ── 측판 설정 ────────────────────────────────────────
-    '<details><summary class="detail-summary">측판 설정 (세부)</summary>' +
-    '<div class="toggle-row"><label>좌 측판 생략 <span style="font-size:10px;color:var(--text-dim)">(EP 또는 인접 모듈이 측벽)</span></label>' +
+  return doorMain + (
+
+    // ── 도어 세부 설정 (접이) ──────────────────────────────────────────
+    (hasDoor
+      ? '<details><summary class="detail-summary">도어 세부 설정</summary>' +
+          '<div class="field-row"><label>도어 장착</label>' +
+            '<select data-mod-idx="' + i + '" data-key="door_mount">' +
+              '<option value="overlay"' + ((m.door_mount||'overlay')==='overlay'?' selected':'') + '>오버레이 — 측판 위 덮음 (기본)</option>' +
+              '<option value="inset"'   + ((m.door_mount||'overlay')==='inset'  ?' selected':'') + '>인셋 — 카케이스 내부 면일치</option>' +
+            '</select></div>' +
+          '<div class="field-row"><label>도어 두께</label>' +
+            '<input type="number" data-mod-idx="' + i + '" data-key="door_thickness" ' +
+                   'value="' + (m.door_thickness||18) + '" min="9" max="30">' +
+            '<span class="unit">mm</span></div>' +
+          '<div class="field-row"><label>측면 갭</label>' +
+            '<input type="number" data-mod-idx="' + i + '" data-key="door_side_gap_mm" ' +
+                   'value="' + (m.door_side_gap_mm != null ? m.door_side_gap_mm : 0) + '" min="0" max="5" step="0.5">' +
+            '<span class="unit">mm (0=플러시)</span></div>' +
+        '</details>'
+      : '') +
+
+    // ── 손잡이 (접이) ──────────────────────────────────────────────────
+    (hasDoor
+      ? '<details><summary class="detail-summary">손잡이</summary>' +
+          '<div class="field-row"><label>손잡이 타입</label>' +
+            '<select data-mod-idx="' + i + '" data-key="handle_type">' + handleOpts + '</select></div>' +
+          (showHole
+            ? '<div class="field-row"><label>홀간 거리</label>' +
+                '<input type="number" data-mod-idx="' + i + '" data-key="handle_hole_mm" ' +
+                       'value="' + (m.handle_hole_mm||128) + '" min="32" max="320">' +
+                '<span class="unit">mm</span></div>'
+            : '') +
+        '</details>'
+      : '') +
+
+    // ── 측판 설정 (접이) ──────────────────────────────────────────────
+    '<details><summary class="detail-summary">측판 설정</summary>' +
+    '<div class="toggle-row"><label>좌 측판 생략 <span style="font-size:10px;color:var(--text-dim)">(EP / 인접 모듈이 측벽)</span></label>' +
       '<input type="checkbox" data-mod-idx="' + i + '" data-key="suppress_left_side"' +
       (m.suppress_left_side ? ' checked' : '') + '></div>' +
-    '<div class="toggle-row"><label>우 측판 생략 <span style="font-size:10px;color:var(--text-dim)">(EP 또는 인접 모듈이 측벽)</span></label>' +
+    '<div class="toggle-row"><label>우 측판 생략 <span style="font-size:10px;color:var(--text-dim)">(EP / 인접 모듈이 측벽)</span></label>' +
       '<input type="checkbox" data-mod-idx="' + i + '" data-key="suppress_right_side"' +
       (m.suppress_right_side ? ' checked' : '') + '></div>' +
     '</details>' +
@@ -502,17 +548,25 @@ function syncModuleField(el) {
     const summary = card.querySelector('.mod-summary');
     if (summary) {
       const runH  = state.run_mode ? state.run_height || 740 : m.height;
-      summary.textContent = m.kind === 'bed_gap'
-        ? (m.label || '침대 공간') + ' ' + m.width + 'mm'
-        : m.width + '×' + (m.depth || '?') + '×' + runH + 'mm';
+      if (m.kind === 'bed_gap') {
+        summary.textContent = (m.label || '침대 공간') + ' ' + m.width + 'mm';
+      } else if (m.kind === 'shelf_module') {
+        const dcL = {none:'오픈', single:'단문', pair:'양개'}[m.door_config || 'none'] || '';
+        summary.textContent = m.width + '×' + (m.depth||'?') + '×' + runH + 'mm' + (dcL ? '  '+dcL : '');
+      } else if (m.kind === 'drawer_module') {
+        summary.textContent = m.width + '×' + (m.depth||'?') + '×' + runH + 'mm  서랍 ' + (m.drawer_count||1) + '단';
+      } else {
+        summary.textContent = m.width + '×' + (m.depth||'?') + '×' + runH + 'mm';
+      }
     }
   }
 
-  if (key === 'height' || key === 'door_config' || key === 'handle_type' ||
+  if (key === 'height' || key === 'door_config' || key === 'handle_type' || key === 'drawer_count' ||
       (key === 'width' && state.run_mode) || key === 'label') {
     kabinet.updateTotalHeight();
     kabinet.updateHeightSummary();
-    if (key === 'door_config' || key === 'handle_type') renderModuleList();
+    // Re-render to update conditional sections (door_type row, hinge info, etc.)
+    if (key === 'door_config' || key === 'handle_type' || key === 'drawer_count') renderModuleList();
   }
 }
 
