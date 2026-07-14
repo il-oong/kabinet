@@ -35,23 +35,35 @@ module Kabinet
         results = []
         model.start_operation('Kabinet — 도면 장면 생성', true)
         begin
-          # 이전 Kabinet 치수선 모두 제거 (중복 방지)
+          # 이전 Kabinet 치수선/단면 평면 모두 제거 (중복·누적 방지)
           Output::Dimensions.clear_kabinet_dimensions(model)
+          erase_kabinet_section_planes(model)
+
+          # 치수선을 뷰별 태그로 먼저 모두 그려둔다 (뷰마다 자기 것만 표시)
+          if draw_dimensions
+            views.each do |view_key|
+              next unless VIEW_DEFS[view_key]
+              Output::Dimensions.draw_for_assembly(assembly_group, view_key, model: model)
+            end
+          end
 
           views.each do |view_key|
             defn = VIEW_DEFS[view_key]
             next unless defn
 
-            # 2D 도면 스타일 적용
-            apply_drawing_style(model)
-
             # 페이지(씬) 생성 또는 기존 것 재사용
             page = find_or_create_page(model, "[Kabinet] #{defn[:name]}")
+            page.transition_time = 0 if page.respond_to?(:transition_time=)
 
-            # 카메라 설정 (평행 투영)
-            setup_camera(model.active_view, center, span, defn)
-            model.active_view.zoom_extents
-            model.active_view.invalidate
+            # ★ 순서 중요 (기존 버그의 원인):
+            #   selected_page= 는 페이지에 '저장된' 카메라로 뷰를 되돌리므로
+            #   반드시 페이지 선택 → 카메라 설정 → page.update 순서여야 한다.
+            #   (기존 코드는 카메라 설정 후 selected_page= 를 호출해
+            #    기본 3D 카메라가 씬에 저장됐음)
+            model.pages.selected_page = page
+
+            # 2D 도면 스타일 적용
+            apply_drawing_style(model)
 
             # 단면 평면 처리
             if view_key == :section
@@ -60,14 +72,15 @@ module Kabinet
               deactivate_section_planes(model)
             end
 
-            # 치수선 추가
-            if draw_dimensions
-              Output::Dimensions.show_dimension_tag(model)
-              Output::Dimensions.draw_for_assembly(assembly_group, view_key, model: model)
-            end
+            # 이 뷰의 치수 태그만 표시
+            Output::Dimensions.show_only(model, view_key) if draw_dimensions
+
+            # 카메라 설정 (평행 투영) — zoom_extents는 표시 중인 엔티티 기준
+            setup_camera(model.active_view, center, span, defn)
+            model.active_view.zoom_extents
+            model.active_view.invalidate
 
             # 씬 저장 (카메라=1, 렌더=2, 그림자=4, 레이어=32, 스타일=64, 단면=128)
-            model.pages.selected_page = page
             page.update(1 | 2 | 4 | 32 | 64 | 128)
 
             results << { name: page.name, label: defn[:label], view: view_key }
@@ -80,7 +93,7 @@ module Kabinet
         ensure
           # 원래 렌더링 복원
           restore_rendering_opts(model, saved_opts)
-          Output::Dimensions.hide_dimension_tag(model) if draw_dimensions
+          Output::Dimensions.hide_all(model) if draw_dimensions
         end
 
         results
@@ -143,7 +156,11 @@ module Kabinet
           -90.degrees
         )
         sp = model.entities.add_section_plane(t)
-        sp.activate if sp
+        if sp
+          # Kabinet 소유 표시 — 다음 생성 시 지워서 누적을 막는다
+          Kabinet::Persistence::Attributes.set(sp, 'kabinet_section', true)
+          sp.activate
+        end
         sp
       rescue StandardError
         nil
@@ -151,6 +168,17 @@ module Kabinet
 
       def deactivate_section_planes(model)
         model.entities.grep(Sketchup::SectionPlane).each { |sp| sp.deactivate rescue nil }
+      end
+
+      # 기존 버그: 단면 평면을 deactivate만 하고 지우지 않아 출력할 때마다
+      # 모델에 계속 쌓였음. Kabinet이 만든 것만 골라 제거.
+      def erase_kabinet_section_planes(model)
+        planes = model.entities.grep(Sketchup::SectionPlane).select do |sp|
+          Kabinet::Persistence::Attributes.get(sp, 'kabinet_section')
+        end
+        model.entities.erase_entities(planes) unless planes.empty?
+      rescue StandardError
+        nil
       end
     end
   end

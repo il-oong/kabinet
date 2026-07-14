@@ -38,6 +38,9 @@ require File.join(Kabinet::PLUGIN_DIR, 'commands', 'regenerate')
 require File.join(Kabinet::PLUGIN_DIR, 'commands', 'export')
 
 # Output (drawings)
+require File.join(Kabinet::PLUGIN_DIR, 'output', 'drawing2d')
+require File.join(Kabinet::PLUGIN_DIR, 'output', 'dxf')
+require File.join(Kabinet::PLUGIN_DIR, 'output', 'order_sheet')
 require File.join(Kabinet::PLUGIN_DIR, 'output', 'dimensions')
 require File.join(Kabinet::PLUGIN_DIR, 'output', 'views')
 require File.join(Kabinet::PLUGIN_DIR, 'output', 'png_export')
@@ -84,6 +87,7 @@ module Kabinet
       core/desk_module.rb core/assembly.rb
       core/hardware.rb core/validation.rb core/cut_list.rb
       commands/generate.rb commands/regenerate.rb commands/export.rb
+      output/drawing2d.rb output/dxf.rb output/order_sheet.rb
       output/dimensions.rb output/views.rb
       output/png_export.rb output/pdf_bundler.rb
       ui/dialog.rb ui/menu.rb
@@ -132,6 +136,7 @@ module Kabinet
       'core/shelf_module', 'core/drawer_module', 'core/desk_module',
       'core/assembly', 'core/hardware', 'core/validation', 'core/cut_list',
       'commands/generate', 'commands/regenerate', 'commands/export',
+      'output/drawing2d', 'output/dxf', 'output/order_sheet',
       'output/dimensions', 'output/views',
       'output/png_export', 'output/pdf_bundler',
       'ui/dialog', 'ui/menu'

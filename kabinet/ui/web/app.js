@@ -828,18 +828,27 @@ const kabinet = (() => {
 
   let state = deepClone(DEFAULT_STATE);
   let currentEntityID = null;
+  let userPresets = {};   // 저장 프리셋 캐시 (통합 드롭다운용)
 
-  // ── Tab management ───────────────────────────────────────────────────
+  // ── Tab management (v1.0: 단일 페이지 — 하위 호환 스텁) ──────────────
   function switchTab(name, btn) {
+    const panel = document.getElementById('tab-' + name);
+    if (!panel) return;   // 단일 페이지 레이아웃에서는 탭 없음
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.tab-buttons button').forEach(b => b.classList.remove('active'));
-    document.getElementById('tab-' + name).classList.add('active');
+    panel.classList.add('active');
     if (btn) btn.classList.add('active');
-    if (name === 'modules')  { renderModuleList(); updateHeightSummary(); }
-    if (name === 'presets')  listPresets();
-    if (name === 'assembly') updateTotalHeight();
-    // 도면 출력 탭 진입 시 현재 선택된 어셈블리를 자동으로 읽어 EntityID 채우기
-    if (name === 'drawings') sketchup['kabinet:load_selection']('');
+  }
+
+  // ── 통합 프리셋 드롭다운 (기본 + 내 프리셋) ──────────────────────────
+  function onPresetChange(value) {
+    if (!value) return;
+    if (value.indexOf('user:') === 0) {
+      const name = value.slice(5);
+      if (userPresets[name]) applyPreset(JSON.stringify(userPresets[name]));
+    } else {
+      loadFurniturePreset(value);
+    }
   }
 
   // ── Furniture type preset loader ─────────────────────────────────────
@@ -999,7 +1008,7 @@ const kabinet = (() => {
     // 폭 라벨 + 힌트 텍스트 변경
     const wLabel = document.getElementById('width-label');
     const wHint  = document.getElementById('width-hint');
-    if (wLabel) wLabel.textContent = checked ? '총 런 폭 (섹션 합계)' : '가구 전체 폭';
+    if (wLabel) wLabel.textContent = checked ? '총 런 폭' : '전체 폭';
     if (wHint)  wHint.textContent  = checked
       ? '폭을 바꾸면 각 섹션 폭이 비율대로 자동 재분배됩니다'
       : '폭을 바꾸면 내부 모듈 폭이 자동으로 따라옵니다';
@@ -1080,6 +1089,7 @@ const kabinet = (() => {
       const tgt = document.getElementById('f-target-height');
       if (tgt && !tgt._userEdited) tgt.value = total;
     }
+    renderPreview();
   }
 
   // ── Generate / Regenerate ────────────────────────────────────────────
@@ -1122,13 +1132,13 @@ const kabinet = (() => {
   }
 
   function exportDrawings() {
-    const checks = document.querySelectorAll('#tab-drawings .view-check input:checked');
-    const views  = Array.from(checks).map(c => c.value);
-    if (views.length === 0) { setStatus('뷰를 하나 이상 선택하세요.', 'error'); return; }
+    const checks = document.querySelectorAll('.view-check input:checked');
+    let views  = Array.from(checks).map(c => c.value);
+    if (views.length === 0) views = ['front', 'right', 'top', 'section'];
     // entityID 없으면 Ruby 쪽에서 현재 선택으로 폴백하도록 null 전송
     const payload = JSON.stringify({ views, entityID: currentEntityID || null });
     sketchup['kabinet:export_drawings'](payload);
-    setStatus('도면 출력 요청 중…', '');
+    setStatus('씬 도면 출력 요청 중…', '');
   }
 
   function exportCutList() {
@@ -1137,11 +1147,25 @@ const kabinet = (() => {
     sketchup['kabinet:export_cutlist'](JSON.stringify(state));
   }
 
+  // ── 발주도면 DXF (현재 폼 스펙 기준 — 모델 선택 불필요) ───────────────
+  function exportDXF() {
+    if (!validateState()) return;
+    setStatus('발주도면 DXF 생성 중…', '');
+    sketchup['kabinet:export_dxf'](JSON.stringify(state));
+  }
+
+  // ── 스마트 반영: 불러온 어셈블리가 있으면 재생성, 없으면 신규 생성 ────
+  function smartApply() {
+    if (currentEntityID) regenerate();
+    else generate();
+  }
+
   // ── Presets ──────────────────────────────────────────────────────────
   function savePreset() {
     const name = document.getElementById('f-preset-name').value.trim();
     if (!name) { setStatus('프리셋 이름을 입력하세요.', 'error'); return; }
     sketchup['kabinet:save_preset'](JSON.stringify({ name, spec: state }));
+    setTimeout(listPresets, 300);   // 통합 드롭다운 갱신
   }
 
   function listPresets() {
@@ -1149,8 +1173,18 @@ const kabinet = (() => {
   }
 
   function loadPresets(presets) {
-    const el   = document.getElementById('preset-list');
-    const keys = Object.keys(presets || {});
+    userPresets = presets || {};
+    const keys = Object.keys(userPresets);
+
+    // 통합 드롭다운의 '내 프리셋' 그룹 갱신
+    const grp = document.getElementById('user-preset-group');
+    if (grp) {
+      grp.innerHTML = keys.map(name =>
+        `<option value="user:${esc(name)}">${esc(name)}</option>`).join('');
+    }
+
+    const el = document.getElementById('preset-list');
+    if (!el) return;
     if (keys.length === 0) {
       el.innerHTML = '<span style="color:var(--text-dim);font-size:12px">저장된 프리셋이 없습니다.</span>';
       return;
@@ -1158,7 +1192,7 @@ const kabinet = (() => {
     el.innerHTML = keys.map(name => `
       <div class="preset-item">
         <span class="preset-name">${esc(name)}</span>
-        <button onclick="kabinet.applyPreset(${JSON.stringify(JSON.stringify(presets[name]))})">불러오기</button>
+        <button onclick="kabinet.applyPreset(${JSON.stringify(JSON.stringify(userPresets[name]))})">불러오기</button>
         <button class="del-btn" onclick="kabinet.deletePreset(${JSON.stringify(name)})">✕</button>
       </div>`).join('');
   }
@@ -1233,6 +1267,7 @@ const kabinet = (() => {
 
   // ── Height summary bar in modules tab ───────────────────────────────
   function updateHeightSummary() {
+    renderPreview();
     const el = document.getElementById('module-height-summary');
     if (!el) return;
     if (state.modules.length === 0) { el.innerHTML = ''; return; }
@@ -1353,6 +1388,181 @@ const kabinet = (() => {
     if (el) el.value = val;
   }
 
+  // ── 실시간 정면도 미리보기 (canvas) ──────────────────────────────────
+  // Ruby Drawing2D.front_view와 같은 배치 논리의 축약판.
+  function renderPreview() {
+    const cv = document.getElementById('preview-canvas');
+    if (!cv || !cv.getContext) return;
+    const ctx = cv.getContext('2d');
+    const CW = cv.width, CH = cv.height;
+    ctx.clearRect(0, 0, CW, CH);
+
+    const ep   = state.ep || {};
+    const epT  = ep.thickness || 18;
+    const epL  = ep.left ? epT : 0;
+    const epR  = ep.right ? epT : 0;
+    const topT = state.top_panel ? (state.top_panel.thickness || 0) : 0;
+    const base = state.base_height || 0;
+    const mods = state.modules || [];
+
+    let carW, contH;
+    if (state.run_mode) {
+      carW  = mods.reduce((a, m) => a + (m.width || 0), 0);
+      contH = state.run_height || 740;
+    } else {
+      carW  = Math.max((state.width || 0) - epL - epR, 10);
+      contH = mods.filter(m => m.kind !== 'bed_gap')
+                  .reduce((a, m) => a + (m.height || 0), 0);
+    }
+    const totW = epL + carW + epR;
+    const totH = base + contH + topT;
+
+    const meta = document.getElementById('preview-size');
+    if (meta) meta.textContent =
+      totW > 0 && totH > 0 ? totW + ' × ' + (state.max_depth || 0) + ' × ' + totH + ' mm' : '—';
+
+    if (totW <= 0 || totH <= 0 || mods.length === 0) {
+      ctx.fillStyle = '#666';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('모듈을 추가하면 미리보기가 표시됩니다', CW / 2, CH / 2);
+      return;
+    }
+
+    const pad = 16;
+    const sc  = Math.min((CW - 2 * pad) / totW, (CH - 2 * pad) / totH);
+    const ox  = (CW - totW * sc) / 2;
+    const oy  = (CH + totH * sc) / 2;
+    const X = x => ox + x * sc;
+    const Y = y => oy - y * sc;
+
+    const OUT = '#c9c9c9', FRONT = '#5b9bd5', HID = '#5f5f5f', SYM = '#6fae6f';
+    function sRect(x, y, w, h, color, fill) {
+      if (fill) { ctx.fillStyle = fill; ctx.fillRect(X(x), Y(y + h), w * sc, h * sc); }
+      ctx.strokeStyle = color; ctx.strokeRect(X(x), Y(y + h), w * sc, h * sc);
+    }
+    function sLine(x1, y1, x2, y2, color, dash) {
+      ctx.strokeStyle = color;
+      ctx.setLineDash(dash ? [4, 3] : []);
+      ctx.beginPath(); ctx.moveTo(X(x1), Y(y1)); ctx.lineTo(X(x2), Y(y2)); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.lineWidth = 1;
+
+    // 외곽 + 받침 + EP + 상판
+    sRect(0, base, totW, totH - base, OUT);
+    if (base > 0) sLine(0, base, totW, base, OUT);
+    if (epL) sLine(epL, base, epL, totH, OUT);
+    if (epR) sLine(totW - epR, base, totW - epR, totH, OUT);
+    if (topT > 0) sLine(epL, totH - topT, epL + carW, totH - topT, OUT);
+
+    // 모듈 순회 (stack: 아래→위 / run: 좌→우)
+    let cx = 0, cz = 0;
+    mods.forEach(m => {
+      let mx, mz, mw, mh;
+      if (state.run_mode) {
+        mw = m.width || 0; mh = contH; mx = cx; mz = 0; cx += mw;
+        if (m.kind === 'bed_gap') return;
+      } else {
+        if (m.kind === 'bed_gap') return;
+        mw = carW; mh = m.height || 0; mx = 0; mz = cz; cz += mh;
+      }
+      drawModuleFront(m, epL + mx, base + mz, mw, mh);
+    });
+
+    function drawModuleFront(m, x, z, w, h) {
+      if (m.kind === 'drawer_module') {
+        const n = m.drawer_count || 1;
+        const fh = (h - 4 - 3 * (n - 1)) / n;
+        for (let i = 0; i < n; i++) {
+          sRect(x + 2, z + 2 + i * (fh + 3), w - 4, fh, FRONT, 'rgba(91,155,213,.10)');
+        }
+      } else if (m.kind === 'desk_module') {
+        const tt = m.top_thickness || 25;
+        sRect(x, z + h - tt, w, tt, OUT);
+        const lw = m.leg_w || 60, ix = m.leg_inset_x || 30;
+        const ped = m.pedestal, pedOn = ped && ped.enabled !== false;
+        const pos = pedOn ? (ped.position || 'right') : '';
+        if (pos !== 'left')  sRect(x + ix, z, lw, h - tt, OUT);
+        if (pos !== 'right') sRect(x + w - ix - lw, z, lw, h - tt, OUT);
+        if (pedOn) {
+          const pw = ped.width || 450;
+          const px = pos === 'left' ? x : x + w - pw;
+          sRect(px, z, pw, h - tt, OUT);
+          const n = ped.drawer_count || 3;
+          const fh = (h - tt - 4 - 3 * (n - 1)) / n;
+          for (let i = 0; i < n; i++) sRect(px + 2, z + 2 + i * (fh + 3), pw - 4, fh, FRONT);
+        }
+      } else if (m.kind === 'shelf_module') {
+        const bt = m.body_thickness || 18;
+        // 내부 구조 (은선)
+        (m.vertical_dividers || []).forEach(d => {
+          const dx = x + bt + (d.x || 0);
+          sLine(dx, z + bt, dx, z + h - bt, HID, true);
+        });
+        (m.shelves || []).forEach(s => {
+          const sy = z + (s.height_from_bottom || 0);
+          sLine(x + bt, sy, x + w - bt, sy, HID, true);
+        });
+        // 셀 서랍 (근사 표시)
+        const cells = cellEdges(m, w - 2 * bt);
+        (m.cell_drawers || []).forEach(cd => {
+          const rng = cells[cd.cell || 0];
+          if (!rng) return;
+          const n = cd.count || 2, ih = h - 2 * bt;
+          const fh = (ih - 4 - 3 * (n - 1)) / n;
+          for (let i = 0; i < n; i++) {
+            sRect(x + bt + rng[0] + 2, z + bt + 2 + i * (fh + 3),
+                  rng[1] - rng[0] - 4, fh, FRONT, 'rgba(91,155,213,.10)');
+          }
+        });
+        // 도어
+        const dc = m.door_config || 'none';
+        if (dc !== 'none') {
+          const g  = m.door_side_gap_mm != null ? m.door_side_gap_mm : 2;
+          const dh = h - 4;
+          if (m.door_type === 'sliding') {
+            const dw = (w + 60) / 2;
+            sRect(x, z + 5, dw, h - 20, FRONT, 'rgba(91,155,213,.08)');
+            sRect(x + w - dw, z + 5, dw, h - 20, FRONT, 'rgba(91,155,213,.08)');
+          } else if (dc === 'pair') {
+            const dw = (w - 2 * g - 3) / 2;
+            sRect(x + g, z + 2, dw, dh, FRONT, 'rgba(91,155,213,.08)');
+            sRect(x + g + dw + 3, z + 2, dw, dh, FRONT, 'rgba(91,155,213,.08)');
+            swingV(x + g, z + 2, dw, dh, true);
+            swingV(x + g + dw + 3, z + 2, dw, dh, false);
+          } else {
+            sRect(x + g, z + 2, w - 2 * g, dh, FRONT, 'rgba(91,155,213,.08)');
+            swingV(x + g, z + 2, w - 2 * g, dh, true);
+          }
+        }
+      }
+    }
+
+    function swingV(x, z, w, h, hingeLeft) {
+      if (hingeLeft) {
+        sLine(x, z, x + w, z + h / 2, SYM);
+        sLine(x, z + h, x + w, z + h / 2, SYM);
+      } else {
+        sLine(x + w, z, x, z + h / 2, SYM);
+        sLine(x + w, z + h, x, z + h / 2, SYM);
+      }
+    }
+
+    function cellEdges(m, innerW) {
+      const divs = (m.vertical_dividers || []).slice()
+        .sort((a, b) => (a.x || 0) - (b.x || 0));
+      const edges = [];
+      let prev = 0;
+      divs.forEach(d => {
+        edges.push([prev, d.x || 0]);
+        prev = (d.x || 0) + (d.thickness || 18);
+      });
+      edges.push([prev, innerW]);
+      return edges;
+    }
+  }
+
   // ── Utilities ────────────────────────────────────────────────────────
   function deepClone(o) { return JSON.parse(JSON.stringify(o)); }
   function esc(s) {
@@ -1366,19 +1576,22 @@ const kabinet = (() => {
     const tgt = document.getElementById('f-target-height');
     if (tgt) tgt.addEventListener('input', () => { tgt._userEdited = true; });
     updateTotalHeight();
+    renderPreview();
+    // 저장 프리셋 → 통합 드롭다운 채우기 (SketchUp 콜백 가능할 때만)
+    try { if (typeof sketchup !== 'undefined') sketchup['kabinet:list_presets'](''); } catch (e) {}
   });
 
   // ── Public API ───────────────────────────────────────────────────────
   return {
     switchTab, onField, onTopPanelToggle, onTopPanelField, onEP, onEpTopFlush,
-    generate, regenerate, loadSelection, loadSpec,
-    exportDrawings, exportCutList, loadSelectionForExport,
+    generate, regenerate, smartApply, loadSelection, loadSpec,
+    exportDrawings, exportCutList, exportDXF, loadSelectionForExport,
     savePreset, listPresets, loadPresets, applyPreset, deletePreset,
     addModule, removeModule, moveModule,
-    loadFurniturePreset,
+    loadFurniturePreset, onPresetChange,
     syncWidthToModules, distributeHeight,
     onTargetHeightLive,
-    updateTotalHeight, updateHeightSummary,
+    updateTotalHeight, updateHeightSummary, renderPreview,
     onRunMode,
     onSuccess, onError,
     getState
