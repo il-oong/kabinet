@@ -11,11 +11,24 @@ module Kabinet
         run_mode = spec['run_mode'] ? true : false
         max_d    = spec['max_depth'].to_f
 
+        # 스택 모드: 지오메트리가 모듈 폭을 카케이스 폭으로 강제하므로
+        # 검증도 같은 폭 기준으로 계산 (프리셋 원본 폭으로 계산하면 수치가 어긋남)
+        ep = spec['ep'] || {}
+        stack_w = spec['width'].to_f -
+                  (ep['left']  ? (ep['thickness'] || 18).to_f : 0) -
+                  (ep['right'] ? (ep['thickness'] || 18).to_f : 0)
+
+        # 런 모드 + bed_gap + 상판: 상판은 침대 공간에서 분할 생성됨을 안내
+        if run_mode && spec['top_panel'] &&
+           spec['modules'].any? { |m| m['kind'] == 'bed_gap' }
+          warns << '상판이 침대 공간(bed_gap)에서 분할됩니다. 침대 위를 잇는 브릿지 상부장은 별도 박스로 계획하세요.'
+        end
+
         spec['modules'].each_with_index do |m, idx|
           next if m['kind'] == 'bed_gap'
           prefix = "모듈#{idx + 1}"
           mh = run_mode ? spec['run_height'].to_f : m['height'].to_f
-          mw = m['width'].to_f
+          mw = run_mode ? m['width'].to_f : stack_w
           md = (m['depth'] || max_d).to_f
 
           if md > max_d
@@ -27,13 +40,35 @@ module Kabinet
             warns.concat(door_warnings(m, prefix, mw, mh))
             warns.concat(shelf_warnings(m, prefix, mw))
             warns.concat(drawer_depth_warning(m, prefix, md, (m['cell_drawers'] || []).any?))
+            warns.concat(rod_warnings(m, prefix, mw))
+            if (m['shelves'] || []).any? && (m['vertical_dividers'] || []).any?
+              warns << "#{prefix}: 전폭 선반과 세로 분할판을 함께 쓰면 선반이 분할판을 관통합니다. 셀 선반(cell_shelves)을 사용하세요."
+            end
           when 'drawer_module'
             warns.concat(drawer_depth_warning(m, prefix, md, true))
+            open_w = mw - 2.0 * m['body_thickness'].to_f
+            if open_w > Kabinet::Constants::DRAWER_MAX_OPEN_W_MM
+              warns << "#{prefix}: 서랍 개구폭 #{open_w.round}mm — #{Kabinet::Constants::DRAWER_MAX_OPEN_W_MM}mm 초과. " \
+                       '레일 하중/전판 휨 위험. 세로 분할 + 셀 서랍 구성을 권장합니다.'
+            end
           end
 
           warns.concat(sheet_warnings(m, prefix, mw, mh, md))
         end
         warns
+      end
+
+      # ── 행거봉 스팬 ──────────────────────────────────────────────────────
+      def rod_warnings(m, prefix, mw)
+        rods = (m['accessories'] || []).select { |a| a['kind'] == 'hanging_rod' }
+        return [] if rods.empty?
+        span = mw - 2.0 * m['body_thickness'].to_f
+        if span > Kabinet::Constants::ROD_SPAN_WARN_MM
+          ["#{prefix}: 행거봉 스팬 #{span.round}mm — #{Kabinet::Constants::ROD_SPAN_WARN_MM}mm 초과 시 " \
+           '봉 처짐이 발생합니다. 중간 지지 브라켓 또는 칸 분할을 권장합니다.']
+        else
+          []
+        end
       end
 
       # ── 도어 ─────────────────────────────────────────────────────────────

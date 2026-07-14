@@ -78,6 +78,8 @@ module Kabinet
     SWING_DOOR_MAX_W_MM          = 600  # 여닫이 도어 권장 최대 폭
     SWING_DOOR_MAX_H_MM          = 2400 # 여닫이 도어 권장 최대 높이
     SHELF_SPAN_WARN_MM           = 800  # 18T 선반 처짐 경고 스팬
+    DRAWER_MAX_OPEN_W_MM         = 1000 # 서랍 개구폭 권장 최대 (레일 하중/전판 휨)
+    ROD_SPAN_WARN_MM             = 1200 # Ø32 행거봉 처짐 경고 스팬
 
     # ── 32mm 시스템 (선반 핀 구멍) ──────────────────────────────────────
     SHELF_SYSTEM_PITCH_MM        = 32   # 구멍 피치 32mm

@@ -132,27 +132,42 @@ module Kabinet
         end
       end
 
-      def add_kickboard(entities, base_height_mm:, carcase_w:, total_w:,
-                        ep_left:, ep_right:, ep_left_offset:)
+      def add_kickboard(entities, base_height_mm:, kick_x:, kick_w:, index: nil)
         return if base_height_mm <= 0
 
         setback = Kabinet::Constants::TOE_KICK_SETBACK_MM.mm
         board_t = Kabinet::Constants::TOE_KICK_BOARD_THICK_MM.mm
 
-        if ep_left || ep_right
-          kick_x = ep_left_offset
-          kick_w = carcase_w
-        else
-          kick_x = 0
-          kick_w = total_w
-        end
-
         kick_local = ::Geom::Transformation.new(::Geom::Point3d.new(kick_x, setback, 0))
         Kabinet::Geometry::Builder.box(
           entities, kick_w, board_t, base_height_mm,
           kick_local,
-          role: 'kickboard', label: '걸레받이', material_name: 'body'
+          role: index ? "kickboard_#{index}" : 'kickboard',
+          label: '걸레받이', material_name: 'body'
         )
+      end
+
+      # ── 런 모드: bed_gap 제외 연속 구간 [x_offset_mm, width_mm] ──────────
+      # 걸레받이·상판은 침대 공간을 가로지르면 안 되므로 구간별로 생성한다.
+      def run_segments
+        segs = []
+        x = 0.0
+        cur_x = nil
+        cur_w = 0.0
+        @modules.each do |m|
+          w = m['width'].to_f
+          if m['kind'] == 'bed_gap'
+            segs << [cur_x, cur_w] if cur_x && cur_w > 0
+            cur_x = nil
+            cur_w = 0.0
+          else
+            cur_x ||= x
+            cur_w += w
+          end
+          x += w
+        end
+        segs << [cur_x, cur_w] if cur_x && cur_w > 0
+        segs
       end
 
       # ── STACK MODE (modules bottom → top along Z) ────────────────────────
@@ -201,10 +216,13 @@ module Kabinet
                       ep_h, max_d)
 
         if @has_kickboard
-          add_kickboard(entities, base_height_mm: @base_height.mm,
-                        carcase_w: carcase_inner_w, total_w: total_w,
-                        ep_left: ep_left, ep_right: ep_right,
-                        ep_left_offset: ep_left_offset)
+          if ep_left || ep_right
+            add_kickboard(entities, base_height_mm: @base_height.mm,
+                          kick_x: ep_left_offset, kick_w: carcase_inner_w)
+          else
+            add_kickboard(entities, base_height_mm: @base_height.mm,
+                          kick_x: 0, kick_w: total_w)
+          end
         end
       end
 
@@ -246,9 +264,17 @@ module Kabinet
           current_x += mod_w   # bed_gap 포함 항상 폭 전진
         end
 
-        # Top panel spans full carcase width
+        # 상판·걸레받이: bed_gap 제외 연속 구간별 생성
+        # (기존 버그: 침대 공간을 가로질러 통짜 상판/걸레받이가 생성됐음)
         top_z = (@base_height + run_h).mm
-        add_top_panel(entities, ep_left_offset, max_d, carcase_inner_w, top_z)
+        run_segments.each_with_index do |(seg_x, seg_w), i|
+          add_top_panel(entities, ep_left_offset + seg_x.mm, max_d, seg_w.mm, top_z)
+          if @has_kickboard
+            add_kickboard(entities, base_height_mm: @base_height.mm,
+                          kick_x: ep_left_offset + seg_x.mm, kick_w: seg_w.mm,
+                          index: i)
+          end
+        end
 
         # EP panels span full run height
         # ep_top_flush: true → EP 높이를 상판 두께 제외 (상판이 EP 위에 얹힘)
@@ -256,14 +282,7 @@ module Kabinet
         add_ep_panels(entities, ep_left, ep_right, ep_t,
                       0, ep_left_offset + carcase_inner_w,
                       ep_h, max_d)
-
-        # Kickboard spans full run
-        if @has_kickboard
-          add_kickboard(entities, base_height_mm: @base_height.mm,
-                        carcase_w: carcase_inner_w, total_w: total_w,
-                        ep_left: ep_left, ep_right: ep_right,
-                        ep_left_offset: ep_left_offset)
-        end
+        _ = total_w
       end
 
       # ── Module factory ───────────────────────────────────────────────────

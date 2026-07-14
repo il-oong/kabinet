@@ -109,10 +109,15 @@ module Kabinet
         end
 
         # ── 최상단 상판 (지오메트리: EP 사이 카케이스 폭) ─────────────────
+        # 런 모드에서 bed_gap이 있으면 침대 공간 제외 구간별로 분할 (지오메트리 동일)
         if top_t > 0
-          top_mat = spec.dig('top_panel', 'material') || 'LPM'
-          rows << mkrow('상판', carcase_w, max_d, top_t, 1, top_mat, '가로결',
-                        edge: '앞면', note: '최상단 상판')
+          top_mat  = spec.dig('top_panel', 'material') || 'LPM'
+          segments = run_mode ? run_segments(spec['modules']) : [[0.0, carcase_w]]
+          segments.each_with_index do |(_x, w), i|
+            label = segments.size > 1 ? "상판-#{i + 1}" : '상판'
+            rows << mkrow(label, w, max_d, top_t, 1, top_mat, '가로결',
+                          edge: '앞면', note: '최상단 상판')
+          end
         end
 
         # ── EP 측면 마감판 — 도어 전면까지 커버 ──────────────────────────
@@ -126,12 +131,20 @@ module Kabinet
           rows << mkrow('EP-우', ep_d, ep_h, ep_t, 1, ep_mat, '세로결', edge: '앞면', note: note) if ep_right
         end
 
-        # ── 걸레받이 ─────────────────────────────────────────────────────
+        # ── 걸레받이 (런 모드: bed_gap 제외 구간별) ──────────────────────
         if base_h > 0 && spec.fetch('has_kickboard', true)
-          kick_w = (ep_left || ep_right) ? carcase_w : (run_mode ? carcase_w : spec['width'].to_f)
-          rows << mkrow('걸레받이', kick_w, base_h, C::TOE_KICK_BOARD_THICK_MM, 1,
-                        spec['material'] || 'LPM', '가로결', edge: '상면',
-                        note: "전면 #{C::TOE_KICK_SETBACK_MM}mm 후퇴")
+          segments =
+            if run_mode
+              run_segments(spec['modules'])
+            else
+              [[0.0, (ep_left || ep_right) ? carcase_w : spec['width'].to_f]]
+            end
+          segments.each_with_index do |(_x, w), i|
+            label = segments.size > 1 ? "걸레받이-#{i + 1}" : '걸레받이'
+            rows << mkrow(label, w, base_h, C::TOE_KICK_BOARD_THICK_MM, 1,
+                          spec['material'] || 'LPM', '가로결', edge: '상면',
+                          note: "전면 #{C::TOE_KICK_SETBACK_MM}mm 후퇴")
+          end
         end
 
         # 번호 부여
@@ -413,6 +426,28 @@ module Kabinet
           rows.concat(drawer_rows(um, "#{prefix}-하부유닛", uw, uh, ud, 18.0, 9.0, mat))
         end
         rows
+      end
+
+      # 런 모드: bed_gap 제외 연속 구간 [x_offset_mm, width_mm] (Assembly와 동일)
+      def run_segments(modules)
+        segs = []
+        x = 0.0
+        cur_x = nil
+        cur_w = 0.0
+        (modules || []).each do |m|
+          w = m['width'].to_f
+          if m['kind'] == 'bed_gap'
+            segs << [cur_x, cur_w] if cur_x && cur_w > 0
+            cur_x = nil
+            cur_w = 0.0
+          else
+            cur_x ||= x
+            cur_w += w
+          end
+          x += w
+        end
+        segs << [cur_x, cur_w] if cur_x && cur_w > 0
+        segs
       end
 
       # 세로 분할판 기준 각 칸의 내폭 (지오메트리 cell_ranges와 동일 계산)

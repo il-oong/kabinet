@@ -67,28 +67,45 @@ module Kabinet
       # ── 정면도 ───────────────────────────────────────────────────────────
       def front_view(spec, g)
         v = new_view('front', '정면도  FRONT', g[:total_w], g[:total_h])
-        x_car = g[:ep_l] ? g[:ep_t] : 0.0
+        x_car   = g[:ep_l] ? g[:ep_t] : 0.0
+        has_gap = g[:run] && (spec['modules'] || []).any? { |m| m['kind'] == 'bed_gap' }
 
-        # 외곽
-        rect(v, 0, g[:base_h], g[:total_w], g[:total_h] - g[:base_h], 'OUTLINE')
+        if has_gap
+          # bed_gap 존재: 외곽/상판/받침을 침대 공간 제외 구간별로 그림
+          run_segments(spec['modules']).each do |seg_x, seg_w|
+            sx = x_car + seg_x
+            rect(v, sx, g[:base_h], seg_w, g[:content_h], 'OUTLINE')
+            if g[:top_t] > 0
+              rect(v, sx, g[:base_h] + g[:content_h], seg_w, g[:top_t], 'OUTLINE')
+            end
+            rect(v, sx, 0, seg_w, g[:base_h], 'HIDDEN') if g[:base_h] > 0
+          end
+          # EP는 양끝 독립 기둥
+          rect(v, 0, g[:base_h], g[:ep_t], g[:total_h] - g[:base_h], 'OUTLINE') if g[:ep_l]
+          rect(v, g[:total_w] - g[:ep_t], g[:base_h], g[:ep_t],
+               g[:total_h] - g[:base_h], 'OUTLINE') if g[:ep_r]
+        else
+          # 외곽
+          rect(v, 0, g[:base_h], g[:total_w], g[:total_h] - g[:base_h], 'OUTLINE')
 
-        # 받침(걸레받이) — 후퇴되어 은선 처리
-        if g[:base_h] > 0
-          rect(v, x_car, 0, g[:carcase_w], g[:base_h], 'HIDDEN')
-          line(v, 0, g[:base_h], g[:total_w], g[:base_h], 'OUTLINE')
-        end
+          # 받침(걸레받이) — 후퇴되어 은선 처리
+          if g[:base_h] > 0
+            rect(v, x_car, 0, g[:carcase_w], g[:base_h], 'HIDDEN')
+            line(v, 0, g[:base_h], g[:total_w], g[:base_h], 'OUTLINE')
+          end
 
-        # EP 경계선
-        line(v, x_car, g[:base_h], x_car, g[:total_h], 'OUTLINE') if g[:ep_l]
-        if g[:ep_r]
-          xr = x_car + g[:carcase_w]
-          line(v, xr, g[:base_h], xr, g[:total_h], 'OUTLINE')
-        end
+          # EP 경계선
+          line(v, x_car, g[:base_h], x_car, g[:total_h], 'OUTLINE') if g[:ep_l]
+          if g[:ep_r]
+            xr = x_car + g[:carcase_w]
+            line(v, xr, g[:base_h], xr, g[:total_h], 'OUTLINE')
+          end
 
-        # 상판 경계선
-        if g[:top_t] > 0
-          line(v, x_car, g[:total_h] - g[:top_t],
-               x_car + g[:carcase_w], g[:total_h] - g[:top_t], 'OUTLINE')
+          # 상판 경계선
+          if g[:top_t] > 0
+            line(v, x_car, g[:total_h] - g[:top_t],
+                 x_car + g[:carcase_w], g[:total_h] - g[:top_t], 'OUTLINE')
+          end
         end
 
         # 모듈 배치 + 내부 구성
@@ -178,7 +195,8 @@ module Kabinet
           (m['cell_shelves'] || []).each do |cs|
             rng = cell_edges[(cs['cell'] || 0).to_i]
             next unless rng
-            sz = z + bt + (cs['height_from_bottom'] || 0).to_f
+            # 셀 선반 높이는 모듈 바닥 기준 (3D 지오메트리와 동일)
+            sz = z + (cs['height_from_bottom'] || 0).to_f
             line(v, x + bt + rng[0], sz, x + bt + rng[1], sz, 'HIDDEN')
           end
 
@@ -371,9 +389,16 @@ module Kabinet
         v = new_view('top', '평면도  TOP', g[:total_w], depth_total)
         y0    = g[:prot]
         x_car = g[:ep_l] ? g[:ep_t] : 0.0
+        has_gap = g[:run] && (spec['modules'] || []).any? { |m| m['kind'] == 'bed_gap' }
 
-        # 카케이스 외곽
-        rect(v, x_car, y0, g[:carcase_w], g[:max_d], 'OUTLINE')
+        # 카케이스 외곽 (bed_gap 있으면 침대 공간 제외 구간별)
+        if has_gap
+          run_segments(spec['modules']).each do |seg_x, seg_w|
+            rect(v, x_car + seg_x, y0, seg_w, g[:max_d], 'OUTLINE')
+          end
+        else
+          rect(v, x_car, y0, g[:carcase_w], g[:max_d], 'OUTLINE')
+        end
 
         # EP (도어 전면까지 연장)
         rect(v, 0, 0, g[:ep_t], depth_total, 'OUTLINE') if g[:ep_l]
@@ -389,9 +414,13 @@ module Kabinet
         # run 모드: 섹션 경계 (은선) / stack: 측판 (은선)
         if g[:run]
           x = x_car
-          (spec['modules'] || []).each_with_index do |m, i|
+          mods_arr = spec['modules'] || []
+          mods_arr.each_with_index do |m, i|
             x += m['width'].to_f
-            line(v, x, y0, x, y0 + g[:max_d], 'HIDDEN') if i < spec['modules'].size - 1
+            next if i >= mods_arr.size - 1
+            # bed_gap 양옆 경계는 구간 외곽선이 이미 그림 — 은선 생략
+            next if m['kind'] == 'bed_gap' || mods_arr[i + 1]['kind'] == 'bed_gap'
+            line(v, x, y0, x, y0 + g[:max_d], 'HIDDEN')
           end
         else
           first = (spec['modules'] || []).find { |m| %w[shelf_module drawer_module].include?(m['kind']) }
@@ -404,6 +433,28 @@ module Kabinet
         dim(v, 0, 0, g[:total_w], 0, -dim_off(g), fmt(g[:total_w]), :h)
         dim(v, g[:total_w], y0, g[:total_w], y0 + g[:max_d], dim_off(g), fmt(g[:max_d]), :v)
         v
+      end
+
+      # 런 모드: bed_gap 제외 연속 구간 [x_offset_mm, width_mm] (Assembly와 동일)
+      def run_segments(modules)
+        segs = []
+        x = 0.0
+        cur_x = nil
+        cur_w = 0.0
+        (modules || []).each do |m|
+          w = m['width'].to_f
+          if m['kind'] == 'bed_gap'
+            segs << [cur_x, cur_w] if cur_x && cur_w > 0
+            cur_x = nil
+            cur_w = 0.0
+          else
+            cur_x ||= x
+            cur_w += w
+          end
+          x += w
+        end
+        segs << [cur_x, cur_w] if cur_x && cur_w > 0
+        segs
       end
 
       # ── 뷰/프리미티브 헬퍼 ──────────────────────────────────────────────
