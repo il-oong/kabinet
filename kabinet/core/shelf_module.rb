@@ -213,21 +213,16 @@ module Kabinet
 
       # ── 셀 범위 계산 ──────────────────────────────────────────────
       # Returns array of { x_start:, x_end:, width: } in interior SU-Length coords.
-      # Cell 0 is leftmost.
+      # Cell 0 is leftmost. 분할 로직은 Fitting.cell_ranges (단일 소스) 위임 —
+      # 원본 divider 해시는 mm Float이므로 SU Length로 변환해 넘긴다.
       def cell_ranges
-        inner_w   = opening_width
-        sorted    = (@vertical_dividers || []).sort_by { |d| d['x'].to_f }
-        prev_edge = 0.mm
-        cells     = []
-
-        sorted.each do |div|
-          x  = div['x'].to_f.mm
-          dt = (div['thickness'] || 18).mm
-          cells << { x_start: prev_edge, x_end: x, width: x - prev_edge }
-          prev_edge = x + dt
-        end
-        cells << { x_start: prev_edge, x_end: inner_w, width: inner_w - prev_edge }
-        cells
+        inner_w = opening_width
+        divs_su = (@vertical_dividers || []).map { |d|
+          { 'x' => d['x'].to_f.mm, 'thickness' => (d['thickness'] || 18).to_f.mm }
+        }
+        Kabinet::Core::Fitting.cell_ranges(divs_su, inner_w).map { |s, e|
+          { x_start: s, x_end: e, width: e - s }
+        }
       end
 
       # ── 셀별 선반 ─────────────────────────────────────────────────

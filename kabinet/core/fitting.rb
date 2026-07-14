@@ -132,6 +132,50 @@ module Kabinet
         { w: open_w_mm.to_f - 2.0 * side, d: d, h: h, slide_len: slide, z_off: z_off.to_f }
       end
 
+      # ── 세로 분할판 → 칸(cell) 범위 (단위 불문) ───────────────────────────
+      # dividers: [{ 'x' => .., 'thickness' => .. }, ...] — x/inner_w와 같은 단위
+      # (SU Length 또는 mm Float 어느 쪽이든 그대로 사용 가능. 순수 사칙연산).
+      # 반환: [[start, end], ...] 좌→우, 같은 단위.
+      def cell_ranges(dividers, inner_w)
+        sorted = (dividers || []).sort_by { |d| d['x'] }
+        prev   = inner_w * 0   # 0 in the caller's numeric type (SU Length or Float)
+        ranges = []
+        sorted.each do |d|
+          x  = d['x']
+          dt = d['thickness'] || 18
+          ranges << [prev, x]
+          prev = x + dt
+        end
+        ranges << [prev, inner_w]
+        ranges
+      end
+
+      # ── 런 모드: bed_gap 제외 연속 구간 (mm 전용) ─────────────────────────
+      # 걸레받이·상판·외곽은 침대 공간(bed_gap)을 가로지르면 안 되므로
+      # 3D/커트리스트/도면이 모두 이 구간으로 나눠 생성한다.
+      # modules: normalize된 모듈 해시 배열 (width는 mm Float).
+      # 반환: [[x_offset_mm, width_mm], ...]
+      def run_segments(modules)
+        segs  = []
+        x     = 0.0
+        cur_x = nil
+        cur_w = 0.0
+        (modules || []).each do |m|
+          w = m['width'].to_f
+          if m['kind'] == 'bed_gap'
+            segs << [cur_x, cur_w] if cur_x && cur_w > 0
+            cur_x = nil
+            cur_w = 0.0
+          else
+            cur_x ||= x
+            cur_w += w
+          end
+          x += w
+        end
+        segs << [cur_x, cur_w] if cur_x && cur_w > 0
+        segs
+      end
+
       # ── 도어/전판 전면 돌출량 (mm 전용) ──────────────────────────────────
       # EP 마감판이 도어 전면까지 나와야 할 때 필요한 깊이 연장량.
       # modules: normalize된 모듈 해시 배열.

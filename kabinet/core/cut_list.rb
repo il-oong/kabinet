@@ -428,41 +428,14 @@ module Kabinet
         rows
       end
 
-      # 런 모드: bed_gap 제외 연속 구간 [x_offset_mm, width_mm] (Assembly와 동일)
+      # 런 모드: bed_gap 제외 연속 구간 — Fitting.run_segments (단일 소스) 위임.
       def run_segments(modules)
-        segs = []
-        x = 0.0
-        cur_x = nil
-        cur_w = 0.0
-        (modules || []).each do |m|
-          w = m['width'].to_f
-          if m['kind'] == 'bed_gap'
-            segs << [cur_x, cur_w] if cur_x && cur_w > 0
-            cur_x = nil
-            cur_w = 0.0
-          else
-            cur_x ||= x
-            cur_w += w
-          end
-          x += w
-        end
-        segs << [cur_x, cur_w] if cur_x && cur_w > 0
-        segs
+        FIT.run_segments(modules)
       end
 
-      # 세로 분할판 기준 각 칸의 내폭 (지오메트리 cell_ranges와 동일 계산)
+      # 세로 분할판 기준 각 칸의 내폭 — Fitting.cell_ranges (단일 소스) 위임.
       def cell_widths(m, inner_w)
-        sorted = (m['vertical_dividers'] || []).sort_by { |d| d['x'].to_f }
-        prev   = 0.0
-        cells  = []
-        sorted.each do |div|
-          x  = div['x'].to_f
-          dt = (div['thickness'] || 18).to_f
-          cells << (x - prev)
-          prev = x + dt
-        end
-        cells << (inner_w - prev)
-        cells
+        FIT.cell_ranges(m['vertical_dividers'], inner_w).map { |s, e| e - s }
       end
 
       def mkrow(name, l, w, t, qty, mat, grain = '무결', edge: '-', note: '')

@@ -103,20 +103,37 @@ module Kabinet
       end
 
       # ── 선반 처짐 ────────────────────────────────────────────────────────
-
+      # 세로 분할판이 있으면 각 셀 선반의 실제 칸 폭으로 스팬을 계산한다.
+      # (이전 버그: 분할판이 하나라도 있으면 실제 칸 폭과 무관하게 경고를
+      #  통째로 억제 — 가장자리에 치우친 분할판이 만드는 거대한 칸을 놓쳤음)
       def shelf_warnings(m, prefix, mw)
-        warns   = []
         bt      = m['body_thickness'].to_f
-        span    = mw - 2.0 * bt
-        all     = (m['shelves'] || []) + (m['cell_shelves'] || [])
-        return warns if all.empty?
+        inner_w = mw - 2.0 * bt
+        full    = m['shelves'] || []
+        cells   = m['cell_shelves'] || []
+        return [] if full.empty? && cells.empty?
 
-        thin = all.select { |s| (s['thickness'] || 18).to_f < 25.0 }
-        if span > Kabinet::Constants::SHELF_SPAN_WARN_MM && !thin.empty? && (m['vertical_dividers'] || []).empty?
-          warns << "#{prefix}: 선반 스팬 #{span.round}mm (18T) — #{Kabinet::Constants::SHELF_SPAN_WARN_MM}mm 초과 시 " \
-                   '처짐이 발생합니다. 25T 선반 또는 세로 분할판을 권장합니다.'
+        cell_spans = Kabinet::Core::Fitting.cell_ranges(m['vertical_dividers'], inner_w)
+                                            .map { |s, e| e - s }
+
+        worst = 0.0
+        full.each { |s| worst = inner_w if thin_shelf?(s) && inner_w > worst }
+        cells.each do |s|
+          span = cell_spans[(s['cell'] || 0).to_i]
+          next unless span
+          worst = span if thin_shelf?(s) && span > worst
         end
-        warns
+
+        if worst > Kabinet::Constants::SHELF_SPAN_WARN_MM
+          ["#{prefix}: 선반 스팬 #{worst.round}mm (18T) — #{Kabinet::Constants::SHELF_SPAN_WARN_MM}mm 초과 시 " \
+           '처짐이 발생합니다. 25T 선반 또는 세로 분할판(셀 분할)을 권장합니다.']
+        else
+          []
+        end
+      end
+
+      def thin_shelf?(s)
+        (s['thickness'] || 18).to_f < 25.0
       end
 
       # ── 서랍 깊이/레일 규격 ──────────────────────────────────────────────

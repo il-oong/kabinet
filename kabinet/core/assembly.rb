@@ -147,27 +147,10 @@ module Kabinet
         )
       end
 
-      # ── 런 모드: bed_gap 제외 연속 구간 [x_offset_mm, width_mm] ──────────
-      # 걸레받이·상판은 침대 공간을 가로지르면 안 되므로 구간별로 생성한다.
+      # 걸레받이·상판은 침대 공간(bed_gap)을 가로지르면 안 되므로 구간별로
+      # 생성한다. 실제 분할 로직은 Fitting.run_segments (단일 소스) 위임.
       def run_segments
-        segs = []
-        x = 0.0
-        cur_x = nil
-        cur_w = 0.0
-        @modules.each do |m|
-          w = m['width'].to_f
-          if m['kind'] == 'bed_gap'
-            segs << [cur_x, cur_w] if cur_x && cur_w > 0
-            cur_x = nil
-            cur_w = 0.0
-          else
-            cur_x ||= x
-            cur_w += w
-          end
-          x += w
-        end
-        segs << [cur_x, cur_w] if cur_x && cur_w > 0
-        segs
+        Kabinet::Core::Fitting.run_segments(@modules)
       end
 
       # ── STACK MODE (modules bottom → top along Z) ────────────────────────

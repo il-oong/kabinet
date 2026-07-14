@@ -435,26 +435,9 @@ module Kabinet
         v
       end
 
-      # 런 모드: bed_gap 제외 연속 구간 [x_offset_mm, width_mm] (Assembly와 동일)
+      # 런 모드: bed_gap 제외 연속 구간 — Fitting.run_segments (단일 소스) 위임.
       def run_segments(modules)
-        segs = []
-        x = 0.0
-        cur_x = nil
-        cur_w = 0.0
-        (modules || []).each do |m|
-          w = m['width'].to_f
-          if m['kind'] == 'bed_gap'
-            segs << [cur_x, cur_w] if cur_x && cur_w > 0
-            cur_x = nil
-            cur_w = 0.0
-          else
-            cur_x ||= x
-            cur_w += w
-          end
-          x += w
-        end
-        segs << [cur_x, cur_w] if cur_x && cur_w > 0
-        segs
+        FIT.run_segments(modules)
       end
 
       # ── 뷰/프리미티브 헬퍼 ──────────────────────────────────────────────
@@ -477,16 +460,7 @@ module Kabinet
       end
 
       def cell_edges_for(m, inner_w)
-        sorted = (m['vertical_dividers'] || []).sort_by { |d| d['x'].to_f }
-        prev   = 0.0
-        edges  = []
-        sorted.each do |d|
-          x = d['x'].to_f
-          edges << [prev, x]
-          prev = x + (d['thickness'] || 18).to_f
-        end
-        edges << [prev, inner_w]
-        edges
+        FIT.cell_ranges(m['vertical_dividers'], inner_w)
       end
 
       # 치수선 이격량 — 가구 크기에 비례 (도면 가독성)
