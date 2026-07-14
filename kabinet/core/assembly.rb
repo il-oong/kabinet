@@ -114,14 +114,21 @@ module Kabinet
                                        material_name: 'top')
       end
 
+      # EP는 도어/서랍 전판 전면까지 커버 (ep.cover_fronts, 기본 true).
+      # 실무: 측면 마감판이 카케이스에서 끝나면 도어 옆면이 노출된다.
       def add_ep_panels(entities, ep_left, ep_right, ep_t, x_left, x_right, total_h, depth)
+        cover = @ep.nil? || @ep.fetch('cover_fronts', true) ? true : false
+        prot  = cover ? Kabinet::Core::Fitting.front_protrusion_mm(@modules).mm : 0.mm
+        ep_d  = depth + prot
         if ep_left
-          ep = EpFinishPanel.new(side: :left, thickness: ep_t, height: total_h, depth: depth)
-          ep.build(entities, Kabinet::Geometry::Transforms::IDENTITY, x_origin: x_left)
+          ep = EpFinishPanel.new(side: :left, thickness: ep_t, height: total_h, depth: ep_d)
+          ep.build(entities, Kabinet::Geometry::Transforms::IDENTITY,
+                   x_origin: x_left, y_origin: -prot)
         end
         if ep_right
-          ep = EpFinishPanel.new(side: :right, thickness: ep_t, height: total_h, depth: depth)
-          ep.build(entities, Kabinet::Geometry::Transforms::IDENTITY, x_origin: x_right)
+          ep = EpFinishPanel.new(side: :right, thickness: ep_t, height: total_h, depth: ep_d)
+          ep.build(entities, Kabinet::Geometry::Transforms::IDENTITY,
+                   x_origin: x_right, y_origin: -prot)
         end
       end
 

@@ -1,0 +1,117 @@
+# 실무 검증(경고) — 순수 루비, SketchUp API 불필요.
+# 치명 오류(ValidationError)가 아닌, 제작/시공 관점의 경고를 생성한다.
+# 입력: Schema.normalize를 거친 spec 해시. 출력: 경고 문자열 배열.
+module Kabinet
+  module Core
+    module Validation
+      module_function
+
+      def warnings(spec)
+        warns    = []
+        run_mode = spec['run_mode'] ? true : false
+        max_d    = spec['max_depth'].to_f
+
+        spec['modules'].each_with_index do |m, idx|
+          next if m['kind'] == 'bed_gap'
+          prefix = "모듈#{idx + 1}"
+          mh = run_mode ? spec['run_height'].to_f : m['height'].to_f
+          mw = m['width'].to_f
+          md = (m['depth'] || max_d).to_f
+
+          if md > max_d
+            warns << "#{prefix}: 깊이 #{md.round}가 전체 최대깊이 #{max_d.round}보다 큽니다."
+          end
+
+          case m['kind']
+          when 'shelf_module'
+            warns.concat(door_warnings(m, prefix, mw, mh))
+            warns.concat(shelf_warnings(m, prefix, mw))
+            warns.concat(drawer_depth_warning(m, prefix, md, (m['cell_drawers'] || []).any?))
+          when 'drawer_module'
+            warns.concat(drawer_depth_warning(m, prefix, md, true))
+          end
+
+          warns.concat(sheet_warnings(m, prefix, mw, mh, md))
+        end
+        warns
+      end
+
+      # ── 도어 ─────────────────────────────────────────────────────────────
+
+      def door_warnings(m, prefix, mw, mh)
+        warns = []
+        dc = m['door_config'] || 'none'
+        return warns if dc == 'none'
+
+        door_type = m['door_type'] || 'swing'
+        gaps_w    = 2.0 * Kabinet::Constants::DOOR_GAP_OUTSIDE_MM
+        door_w    = dc == 'pair' ?
+                    (mw - gaps_w - Kabinet::Constants::DOOR_REVEAL_BETWEEN_MM) / 2.0 :
+                    mw - gaps_w
+        door_h    = mh - Kabinet::Constants::DOOR_GAP_TOP_MM - Kabinet::Constants::DOOR_GAP_BOTTOM_MM
+
+        if door_type == 'swing' || door_type == 'folding'
+          if door_w > Kabinet::Constants::SWING_DOOR_MAX_W_MM
+            warns << "#{prefix}: 여닫이 도어 폭 #{door_w.round}mm — #{Kabinet::Constants::SWING_DOOR_MAX_W_MM}mm 초과. " \
+                     '힌지 하중/처짐 위험. 양개(pair) 또는 분할을 권장합니다.'
+          end
+          if door_h > Kabinet::Constants::SWING_DOOR_MAX_H_MM
+            warns << "#{prefix}: 도어 높이 #{door_h.round}mm — #{Kabinet::Constants::SWING_DOOR_MAX_H_MM}mm 초과. " \
+                     '상하 분할 도어를 권장합니다.'
+          end
+        end
+
+        if door_type == 'sliding' && mw < 900
+          warns << "#{prefix}: 폭 #{mw.round}mm 미닫이 — 도어 1짝 유효 개구가 매우 좁아집니다. 여닫이를 검토하세요."
+        end
+        warns
+      end
+
+      # ── 선반 처짐 ────────────────────────────────────────────────────────
+
+      def shelf_warnings(m, prefix, mw)
+        warns   = []
+        bt      = m['body_thickness'].to_f
+        span    = mw - 2.0 * bt
+        all     = (m['shelves'] || []) + (m['cell_shelves'] || [])
+        return warns if all.empty?
+
+        thin = all.select { |s| (s['thickness'] || 18).to_f < 25.0 }
+        if span > Kabinet::Constants::SHELF_SPAN_WARN_MM && !thin.empty? && (m['vertical_dividers'] || []).empty?
+          warns << "#{prefix}: 선반 스팬 #{span.round}mm (18T) — #{Kabinet::Constants::SHELF_SPAN_WARN_MM}mm 초과 시 " \
+                   '처짐이 발생합니다. 25T 선반 또는 세로 분할판을 권장합니다.'
+        end
+        warns
+      end
+
+      # ── 서랍 깊이/레일 규격 ──────────────────────────────────────────────
+
+      def drawer_depth_warning(m, prefix, md, has_drawers)
+        return [] unless has_drawers
+        inner_d = md - m['back_thickness'].to_f - Kabinet::Constants::BACK_RECESS_MM
+        slide   = Kabinet::Core::Fitting.slide_length_mm(inner_d)
+        if slide.nil?
+          ["#{prefix}: 내부 깊이 #{inner_d.round}mm — 최소 슬라이드 규격(250mm)이 들어가지 않습니다."]
+        else
+          []
+        end
+      end
+
+      # ── 원장(시트) 규격 초과 ─────────────────────────────────────────────
+
+      def sheet_warnings(m, prefix, mw, mh, md)
+        warns = []
+        long  = [mw, mh, md].max
+        short = [mh, md].min
+        if long > Kabinet::Constants::SHEET_LENGTH_MM
+          warns << "#{prefix}: 부재 최대 길이 #{long.round}mm — 원장(#{Kabinet::Constants::SHEET_LENGTH_MM}×" \
+                   "#{Kabinet::Constants::SHEET_WIDTH_MM}) 초과. 이음(조인트) 설계가 필요합니다."
+        elsif short > Kabinet::Constants::SHEET_WIDTH_MM && long > Kabinet::Constants::SHEET_WIDTH_MM &&
+              [mw, mh, md].sort[1] > Kabinet::Constants::SHEET_WIDTH_MM
+          warns << "#{prefix}: 부재 단변이 원장 폭 #{Kabinet::Constants::SHEET_WIDTH_MM}mm를 초과할 수 있습니다. 재단 배치를 확인하세요."
+        end
+        warns
+      end
+    end
+  end
+end

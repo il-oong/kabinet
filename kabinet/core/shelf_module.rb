@@ -18,7 +18,8 @@ module Kabinet
                   :door_config, :door_thickness, :shelves, :accessories,
                   :vertical_dividers, :cell_shelves, :cell_drawers,
                   :handle_type, :handle_hole_mm, :door_mount,
-                  :door_side_gap_mm, :suppress_left_side, :suppress_right_side
+                  :door_side_gap_mm, :suppress_left_side, :suppress_right_side,
+                  :has_back
 
       def initialize(width:, depth:, height:,
                      body_thickness: Kabinet::Constants::DEFAULT_BODY_THICKNESS_MM.mm,
@@ -29,8 +30,9 @@ module Kabinet
                      vertical_dividers: [], cell_shelves: [], cell_drawers: [],
                      handle_type: 'none', handle_hole_mm: 128,
                      door_mount: 'overlay',
-                     door_side_gap_mm: 0,
-                     suppress_left_side: false, suppress_right_side: false)
+                     door_side_gap_mm: Kabinet::Constants::DOOR_GAP_OUTSIDE_MM,
+                     suppress_left_side: false, suppress_right_side: false,
+                     has_back: true)
         @width             = width
         @depth             = depth
         @height            = height
@@ -50,11 +52,13 @@ module Kabinet
         @door_side_gap_mm  = door_side_gap_mm.to_f
         @suppress_left_side  = suppress_left_side  ? true : false
         @suppress_right_side = suppress_right_side ? true : false
+        @has_back            = has_back ? true : false
       end
 
       def carcase
         @carcase ||= Carcase.new(width: @width, depth: @depth, height: @height,
                                  body_thickness: @body_thickness, back_thickness: @back_thickness,
+                                 has_back: @has_back,
                                  suppress_left_side: @suppress_left_side,
                                  suppress_right_side: @suppress_right_side)
       end
@@ -80,20 +84,23 @@ module Kabinet
         # ── 카케이스 (inline, suppress_bottom / suppress_sides 적용)
         c = Carcase.new(width: @width, depth: @depth, height: @height,
                         body_thickness: @body_thickness, back_thickness: @back_thickness,
+                        has_back: @has_back,
                         suppress_bottom: suppress_bottom,
                         suppress_left_side: @suppress_left_side,
                         suppress_right_side: @suppress_right_side)
         c.build(body_grp.entities, Kabinet::Geometry::Transforms::IDENTITY, wrap_group: false)
 
-        # ── 전체폭 선반 ──────────────────────────────────────────────
+        # ── 전체폭 선반 (좌우 끼임 여유 — 커트리스트와 동일) ──────────
+        play = Kabinet::Constants::SHELF_SIDE_PLAY_MM.mm
         @shelves.each do |s|
-          z      = s['height_from_bottom'].mm
-          t      = s['thickness'].mm
-          inset  = s['depth_inset'].mm
+          z      = (s['height_from_bottom'] || 0).mm
+          t      = (s['thickness'] || 18).mm
+          inset  = (s['depth_inset'] || 20).mm
           recess = Kabinet::Constants::BACK_RECESS_MM.mm
           shelf_d = @depth - inset - @back_thickness - recess
-          local   = ::Geom::Transformation.new(::Geom::Point3d.new(@body_thickness, 0, z))
-          Kabinet::Geometry::Builder.box(body_grp.entities, opening_width, shelf_d, t,
+          local   = ::Geom::Transformation.new(
+            ::Geom::Point3d.new(@body_thickness + play / 2.0, 0, z))
+          Kabinet::Geometry::Builder.box(body_grp.entities, opening_width - play, shelf_d, t,
                                          local, role: 'shelf', label: 'shelf',
                                          material_name: 'shelf')
         end
@@ -176,9 +183,10 @@ module Kabinet
             handle_type:       h['handle_type']    || 'none',
             handle_hole_mm:    (h['handle_hole_mm'] || 128).to_i,
             door_mount:        h['door_mount']     || 'overlay',
-            door_side_gap_mm:  (h['door_side_gap_mm'] || 0).to_f,
+            door_side_gap_mm:  (h['door_side_gap_mm'] || Kabinet::Constants::DOOR_GAP_OUTSIDE_MM).to_f,
             suppress_left_side:  h.fetch('suppress_left_side',  false) ? true : false,
-            suppress_right_side: h.fetch('suppress_right_side', false) ? true : false)
+            suppress_right_side: h.fetch('suppress_right_side', false) ? true : false,
+            has_back:            h.fetch('has_back', true) ? true : false)
       end
 
       private
@@ -228,18 +236,19 @@ module Kabinet
         recess = Kabinet::Constants::BACK_RECESS_MM.mm
         cells  = cell_ranges
 
+        play = Kabinet::Constants::SHELF_SIDE_PLAY_MM.mm
         @cell_shelves.each do |cs|
           cell = cells[(cs['cell'] || 0).to_i]
           next unless cell && cell[:width] > 0
 
-          z       = cs['height_from_bottom'].mm
+          z       = (cs['height_from_bottom'] || 0).mm
           t       = (cs['thickness'] || 18).mm
           inset   = (cs['depth_inset'] || 0).mm
           shelf_d = @depth - @back_thickness - recess - inset
-          x_orig  = @body_thickness + cell[:x_start]
+          x_orig  = @body_thickness + cell[:x_start] + play / 2.0
 
           local = ::Geom::Transformation.new(::Geom::Point3d.new(x_orig, 0, z))
-          Kabinet::Geometry::Builder.box(entities, cell[:width], shelf_d, t,
+          Kabinet::Geometry::Builder.box(entities, cell[:width] - play, shelf_d, t,
                                          local,
                                          role:          "cell_shelf_#{cs['cell']}",
                                          label:         "셀선반_#{(cs['cell'] || 0) + 1}",
@@ -249,10 +258,10 @@ module Kabinet
 
       # ── 셀별 서랍 컬럼 ────────────────────────────────────────────
       # 셀 내부 전 높이를 서랍으로 채움. 전판은 카케이스 전면 오버레이.
+      # 치수는 Fitting 공식 사용 — 커트리스트와 동일.
       def build_cell_drawers(entities)
         return if @cell_drawers.empty?
         recess       = Kabinet::Constants::BACK_RECESS_MM.mm
-        gap_o        = Kabinet::Constants::DOOR_GAP_OUTSIDE_MM.mm
         gap_t        = Kabinet::Constants::DOOR_GAP_TOP_MM.mm
         gap_b        = Kabinet::Constants::DOOR_GAP_BOTTOM_MM.mm
         reveal       = Kabinet::Constants::DRAWER_REVEAL_BETWEEN_MM.mm
@@ -260,6 +269,9 @@ module Kabinet
         wall_t       = Kabinet::Constants::DRAWER_BOX_WALL_MM.mm
         bot_t        = Kabinet::Constants::DRAWER_BOX_BOTTOM_MM.mm
         cells        = cell_ranges
+
+        inner_depth_mm = Kabinet::Core::Fitting.len_mm(
+          @depth - @back_thickness - recess)
 
         @cell_drawers.each do |cd|
           cell_idx = (cd['cell'] || 0).to_i
@@ -270,45 +282,43 @@ module Kabinet
           dt  = cd['type'] || 'undermount'
           dth = (cd['thickness'] || 18).mm
 
-          # 서랍 슬라이드별 클리어런스
-          sc = (dt == 'undermount' ?
-                Kabinet::Constants::UNDERMOUNT_SIDE_CLEARANCE_MM :
-                Kabinet::Constants::SIDEMOUNT_SIDE_CLEARANCE_MM).mm
-          ho = (dt == 'undermount' ?
-                Kabinet::Constants::UNDERMOUNT_HEIGHT_OFFSET_MM :
-                Kabinet::Constants::SIDEMOUNT_HEIGHT_OFFSET_MM).mm
-
           # 내부 Z 범위 (하판 위 ~ 상판 아래)
           z_int_start = @body_thickness
-          z_int_end   = @height - @body_thickness
-          int_h       = z_int_end - z_int_start
-
-          avail_h     = int_h - gap_t - gap_b - (reveal * (dc - 1))
-          front_h     = avail_h / dc.to_f
-          compartment_h = avail_h / dc.to_f
-
+          int_h       = @height - 2 * @body_thickness
           cell_x      = @body_thickness + cell[:x_start]
           cell_w      = cell[:width]
-          front_w     = cell_w - 2 * gap_o
-          box_d       = @depth - @back_thickness - recess - 30.mm
-          box_w       = cell_w - 2 * sc
-          box_x       = cell_x + sc
+
+          # 전판 레이아웃 (셀 내부 기준 → cell_x / z_int_start 오프셋)
+          fronts = Kabinet::Core::Fitting.drawer_fronts(
+            cell_w, int_h, dc,
+            side_gap:   Kabinet::Constants::DOOR_GAP_OUTSIDE_MM.mm,
+            top_gap:    gap_t, bottom_gap: gap_b, reveal: reveal)
+
+          compartment_h = (int_h - gap_t - gap_b - reveal * (dc - 1)) / dc.to_f
+          box = Kabinet::Core::Fitting.drawer_box_mm(
+            open_w_mm:      Kabinet::Core::Fitting.len_mm(cell_w),
+            comp_h_mm:      Kabinet::Core::Fitting.len_mm(compartment_h),
+            inner_depth_mm: inner_depth_mm,
+            type:           dt)
+          box_w = box[:w].mm
+          box_d = box[:d].mm
+          box_h = box[:h].mm
+          box_x = cell_x + (cell_w - box_w) / 2.0
 
           dc.times do |i|
             # 서랍 전판
-            z_front = z_int_start + gap_b + i * (front_h + reveal)
+            f  = fronts[i]
             fl = ::Geom::Transformation.new(
-              ::Geom::Point3d.new(cell_x + gap_o,
+              ::Geom::Point3d.new(cell_x + f[:x],
                                    -(dth + front_offset),
-                                   z_front))
-            Kabinet::Geometry::Builder.box(entities, front_w, dth, front_h, fl,
+                                   z_int_start + f[:z]))
+            Kabinet::Geometry::Builder.box(entities, f[:w], dth, f[:h], fl,
                                            role:          "cell_dfr_#{cell_idx}_#{i}",
                                            label:         "셀서랍전판_c#{cell_idx}_#{i + 1}",
                                            material_name: 'drawer_front')
 
             # 서랍 박스
-            z_box = z_int_start + gap_b + i * (compartment_h + reveal) + ho / 2.0
-            box_h = compartment_h - ho
+            z_box = z_int_start + gap_b + i * (compartment_h + reveal) + box[:z_off].mm
             bl    = ::Geom::Transformation.new(::Geom::Point3d.new(box_x, 0, z_box))
             bgrp  = entities.add_group
             bgrp.transformation = bl

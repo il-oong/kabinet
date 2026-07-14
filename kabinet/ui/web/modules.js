@@ -294,7 +294,7 @@ function shelfFields(m, i) {
             '<span class="unit">mm</span></div>' +
           '<div class="field-row"><label>측면 갭</label>' +
             '<input type="number" data-mod-idx="' + i + '" data-key="door_side_gap_mm" ' +
-                   'value="' + (m.door_side_gap_mm != null ? m.door_side_gap_mm : 0) + '" min="0" max="5" step="0.5">' +
+                   'value="' + (m.door_side_gap_mm != null ? m.door_side_gap_mm : 2) + '" min="0" max="5" step="0.5">' +
             '<span class="unit">mm (0=플러시)</span></div>' +
         '</details>'
       : '') +

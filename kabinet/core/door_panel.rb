@@ -100,103 +100,72 @@ module Kabinet
 
       private
 
-      # ── 여닫이 (Swing) ──────────────────────────────────────────────────
+      # ── 여닫이 (Swing) — Fitting 공식 (커트리스트와 동일) ────────────────
       def build_swing(entities, tx)
-        y0     = y0_for_style
-        z0     = @z_origin + @gap_bottom
-        door_h = door_height
-
-        case @config
-        when 'single'
-          door_w = @opening_width - 2 * @gap_outside
+        y0 = y0_for_style
+        doors =
+          if @mount_style == 'inset'
+            Kabinet::Core::Fitting.inset_doors(
+              @opening_width, @opening_height, @config,
+              gap: @gap_outside, center_gap: @reveal_between)
+          else
+            Kabinet::Core::Fitting.swing_doors(
+              @opening_width, @opening_height, @config,
+              side_gap: @gap_outside, top_gap: @gap_top,
+              bottom_gap: @gap_bottom, center_gap: @reveal_between)
+          end
+        doors.each do |d|
           place_door(entities, tx,
-                     x: @x_origin + @gap_outside, y: y0, z: z0,
-                     w: door_w, h: door_h, role: 'door_single')
-        when 'pair'
-          half_w = (@opening_width - 2 * @gap_outside - @reveal_between) / 2.0
-          place_door(entities, tx,
-                     x: @x_origin + @gap_outside, y: y0, z: z0,
-                     w: half_w, h: door_h, role: 'door_pair_left')
-          place_door(entities, tx,
-                     x: @x_origin + @gap_outside + half_w + @reveal_between, y: y0, z: z0,
-                     w: half_w, h: door_h, role: 'door_pair_right')
+                     x: @x_origin + d[:x], y: y0, z: @z_origin + d[:z],
+                     w: d[:w], h: d[:h], role: d[:role])
         end
       end
 
-      # ── 미닫이 (Sliding) ────────────────────────────────────────────────
+      # ── 미닫이 (Sliding) — Fitting 공식 ─────────────────────────────────
       def build_sliding(entities, tx)
         track_spacing = Kabinet::Constants::SLIDING_DOOR_TRACK_SPACING_MM.mm
-        overlap       = Kabinet::Constants::SLIDING_DOOR_OVERLAP_MM.mm
-        top_gap       = Kabinet::Constants::SLIDING_DOOR_TOP_GAP_MM.mm
-        bot_gap       = Kabinet::Constants::SLIDING_DOOR_BOTTOM_GAP_MM.mm
 
-        door_h  = @opening_height - top_gap - bot_gap
-        z0      = @z_origin + bot_gap
+        doors = Kabinet::Core::Fitting.sliding_doors(
+          @opening_width, @opening_height, @config,
+          overlap:    Kabinet::Constants::SLIDING_DOOR_OVERLAP_MM.mm,
+          top_gap:    Kabinet::Constants::SLIDING_DOOR_TOP_GAP_MM.mm,
+          bottom_gap: Kabinet::Constants::SLIDING_DOOR_BOTTOM_GAP_MM.mm)
 
-        if @mount_style == 'inset'
-          y_front = @inset_depth
-          y_back  = @inset_depth + track_spacing
-        else
-          y_front = -(@thickness + @front_offset)
-          y_back  = -(@thickness + track_spacing + @front_offset)
-        end
-
-        case @config
-        when 'single'
+        doors.each do |d|
+          y = if @mount_style == 'inset'
+                @inset_depth + d[:lane] * track_spacing
+              else
+                -(@thickness + @front_offset) - d[:lane] * track_spacing
+              end
           place_door(entities, tx,
-                     x: @x_origin, y: y_front, z: z0,
-                     w: @opening_width, h: door_h, role: 'door_sliding_single')
-        when 'pair'
-          door_w = (@opening_width + overlap) / 2.0
-          place_door(entities, tx,
-                     x: @x_origin, y: y_front, z: z0,
-                     w: door_w, h: door_h, role: 'door_sliding_front')
-          place_door(entities, tx,
-                     x: @x_origin + @opening_width - door_w, y: y_back, z: z0,
-                     w: door_w, h: door_h, role: 'door_sliding_back')
+                     x: @x_origin + d[:x], y: y, z: @z_origin + d[:z],
+                     w: d[:w], h: d[:h], role: d[:role])
         end
       end
 
-      # ── 접이식 (Folding / Bi-fold) ────────────────────────────────────────
+      # ── 접이식 (Folding / Bi-fold) — Fitting 공식 ───────────────────────
       def build_folding(entities, tx)
-        y0     = y0_for_style
-        z0     = @z_origin + @gap_bottom
-        door_h = door_height
-
-        case @config
-        when 'single'
-          full_w  = @opening_width - 2 * @gap_outside
-          panel_w = full_w / 2.0
-          place_door(entities, tx, x: @x_origin + @gap_outside,           y: y0, z: z0,
-                     w: panel_w, h: door_h, role: 'door_fold_L1')
-          place_door(entities, tx, x: @x_origin + @gap_outside + panel_w, y: y0, z: z0,
-                     w: panel_w, h: door_h, role: 'door_fold_L2')
-        when 'pair'
-          half_opening = (@opening_width - 2 * @gap_outside - @reveal_between) / 2.0
-          panel_w      = half_opening / 2.0
-          x0 = @x_origin + @gap_outside
-          place_door(entities, tx, x: x0,            y: y0, z: z0,
-                     w: panel_w, h: door_h, role: 'door_fold_LL')
-          place_door(entities, tx, x: x0 + panel_w,  y: y0, z: z0,
-                     w: panel_w, h: door_h, role: 'door_fold_LR')
-          x1 = @x_origin + @gap_outside + 2 * panel_w + @reveal_between
-          place_door(entities, tx, x: x1,            y: y0, z: z0,
-                     w: panel_w, h: door_h, role: 'door_fold_RL')
-          place_door(entities, tx, x: x1 + panel_w,  y: y0, z: z0,
-                     w: panel_w, h: door_h, role: 'door_fold_RR')
+        y0 = y0_for_style
+        doors = Kabinet::Core::Fitting.folding_doors(
+          @opening_width, @opening_height, @config,
+          side_gap: @gap_outside, top_gap: @gap_top,
+          bottom_gap: @gap_bottom, center_gap: @reveal_between)
+        doors.each do |d|
+          place_door(entities, tx,
+                     x: @x_origin + d[:x], y: y0, z: @z_origin + d[:z],
+                     w: d[:w], h: d[:h], role: d[:role])
         end
       end
 
-      # ── 리프트업 (Lift-Up / 상개형) ────────────────────────────────────────
+      # ── 리프트업 (Lift-Up / 상개형) — Fitting 공식 ──────────────────────
       def build_lift_up(entities, tx)
-        gap    = Kabinet::Constants::LIFT_UP_DOOR_GAP_MM.mm
-        y0     = y0_for_style
-        z0     = @z_origin + gap
-        door_w = @opening_width - 2 * gap
-        door_h = @opening_height - 2 * gap
-        place_door(entities, tx,
-                   x: @x_origin + gap, y: y0, z: z0,
-                   w: door_w, h: door_h, role: 'door_lift_up')
+        gap = Kabinet::Constants::LIFT_UP_DOOR_GAP_MM.mm
+        y0  = y0_for_style
+        Kabinet::Core::Fitting.lift_up_door(@opening_width, @opening_height, gap: gap).each do |d|
+          place_door(entities, tx,
+                     x: @x_origin + d[:x], y: y0, z: @z_origin + d[:z],
+                     w: d[:w], h: d[:h], role: d[:role])
+        end
       end
 
       # ── 공통 배치 헬퍼 ───────────────────────────────────────────────────
@@ -231,7 +200,9 @@ module Kabinet
               @handle_type, hole_mm: @handle_hole_mm, panel_role: :door)
           end
         end
-      rescue StandardError
+      rescue StandardError => e
+        # 도어 1장 실패가 전체 생성을 막지 않도록 하되, 원인은 콘솔에 남긴다.
+        puts "Kabinet DoorPanel.place_door 오류(#{role}): #{e.class}: #{e.message}"
         nil
       end
     end

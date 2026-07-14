@@ -18,6 +18,7 @@ require File.join(Kabinet::PLUGIN_DIR, 'geometry', 'joinery')
 require File.join(Kabinet::PLUGIN_DIR, 'geometry', 'handle_builder')
 
 # Domain
+require File.join(Kabinet::PLUGIN_DIR, 'core', 'fitting')
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'panel')
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'carcase')
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'door_panel')
@@ -27,6 +28,8 @@ require File.join(Kabinet::PLUGIN_DIR, 'core', 'shelf_module')
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'drawer_module')
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'desk_module')
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'assembly')
+require File.join(Kabinet::PLUGIN_DIR, 'core', 'hardware')
+require File.join(Kabinet::PLUGIN_DIR, 'core', 'validation')
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'cut_list')
 
 # Commands
@@ -75,10 +78,11 @@ module Kabinet
       persistence/attributes.rb persistence/schema.rb
       geometry/transforms.rb geometry/builder.rb
       geometry/joinery.rb geometry/handle_builder.rb
-      core/panel.rb core/carcase.rb core/door_panel.rb
+      core/fitting.rb core/panel.rb core/carcase.rb core/door_panel.rb
       core/ep_finish_panel.rb core/accessory.rb
       core/shelf_module.rb core/drawer_module.rb
-      core/desk_module.rb core/assembly.rb core/cut_list.rb
+      core/desk_module.rb core/assembly.rb
+      core/hardware.rb core/validation.rb core/cut_list.rb
       commands/generate.rb commands/regenerate.rb commands/export.rb
       output/dimensions.rb output/views.rb
       output/png_export.rb output/pdf_bundler.rb
@@ -123,10 +127,10 @@ module Kabinet
       'version', 'constants',
       'persistence/attributes', 'persistence/schema',
       'geometry/transforms', 'geometry/builder', 'geometry/joinery', 'geometry/handle_builder',
-      'core/panel', 'core/carcase', 'core/door_panel',
+      'core/fitting', 'core/panel', 'core/carcase', 'core/door_panel',
       'core/ep_finish_panel', 'core/accessory',
       'core/shelf_module', 'core/drawer_module', 'core/desk_module',
-      'core/assembly', 'core/cut_list',
+      'core/assembly', 'core/hardware', 'core/validation', 'core/cut_list',
       'commands/generate', 'commands/regenerate', 'commands/export',
       'output/dimensions', 'output/views',
       'output/png_export', 'output/pdf_bundler',

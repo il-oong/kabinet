@@ -53,7 +53,14 @@ module Kabinet
             spec = JSON.parse(json_str)
             grp  = Kabinet::Commands::Generate.run_assembly(spec)
             if grp
-              d.execute_script("kabinet.onSuccess('어셈블리가 생성되었습니다.')")
+              norm  = Kabinet::Persistence::Schema.normalize(spec)
+              warns = Kabinet::Core::Validation.warnings(norm)
+              msg   = if warns.empty?
+                        '어셈블리가 생성되었습니다.'
+                      else
+                        "어셈블리 생성 완료 — 경고 #{warns.size}건:\n" + warns.join("\n")
+                      end
+              d.execute_script("kabinet.onSuccess(#{JSON.generate(msg)})")
             end
           rescue Kabinet::Persistence::Schema::ValidationError => e
             d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
@@ -154,8 +161,8 @@ module Kabinet
             spec = JSON.parse(json_str)
             norm = Kabinet::Persistence::Schema.normalize(spec)
             Kabinet::Persistence::Schema.validate!(norm)
-            rows = Kabinet::Core::CutList.generate(norm)
-            csv  = Kabinet::Core::CutList.to_csv(rows)
+            result = Kabinet::Core::CutList.generate_full(norm)
+            csv    = Kabinet::Core::CutList.full_csv(result)
 
             aname = norm['name'] || 'kabinet'
             ts    = Time.now.strftime('%Y%m%d_%H%M%S')

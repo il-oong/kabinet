@@ -58,13 +58,26 @@ module Kabinet
     DEFAULT_HANDLE_HOLE_MM  = 128   # 표준 128mm 홀
 
     # ── 서랍 슬라이드 기준 ───────────────────────────────────────────────
-    UNDERMOUNT_SIDE_CLEARANCE_MM = 13   # Blum Tandem 언더레일 좌우
-    UNDERMOUNT_HEIGHT_OFFSET_MM  = 13   # 언더레일 하단
-    SIDEMOUNT_SIDE_CLEARANCE_MM  = 13   # 일반 사이드마운트 좌우
+    # 언더마운트(Blum Tandem 등): 서랍통 외폭 = 개구폭 − 약 10mm (편측 5mm)
+    # 사이드마운트(볼레일 12.7mm): 서랍통 외폭 = 개구폭 − 약 26mm (편측 13mm)
+    UNDERMOUNT_SIDE_CLEARANCE_MM = 5    # 언더마운트 편측 클리어런스
+    UNDERMOUNT_HEIGHT_OFFSET_MM  = 15   # 언더레일 위 서랍통 바닥 높이
+    SIDEMOUNT_SIDE_CLEARANCE_MM  = 13   # 사이드마운트 편측 (12.7mm 볼레일)
     SIDEMOUNT_HEIGHT_OFFSET_MM   = 25   # 사이드마운트 하단
+    DRAWER_BOX_TOP_CLEAR_MM      = 20   # 서랍통 상단 여유 (인출 간섭 방지)
 
     DRAWER_FRONT_GAP_MM          = 2    # 전판 상하/좌우 갭
     DRAWER_REVEAL_BETWEEN_MM     = 3    # 전판 사이 갭
+
+    # ── 가동선반 / 뒷판 시공 여유 ───────────────────────────────────────
+    SHELF_SIDE_PLAY_MM           = 2    # 가동선반 좌우 총 여유 (끼임 방지, 편측 1mm)
+
+    # ── 실무 한계/검증 기준 ─────────────────────────────────────────────
+    SHEET_LENGTH_MM              = 2440 # 원장 길이 (PB/MDF 표준)
+    SHEET_WIDTH_MM               = 1220 # 원장 폭
+    SWING_DOOR_MAX_W_MM          = 600  # 여닫이 도어 권장 최대 폭
+    SWING_DOOR_MAX_H_MM          = 2400 # 여닫이 도어 권장 최대 높이
+    SHELF_SPAN_WARN_MM           = 800  # 18T 선반 처짐 경고 스팬
 
     # ── 32mm 시스템 (선반 핀 구멍) ──────────────────────────────────────
     SHELF_SYSTEM_PITCH_MM        = 32   # 구멍 피치 32mm

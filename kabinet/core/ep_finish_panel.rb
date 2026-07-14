@@ -17,8 +17,9 @@ module Kabinet
       # Builds in ASSEMBLY-local frame.
       # assembly_inner_width is the carcase width before EP (so left EP is at x=0,
       # right EP is at x = ep_left_offset + inner_width).
-      def build(parent_entities, assembly_origin_transform, x_origin:)
-        local = ::Geom::Transformation.new(::Geom::Point3d.new(x_origin, 0, 0))
+      # y_origin < 0 → 도어 전면 커버를 위해 카케이스 앞으로 연장.
+      def build(parent_entities, assembly_origin_transform, x_origin:, y_origin: 0)
+        local = ::Geom::Transformation.new(::Geom::Point3d.new(x_origin, y_origin, 0))
         Kabinet::Geometry::Builder.box(parent_entities, @thickness, @depth, @height,
                                        assembly_origin_transform * local,
                                        role: "ep_#{@side}", label: "ep_#{@side}",
