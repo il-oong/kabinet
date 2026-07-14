@@ -60,7 +60,11 @@ module Kabinet
           prefix = "M#{idx + 1}"
 
           if m['kind'] == 'desk_module'
-            rows.concat(desk_rows(m, prefix))
+            # 런 모드: Assembly#do_run이 모든 모듈 높이를 run_height로
+            # 덮어쓰고 3D를 만든다(m.merge('height' => run_h)). 여기서도
+            # 같은 덮어쓰기를 해야 다리/가림판/하부유닛 치수가 실물과 일치한다.
+            m_desk = run_mode ? m.merge('height' => spec['run_height']) : m
+            rows.concat(desk_rows(m_desk, prefix))
             next
           end
 
@@ -221,11 +225,21 @@ module Kabinet
                               top_gap:    C::SLIDING_DOOR_TOP_GAP_MM.to_f,
                               bottom_gap: C::SLIDING_DOOR_BOTTOM_GAP_MM.to_f)
           when 'folding'
-            FIT.folding_doors(mw, mh, dc,
-                              side_gap:   side_gap,
-                              top_gap:    C::DOOR_GAP_TOP_MM.to_f,
-                              bottom_gap: C::DOOR_GAP_BOTTOM_MM.to_f,
-                              center_gap: C::DOOR_REVEAL_BETWEEN_MM.to_f)
+            # 인셋: 3D(shelf_module.rb)가 내부 개구(width-2bt)와 INSET_DOOR_GAP_MM을
+            # 쓰므로 여기도 동일하게 전환해야 함 (sliding/lift_up/swing은 이미 처리됨).
+            if mount == 'inset'
+              FIT.folding_doors(mw - 2.0 * bt, mh - 2.0 * bt, dc,
+                                side_gap:   C::INSET_DOOR_GAP_MM.to_f,
+                                top_gap:    C::INSET_DOOR_GAP_MM.to_f,
+                                bottom_gap: C::INSET_DOOR_GAP_MM.to_f,
+                                center_gap: C::DOOR_REVEAL_BETWEEN_MM.to_f)
+            else
+              FIT.folding_doors(mw, mh, dc,
+                                side_gap:   side_gap,
+                                top_gap:    C::DOOR_GAP_TOP_MM.to_f,
+                                bottom_gap: C::DOOR_GAP_BOTTOM_MM.to_f,
+                                center_gap: C::DOOR_REVEAL_BETWEEN_MM.to_f)
+            end
           when 'lift_up'
             base_w = mount == 'inset' ? mw - 2.0 * bt : mw
             base_h = mount == 'inset' ? mh - 2.0 * bt : mh

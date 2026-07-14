@@ -37,8 +37,17 @@ module Kabinet
         end
 
         if (spec['base_height'] || 0).to_f > 0
-          total_w = run_mode ? spec['modules'].sum { |m| m['width'].to_f } : spec['width'].to_f
-          qty = (total_w / 600.0).ceil + 1
+          # 런 모드: 걸레받이가 bed_gap 제외 구간별로 독립 생성되므로
+          # (Fitting.run_segments) 레벨러도 구간마다 따로 세야 한다.
+          # 구간을 합쳐서 하나로 계산하면 침대 공간 폭까지 포함되거나
+          # 실제로는 분리된 받침대를 하나로 세어 과소/과다 산출된다.
+          qty =
+            if run_mode
+              Kabinet::Core::Fitting.run_segments(spec['modules'])
+                                     .sum { |_x, w| (w / 600.0).ceil + 1 }
+            else
+              (spec['width'].to_f / 600.0).ceil + 1
+            end
           rows << row('조절 레벨러', "H#{spec['base_height'].to_f.round}", qty * 2, '개',
                       '하부 받침대 전/후 2열')
         end
