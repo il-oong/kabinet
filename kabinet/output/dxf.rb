@@ -87,10 +87,11 @@ module Kabinet
                      '62', color.to_s, '6', ltype]
         end
         layers += ['0', 'ENDTAB']
+        # 문자 스타일: 맑은 고딕 TTF (한글 CAD 가독성 — 없는 환경은 자동 대체)
         style = ['0', 'TABLE', '2', 'STYLE', '70', '1',
                  '0', 'STYLE', '2', 'STANDARD', '70', '0', '40', '0.0',
                  '41', '1.0', '50', '0.0', '71', '0', '42', '2.5',
-                 '3', 'txt', '4', '',
+                 '3', 'malgun.ttf', '4', '',
                  '0', 'ENDTAB']
         out << sect('TABLES', ltypes + layers + style)
 

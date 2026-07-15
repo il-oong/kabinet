@@ -29,6 +29,23 @@ end
 
 raise 'size_string' unless GP.size_string(segs) == '900W x 580D x 720H'
 
+# 유닛(장) 분할 치수: 400 + 500 두 장, 오른쪽 장은 높이 500 (전체 720과 다름)
+units = [
+  { name: 'A', min: [0, 0, 0],   max: [400, 580, 720] },
+  { name: 'B', min: [400, 0, 0], max: [900, 580, 500] }
+]
+v2 = GP.views_from_segments(segs, units: units)
+f2 = v2[0]
+# 전체 2개(W,H) + 유닛 폭 체인 2개 + B 높이 1개 = 5
+raise "front dims=#{f2[:dims].size} (expected 5)" unless f2[:dims].size == 5
+chain = f2[:dims].select { |dd| dd[:dir] == :h && dd[:offset] > -GP.dim_off(900, 720) }
+raise "chain widths #{chain.map { |c| c[:text] }}" unless chain.map { |c| c[:text] }.sort == %w[400 500]
+raise 'unit B height dim missing' unless f2[:dims].any? { |dd| dd[:dir] == :v && dd[:text] == '500' }
+
+# 유닛 1개면 분할 치수 생략 (전체 치수와 중복)
+v1 = GP.views_from_segments(segs, units: [units[0]])
+raise 'single unit should add no dims' unless v1[0][:dims].size == 2
+
 # OrderSheet.compose → DXF 직렬화 (SketchUp 밖에서만 — order_sheet는 독립 로드 가능)
 if defined?(Kabinet::Output::OrderSheet)
   dxf = Kabinet::Output::OrderSheet.compose(views, name: '테스트장', size: GP.size_string(segs),

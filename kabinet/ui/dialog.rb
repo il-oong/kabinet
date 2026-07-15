@@ -192,7 +192,8 @@ module Kabinet
             else
               segs = []
               targets.each { |t| Kabinet::Output::GroupProjection.collect_segments_mm(t, segs) }
-              views = Kabinet::Output::GroupProjection.views_from_segments(segs)
+              units = Kabinet::Output::GroupProjection.collect_unit_bounds_mm(targets)
+              views = Kabinet::Output::GroupProjection.views_from_segments(segs, units: units)
 
               first = targets.first
               gname = first.name.to_s
