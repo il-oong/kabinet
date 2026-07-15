@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabinet</title>
-  <link rel="stylesheet" href="styles.css?v=1.0.0">
+  <link rel="stylesheet" href="styles.css?v=1.1.0">
 </head>
 <body>
 
@@ -51,7 +51,7 @@
     </optgroup>
     <optgroup label="── 내 프리셋" id="user-preset-group"></optgroup>
   </select>
-  <span class="version-badge">v1.0.0</span>
+  <span class="version-badge">v1.1.0</span>
 </div>
 
 <!-- ══ 본문 (단일 스크롤) ══════════════════════════════════════════════ -->
@@ -142,7 +142,7 @@
   </div>
 
   <!-- 구조 옵션 -->
-  <details class="card">
+  <details class="card" open>
     <summary>구조 옵션 — 상판 · EP · 걸레받이 · 런 모드</summary>
     <div class="toggle-row">
       <label>상판 사용</label>
@@ -162,6 +162,8 @@
       <input type="checkbox" id="f-ep-left" checked onchange="kabinet.onEP('left', this.checked)">
       <label style="margin-left:14px">우측 EP</label>
       <input type="checkbox" id="f-ep-right" checked onchange="kabinet.onEP('right', this.checked)">
+      <label style="margin-left:14px">상부 EP</label>
+      <input type="checkbox" id="f-ep-top" onchange="kabinet.onEP('top', this.checked)">
     </div>
     <div class="field-row">
       <label>EP 두께</label>
@@ -234,12 +236,14 @@
             onclick="kabinet.smartApply()">모델 반영</button>
     <button class="btn-accent" title="정면/측면/평면 3면도 + 표제란 DXF (CAD용)"
             onclick="kabinet.exportDXF()">발주도면 DXF</button>
+    <button class="btn-secondary" title="SketchUp에서 선택한 그룹/컴포넌트를 3면도 DXF로 출력 (직접 모델링한 가구용)"
+            onclick="kabinet.exportGroupDXF()">선택 DXF</button>
     <button class="btn-secondary" title="부재/하드웨어/경고 CSV"
             onclick="kabinet.exportCutList()">커트리스트</button>
   </div>
 </div>
 
-<script src="app.js?v=1.0.0"></script>
-<script src="modules.js?v=1.0.0"></script>
+<script src="app.js?v=1.1.0"></script>
+<script src="modules.js?v=1.1.0"></script>
 </body>
 </html>

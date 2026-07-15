@@ -858,7 +858,7 @@ const kabinet = (() => {
     edge_banding_mm: 1.0,
     run_mode: false,
     run_height: 740,
-    ep: { left: true, right: true, thickness: 18 },
+    ep: { left: true, right: true, top: false, thickness: 18 },
     ep_top_flush: false,
     top_panel: { thickness: 20 },
     modules: []
@@ -1023,6 +1023,13 @@ const kabinet = (() => {
 
   function onEP(key, value) {
     state.ep[key] = value;
+    updateTotalHeight();   // 상부 EP는 총 높이에 반영됨
+  }
+
+  // 상부 EP 두께 (총 높이 가산분)
+  function _epTopT() {
+    const ep = state.ep || {};
+    return ep.top ? (ep.thickness || 18) : 0;
   }
 
   function onEpTopFlush(checked) {
@@ -1097,7 +1104,7 @@ const kabinet = (() => {
     if (!target || target <= 0) { setStatus('목표 높이를 입력하세요.', 'error'); return; }
     const topT = state.top_panel ? (state.top_panel.thickness || 0) : 0;
     const base = state.base_height || 0;
-    const remaining = target - topT - base;
+    const remaining = target - topT - base - _epTopT();
     if (remaining <= 0) { setStatus('목표 높이가 너무 작습니다.', 'error'); return; }
     const perMod = Math.round(remaining / state.modules.length);
     state.modules.forEach(m => { m.height = perMod; });
@@ -1113,9 +1120,9 @@ const kabinet = (() => {
     const base = state.base_height || 0;
 
     if (state.run_mode) {
-      // Height = base + run_height + top panel
+      // Height = base + run_height + top panel + 상부 EP
       const runH  = state.run_height || 740;
-      const total = base + runH + topT;
+      const total = base + runH + topT + _epTopT();
       const el    = document.getElementById('total-height-display');
       if (el) el.textContent = total;
 
@@ -1125,7 +1132,7 @@ const kabinet = (() => {
       if (twEl) twEl.textContent = totalW;
     } else {
       const modsH = state.modules.reduce((s, m) => s + (m.height || 0), 0);
-      const total = base + modsH + topT;
+      const total = base + modsH + topT + _epTopT();
       const el    = document.getElementById('total-height-display');
       if (el) el.textContent = total;
 
@@ -1196,6 +1203,12 @@ const kabinet = (() => {
     if (!validateState()) return;
     setStatus('발주도면 DXF 생성 중…', '');
     sketchup['kabinet:export_dxf'](JSON.stringify(state));
+  }
+
+  // 선택 그룹/컴포넌트 → 3면도 DXF (직접 모델링한 가구)
+  function exportGroupDXF() {
+    setStatus('선택 모델 DXF 생성 중…', '');
+    sketchup['kabinet:export_group_dxf']('');
   }
 
   // ── 스마트 반영: 불러온 어셈블리가 있으면 재생성, 없으면 신규 생성 ────
@@ -1329,7 +1342,7 @@ const kabinet = (() => {
       // Run mode: show section widths + shared height
       const runH   = state.run_height || 740;
       const totalW = state.modules.reduce((s, m) => s + (m.width || 0), 0);
-      const totalH = base + runH + topT;
+      const totalH = base + runH + topT + _epTopT();
       if (base > 0)  parts.push('받침 ' + base);
       state.modules.forEach((m, i) => {
         const tag = m.kind === 'drawer_module' ? '서랍'
@@ -1338,12 +1351,13 @@ const kabinet = (() => {
         parts.push('S' + (i+1) + '(' + tag + ') W' + m.width);
       });
       if (topT > 0) parts.push('상판 ' + topT);
+      if (_epTopT() > 0) parts.push('상부EP ' + _epTopT());
       el.innerHTML =
         '<span class="hs-label">런 높이 ' + totalH + 'mm / 섹션 총 폭 ' + totalW + 'mm</span>' +
         '<span class="hs-parts">' + parts.join(' + ') + '</span>';
     } else {
       const modsH = state.modules.reduce((s, m) => s + (m.height || 0), 0);
-      const total = base + modsH + topT;
+      const total = base + modsH + topT + _epTopT();
       if (base > 0) parts.push('받침 ' + base);
       state.modules.forEach((m, i) => {
         const tag = m.kind === 'drawer_module' ? '서랍'
@@ -1352,6 +1366,7 @@ const kabinet = (() => {
         parts.push('M' + (i+1) + '(' + tag + ') ' + (m.height || '?'));
       });
       if (topT > 0) parts.push('상판 ' + topT);
+      if (_epTopT() > 0) parts.push('상부EP ' + _epTopT());
       el.innerHTML =
         '<span class="hs-label">총 높이 ' + total + 'mm</span>' +
         '<span class="hs-parts">' + parts.join(' + ') + '</span>';
@@ -1409,6 +1424,8 @@ const kabinet = (() => {
 
     document.getElementById('f-ep-left').checked  = !!(state.ep && state.ep.left);
     document.getElementById('f-ep-right').checked = !!(state.ep && state.ep.right);
+    const epTopChk = document.getElementById('f-ep-top');
+    if (epTopChk) epTopChk.checked = !!(state.ep && state.ep.top);
     setVal('f-ep-t', state.ep ? state.ep.thickness : 18);
     const epFlushChk = document.getElementById('f-ep-top-flush');
     if (epFlushChk) epFlushChk.checked = !!state.ep_top_flush;
@@ -1465,7 +1482,7 @@ const kabinet = (() => {
                   .reduce((a, m) => a + (m.height || 0), 0);
     }
     const totW = epL + carW + epR;
-    const totH = base + contH + topT;
+    const totH = base + contH + topT + (ep.top ? epT : 0);
 
     const meta = document.getElementById('preview-size');
     if (meta) meta.textContent =
@@ -1521,14 +1538,18 @@ const kabinet = (() => {
         sRect(epL + x0, base, w0, contH, OUT);
         if (topT > 0) sRect(epL + x0, base + contH, w0, topT, OUT);
       });
-      if (epL) sRect(0, base, epL, totH - base, OUT);
-      if (epR) sRect(totW - epR, base, epR, totH - base, OUT);
+      const capG = totH - (ep.top ? epT : 0);
+      if (epL) sRect(0, base, epL, capG - base, OUT);
+      if (epR) sRect(totW - epR, base, epR, capG - base, OUT);
+      if (ep.top) sRect(0, capG, totW, epT, OUT);
     } else {
-      sRect(0, base, totW, totH - base, OUT);
+      const cap = totH - (ep.top ? epT : 0);
+      sRect(0, base, totW, cap - base, OUT);
       if (base > 0) sLine(0, base, totW, base, OUT);
-      if (epL) sLine(epL, base, epL, totH, OUT);
-      if (epR) sLine(totW - epR, base, totW - epR, totH, OUT);
-      if (topT > 0) sLine(epL, totH - topT, epL + carW, totH - topT, OUT);
+      if (epL) sLine(epL, base, epL, cap, OUT);
+      if (epR) sLine(totW - epR, base, totW - epR, cap, OUT);
+      if (topT > 0) sLine(epL, cap - topT, epL + carW, cap - topT, OUT);
+      if (ep.top) sRect(0, cap, totW, epT, OUT);
     }
 
     // 모듈 순회 (stack: 아래→위 / run: 좌→우)
@@ -1667,7 +1688,7 @@ const kabinet = (() => {
   return {
     switchTab, onField, onTopPanelToggle, onTopPanelField, onEP, onEpTopFlush,
     generate, regenerate, smartApply, loadSelection, loadSpec,
-    exportDrawings, exportCutList, exportDXF, loadSelectionForExport,
+    exportDrawings, exportCutList, exportDXF, exportGroupDXF, loadSelectionForExport,
     savePreset, listPresets, loadPresets, applyPreset, deletePreset,
     addModule, removeModule, moveModule,
     loadFurniturePreset, onPresetChange,

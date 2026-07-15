@@ -40,6 +40,7 @@ module Kabinet
         ep_l   = ep['left']  ? true : false
         ep_r   = ep['right'] ? true : false
         ep_t   = (ep['thickness'] || 18).to_f
+        ep_top_t = ep['top'] ? ep_t : 0.0
         top_t  = spec['top_panel'] ? spec['top_panel']['thickness'].to_f : 0.0
         base_h = (spec['base_height'] || 0).to_f
         max_d  = spec['max_depth'].to_f
@@ -55,10 +56,10 @@ module Kabinet
         end
 
         total_w = (ep_l ? ep_t : 0) + carcase_w + (ep_r ? ep_t : 0)
-        total_h = base_h + content_h + top_t
+        total_h = base_h + content_h + top_t + ep_top_t
         prot    = ep.fetch('cover_fronts', true) ? FIT.front_protrusion_mm(mods) : 0.0
 
-        { run: run, ep_l: ep_l, ep_r: ep_r, ep_t: ep_t,
+        { run: run, ep_l: ep_l, ep_r: ep_r, ep_t: ep_t, ep_top_t: ep_top_t,
           top_t: top_t, base_h: base_h, max_d: max_d,
           carcase_w: carcase_w, content_h: content_h,
           total_w: total_w, total_h: total_h, prot: prot }
@@ -69,6 +70,7 @@ module Kabinet
         v = new_view('front', '정면도  FRONT', g[:total_w], g[:total_h])
         x_car   = g[:ep_l] ? g[:ep_t] : 0.0
         has_gap = g[:run] && (spec['modules'] || []).any? { |m| m['kind'] == 'bed_gap' }
+        cap     = g[:total_h] - g[:ep_top_t]   # 상부 EP 아랫면 (없으면 total_h)
 
         if has_gap
           # bed_gap 존재: 외곽/상판/받침을 침대 공간 제외 구간별로 그림
@@ -81,12 +83,16 @@ module Kabinet
             rect(v, sx, 0, seg_w, g[:base_h], 'HIDDEN') if g[:base_h] > 0
           end
           # EP는 양끝 독립 기둥
-          rect(v, 0, g[:base_h], g[:ep_t], g[:total_h] - g[:base_h], 'OUTLINE') if g[:ep_l]
+          rect(v, 0, g[:base_h], g[:ep_t], cap - g[:base_h], 'OUTLINE') if g[:ep_l]
           rect(v, g[:total_w] - g[:ep_t], g[:base_h], g[:ep_t],
-               g[:total_h] - g[:base_h], 'OUTLINE') if g[:ep_r]
+               cap - g[:base_h], 'OUTLINE') if g[:ep_r]
+          # 상부 EP 밴드 (전체 폭)
+          rect(v, 0, cap, g[:total_w], g[:ep_top_t], 'OUTLINE') if g[:ep_top_t] > 0
         else
           # 외곽
-          rect(v, 0, g[:base_h], g[:total_w], g[:total_h] - g[:base_h], 'OUTLINE')
+          rect(v, 0, g[:base_h], g[:total_w], cap - g[:base_h], 'OUTLINE')
+          # 상부 EP 밴드 (전체 폭)
+          rect(v, 0, cap, g[:total_w], g[:ep_top_t], 'OUTLINE') if g[:ep_top_t] > 0
 
           # 받침(걸레받이) — 후퇴되어 은선 처리
           if g[:base_h] > 0
@@ -95,16 +101,16 @@ module Kabinet
           end
 
           # EP 경계선
-          line(v, x_car, g[:base_h], x_car, g[:total_h], 'OUTLINE') if g[:ep_l]
+          line(v, x_car, g[:base_h], x_car, cap, 'OUTLINE') if g[:ep_l]
           if g[:ep_r]
             xr = x_car + g[:carcase_w]
-            line(v, xr, g[:base_h], xr, g[:total_h], 'OUTLINE')
+            line(v, xr, g[:base_h], xr, cap, 'OUTLINE')
           end
 
           # 상판 경계선
           if g[:top_t] > 0
-            line(v, x_car, g[:total_h] - g[:top_t],
-                 x_car + g[:carcase_w], g[:total_h] - g[:top_t], 'OUTLINE')
+            line(v, x_car, cap - g[:top_t],
+                 x_car + g[:carcase_w], cap - g[:top_t], 'OUTLINE')
           end
         end
 
@@ -316,10 +322,14 @@ module Kabinet
       def side_view(spec, g)
         depth_total = g[:max_d] + g[:prot]
         v = new_view('side', '측면도  SIDE', depth_total, g[:total_h])
-        x0 = g[:prot]   # 카케이스 앞면 위치 (도어 돌출량만큼 밀림)
+        x0  = g[:prot]   # 카케이스 앞면 위치 (도어 돌출량만큼 밀림)
+        cap = g[:total_h] - g[:ep_top_t]   # 상부 EP 아랫면
 
         # 카케이스 외곽
-        rect(v, x0, g[:base_h], g[:max_d], g[:total_h] - g[:base_h], 'OUTLINE')
+        rect(v, x0, g[:base_h], g[:max_d], cap - g[:base_h], 'OUTLINE')
+
+        # 상부 EP 밴드 (도어 전면 커버 포함 전체 깊이)
+        rect(v, 0, cap, depth_total, g[:ep_top_t], 'OUTLINE') if g[:ep_top_t] > 0
 
         # 받침
         if g[:base_h] > 0
@@ -329,7 +339,7 @@ module Kabinet
 
         # 상판
         if g[:top_t] > 0
-          line(v, x0, g[:total_h] - g[:top_t], x0 + g[:max_d], g[:total_h] - g[:top_t], 'OUTLINE')
+          line(v, x0, cap - g[:top_t], x0 + g[:max_d], cap - g[:top_t], 'OUTLINE')
         end
 
         # 뒷판 (은선): 뒷면에서 recess 후퇴
@@ -337,8 +347,8 @@ module Kabinet
         if first && first.fetch('has_back', true)
           bkt    = first['back_thickness'].to_f
           back_x = x0 + g[:max_d] - C::BACK_RECESS_MM - bkt
-          line(v, back_x, g[:base_h], back_x, g[:total_h] - g[:top_t], 'HIDDEN')
-          line(v, back_x + bkt, g[:base_h], back_x + bkt, g[:total_h] - g[:top_t], 'HIDDEN')
+          line(v, back_x, g[:base_h], back_x, cap - g[:top_t], 'HIDDEN')
+          line(v, back_x + bkt, g[:base_h], back_x + bkt, cap - g[:top_t], 'HIDDEN')
         end
 
         # 도어/전판 (돌출부 실선) + 모듈 경계/선반 (은선)
@@ -403,6 +413,9 @@ module Kabinet
         # EP (도어 전면까지 연장)
         rect(v, 0, 0, g[:ep_t], depth_total, 'OUTLINE') if g[:ep_l]
         rect(v, g[:total_w] - g[:ep_t], 0, g[:ep_t], depth_total, 'OUTLINE') if g[:ep_r]
+
+        # 상부 EP: 평면도에서 전체 외곽을 덮는 덮개
+        rect(v, 0, 0, g[:total_w], depth_total, 'OUTLINE') if g[:ep_top_t] > 0
 
         # 도어/전판 라인 (실선)
         each_module_frame(spec, g) do |m, mx, _mz, mw, _mh|

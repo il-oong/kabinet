@@ -135,6 +135,15 @@ module Kabinet
           rows << mkrow('EP-우', ep_d, ep_h, ep_t, 1, ep_mat, '세로결', edge: '앞면', note: note) if ep_right
         end
 
+        # ── 상부 EP — 가구 최상단 덮개 (전체 폭, 측면 EP 위에 얹힘) ───────
+        if spec.dig('ep', 'top')
+          cover = spec['ep'].fetch('cover_fronts', true) ? true : false
+          prot  = cover ? FIT.front_protrusion_mm(spec['modules']) : 0.0
+          ep_w  = (ep_left ? ep_t : 0.0) + carcase_w + (ep_right ? ep_t : 0.0)
+          rows << mkrow('EP-상', ep_w, max_d + prot, ep_t, 1, ep_mat, '가로결',
+                        edge: '앞면', note: '상부 마감판 (측면 EP 위에 얹힘)')
+        end
+
         # ── 걸레받이 (런 모드: bed_gap 제외 구간별) ──────────────────────
         if base_h > 0 && spec.fetch('has_kickboard', true)
           segments =
