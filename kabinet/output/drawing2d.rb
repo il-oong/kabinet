@@ -199,32 +199,37 @@ module Kabinet
           front_desk(v, m, x, z, w, h)
         when 'shelf_module'
           bt = m['body_thickness'].to_f
-          # 몸통 내부 경계 (은선)
-          rect(v, x + bt, z + bt, w - 2 * bt, h - 2 * bt, 'HIDDEN')
-
-          # 내부 구조: 분할판/선반/셀 (은선)
-          inner_w = w - 2 * bt
-          (m['vertical_dividers'] || []).each do |d|
-            dx = x + bt + d['x'].to_f
-            dt = (d['thickness'] || 18).to_f
-            rect(v, dx, z + bt, dt, h - 2 * bt, 'HIDDEN')
-          end
-          (m['shelves'] || []).each do |s|
-            sz = z + (s['height_from_bottom'] || 0).to_f
-            line(v, x + bt, sz, x + bt + inner_w, sz, 'HIDDEN')
-            line(v, x + bt, sz + (s['thickness'] || 18).to_f,
-                 x + bt + inner_w, sz + (s['thickness'] || 18).to_f, 'HIDDEN')
-          end
+          # 도어가 있으면 닫힌 상태 기준 도면 — 내부 구조(선반/분할판)는
+          # 표시하지 않는다 (실무 관행: 도어 뒤 내용물은 도면에 안 그림).
+          # 오픈 선반(door_config: none)만 실제로 보이므로 실선으로 표시.
+          has_door = (m['door_config'] || 'none') != 'none'
+          inner_w  = w - 2 * bt
           cell_edges = cell_edges_for(m, inner_w)
-          (m['cell_shelves'] || []).each do |cs|
-            rng = cell_edges[(cs['cell'] || 0).to_i]
-            next unless rng
-            # 셀 선반 높이는 모듈 바닥 기준 (3D 지오메트리와 동일)
-            sz = z + (cs['height_from_bottom'] || 0).to_f
-            line(v, x + bt + rng[0], sz, x + bt + rng[1], sz, 'HIDDEN')
+
+          unless has_door
+            layer = 'OUTLINE'
+            rect(v, x + bt, z + bt, inner_w, h - 2 * bt, layer)
+            (m['vertical_dividers'] || []).each do |d|
+              dx = x + bt + d['x'].to_f
+              dt = (d['thickness'] || 18).to_f
+              rect(v, dx, z + bt, dt, h - 2 * bt, layer)
+            end
+            (m['shelves'] || []).each do |s|
+              sz = z + (s['height_from_bottom'] || 0).to_f
+              line(v, x + bt, sz, x + bt + inner_w, sz, layer)
+              line(v, x + bt, sz + (s['thickness'] || 18).to_f,
+                   x + bt + inner_w, sz + (s['thickness'] || 18).to_f, layer)
+            end
+            (m['cell_shelves'] || []).each do |cs|
+              rng = cell_edges[(cs['cell'] || 0).to_i]
+              next unless rng
+              # 셀 선반 높이는 모듈 바닥 기준 (3D 지오메트리와 동일)
+              sz = z + (cs['height_from_bottom'] || 0).to_f
+              line(v, x + bt + rng[0], sz, x + bt + rng[1], sz, layer)
+            end
           end
 
-          # 도어/셀서랍 전판 (실선)
+          # 도어/셀서랍 전판 (실선) — 셀서랍 전판은 도어 뒤에서도 항상 보임
           front_doors(v, m, x, z, w, h)
           front_cell_drawers(v, m, x, z, w, h, cell_edges, bt)
         end
@@ -273,9 +278,19 @@ module Kabinet
         off = mount == 'inset' ? bt : 0.0
         doors.each do |d|
           rect(v, x + off + d[:x], z + off + d[:z], d[:w], d[:h], 'FRONTS')
-          # 여닫이 개폐 방향 표시 (실무 관행: 힌지 반대쪽에 사선)
+          # 개폐 방향 표시 (실무 관행: 힌지 반대쪽 꼭짓점에서 V자 사선)
+          # 양개(pair): 항상 바깥쪽 힌지 — role로 자동 판정.
+          # 단문(single): door_hinge_side 설정값 사용 (기본 left).
+          # 접이식(folding)은 경첩이 패널 사이에도 있어 단순 V자로 표현 불가 — 생략.
           if (m['door_type'] || 'swing') == 'swing'
-            hinge_left = d[:role].to_s.include?('right') ? false : true
+            hinge_left =
+              if d[:role].to_s == 'door_pair_right'
+                false
+              elsif d[:role].to_s == 'door_pair_left'
+                true
+              else
+                (m['door_hinge_side'] || 'left') == 'left'
+              end
             swing_mark(v, x + off + d[:x], z + off + d[:z], d[:w], d[:h], hinge_left)
           end
         end

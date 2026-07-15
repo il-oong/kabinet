@@ -125,6 +125,9 @@ module Kabinet
           out['door_mount']     = DOOR_MOUNT_STYLES.include?(m['door_mount'].to_s) ? m['door_mount'].to_s : 'overlay'
           # 도어 측면 갭: 기본 2mm (인접 모듈/벽과의 간섭 방지). 0 = 플러시.
           out['door_side_gap_mm']   = Float(m['door_side_gap_mm'] || Kabinet::Constants::DOOR_GAP_OUTSIDE_MM)
+          # 단문(single) 힌지 위치 — 도면 개폐 방향 표시용. 양개(pair)는 항상
+          # 바깥쪽(외측) 힌지라 자동 결정되므로 이 값을 쓰지 않는다.
+          out['door_hinge_side'] = %w[left right].include?(m['door_hinge_side'].to_s) ? m['door_hinge_side'].to_s : 'left'
           # 측판 생략 옵션 (속장 적층 시 EP 또는 인접 모듈이 측벽 역할)
           out['suppress_left_side']  = m.fetch('suppress_left_side',  false) ? true : false
           out['suppress_right_side'] = m.fetch('suppress_right_side', false) ? true : false

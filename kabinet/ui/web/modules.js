@@ -273,6 +273,13 @@ function shelfFields(m, i) {
         ? '<div class="field-row"><label>도어 타입</label>' +
             '<select data-mod-idx="' + i + '" data-key="door_type">' + dtOpts + '</select></div>'
         : '') +
+      (hasDoor && dc === 'single' && (m.door_type || 'swing') === 'swing'
+        ? '<div class="field-row"><label>힌지 위치</label>' +
+            '<select data-mod-idx="' + i + '" data-key="door_hinge_side">' +
+              '<option value="left"'  + ((m.door_hinge_side||'left')==='left'  ? ' selected' : '') + '>왼쪽</option>' +
+              '<option value="right"' + ((m.door_hinge_side||'left')==='right' ? ' selected' : '') + '>오른쪽</option>' +
+            '</select></div>'
+        : '') +
       '<div class="calc-info" style="margin:0;font-size:11px;color:var(--text-dim)">' +
         hingeInfo +
       '</div>' +
