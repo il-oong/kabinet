@@ -264,6 +264,16 @@ module Kabinet
               ::Geom::Point3d.new(current_x, y_offset, @base_height.mm))
             mod_group = mod_obj.build(entities, local, role: "#{m['kind']}_#{idx}")
             Kabinet::Persistence::Attributes.set(mod_group, 'module_index', idx)
+          elsif m['kind'] == 'bed_gap' && m['storage']
+            # 수납침대: 침대 프레임 겸 서랍 플랫폼 — run_height 무시, 자체 높이.
+            # 앞으로 돌출(침대 길이), 받침 없이 바닥부터 시작.
+            bed = Kabinet::Core::DrawerModule.from_hash(
+              m.merge('kind' => 'drawer_module',
+                      'height' => m['platform_height'], 'depth' => m['bed_depth']))
+            bed_local = ::Geom::Transformation.new(
+              ::Geom::Point3d.new(current_x, max_d - m['bed_depth'].to_f.mm, 0))
+            bed_grp = bed.build(entities, bed_local, role: "bed_storage_#{idx}")
+            Kabinet::Persistence::Attributes.set(bed_grp, 'module_index', idx)
           end
           current_x += mod_w   # bed_gap 포함 항상 폭 전진
         end

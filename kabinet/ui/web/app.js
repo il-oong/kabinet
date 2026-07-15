@@ -1558,7 +1558,19 @@ const kabinet = (() => {
       let mx, mz, mw, mh;
       if (state.run_mode) {
         mw = m.width || 0; mh = contH; mx = cx; mz = 0; cx += mw;
-        if (m.kind === 'bed_gap') return;
+        if (m.kind === 'bed_gap') {
+          // 수납침대: 바닥부터 플랫폼 높이만큼 (받침 무시)
+          if (m.storage) {
+            const ph = m.platform_height || 350;
+            sRect(epL + mx, 0, mw, ph, OUT);
+            const n = Math.max(m.drawer_count || 2, 1);
+            const fw = (mw - 4 - 3 * (n - 1)) / n;
+            for (let k = 0; k < n; k++) {
+              sRect(epL + mx + 2 + k * (fw + 3), 2, fw, ph - 4, FRONT, 'rgba(91,155,213,.10)');
+            }
+          }
+          return;
+        }
       } else {
         if (m.kind === 'bed_gap') return;
         mw = carW; mh = m.height || 0; mx = 0; mz = cz; cz += mh;

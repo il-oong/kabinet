@@ -60,7 +60,7 @@ function moduleCardHtml(m, i, total) {
   const dispH   = isRun ? runH : (m.height || 0);
   let summary;
   if (m.kind === 'bed_gap') {
-    summary = (m.label || '침대 공간') + ' ' + m.width + 'mm';
+    summary = (m.label || '침대 공간') + ' ' + m.width + 'mm' + (m.storage ? '  🗄 수납침대' : '');
   } else if (m.kind === 'shelf_module') {
     const dcLabel = {none:'오픈', single:'단문', pair:'양개'}[m.door_config || 'none'] || '';
     summary = m.width + '×' + (m.depth || '?') + '×' + dispH + 'mm' + (dcLabel ? '  ' + dcLabel : '');
@@ -391,9 +391,33 @@ function bedGapFields(m, i) {
     '<option value="' + w + '"' + (+m.width === w ? ' selected' : '') + '>' + l + '</option>'
   ).join('');
 
+  const banner = m.storage
+    ? '🛏 수납침대 — 침대 프레임 겸 서랍 플랫폼 (자체 높이, 앞으로 돌출)'
+    : '🛏 침대 공간 — 지오메트리 없음, 런 모드에서 폭만 차지합니다';
+
+  let storageHtml =
+    '<div class="toggle-row"><label>수납침대 (서랍 플랫폼)</label>' +
+      '<input type="checkbox" data-mod-idx="' + i + '" data-key="storage"' +
+      (m.storage ? ' checked' : '') + '></div>';
+  if (m.storage) {
+    storageHtml +=
+      '<div class="field-row"><label>플랫폼 높이</label>' +
+        '<input type="number" data-mod-idx="' + i + '" data-key="platform_height" ' +
+               'value="' + (m.platform_height||350) + '" min="150" max="700">' +
+        '<span class="unit">mm</span></div>' +
+      '<div class="field-row"><label>침대 길이(깊이)</label>' +
+        '<input type="number" data-mod-idx="' + i + '" data-key="bed_depth" ' +
+               'value="' + (m.bed_depth||2000) + '" min="1500" max="2400">' +
+        '<span class="unit">mm</span></div>' +
+      '<div class="field-row"><label>발치 서랍 수</label>' +
+        '<input type="number" data-mod-idx="' + i + '" data-key="drawer_count" ' +
+               'value="' + (m.drawer_count||2) + '" min="1" max="4">' +
+        '<span class="unit">개</span></div>';
+  }
+
   return '<div style="background:var(--bg);border:1px dashed var(--border);border-radius:var(--radius);' +
          'padding:10px;margin-bottom:6px;text-align:center;font-size:12px;color:var(--text-dim)">' +
-         '🛏 침대 공간 — 지오메트리 없음, 런 모드에서 폭만 차지합니다</div>' +
+         banner + '</div>' +
     '<div class="field-row"><label>침대 폭</label>' +
       '<select data-mod-idx="' + i + '" data-key="width">' + sizeOpts + '</select>' +
       '<span class="unit">mm</span></div>' +
@@ -401,6 +425,7 @@ function bedGapFields(m, i) {
       '<input type="number" data-mod-idx="' + i + '" data-key="width" ' +
              'value="' + (m.width||1600) + '" min="800" max="2400">' +
       '<span class="unit">mm</span></div>' +
+    storageHtml +
     '<div class="field-row"><label>레이블</label>' +
       '<input type="text" data-mod-idx="' + i + '" data-key="label" ' +
              'value="' + (m.label||'침대 공간') + '"></div>';
@@ -549,7 +574,7 @@ function syncModuleField(el) {
     if (summary) {
       const runH  = state.run_mode ? state.run_height || 740 : m.height;
       if (m.kind === 'bed_gap') {
-        summary.textContent = (m.label || '침대 공간') + ' ' + m.width + 'mm';
+        summary.textContent = (m.label || '침대 공간') + ' ' + m.width + 'mm' + (m.storage ? '  🗄 수납침대' : '');
       } else if (m.kind === 'shelf_module') {
         const dcL = {none:'오픈', single:'단문', pair:'양개'}[m.door_config || 'none'] || '';
         summary.textContent = m.width + '×' + (m.depth||'?') + '×' + runH + 'mm' + (dcL ? '  '+dcL : '');
@@ -562,11 +587,13 @@ function syncModuleField(el) {
   }
 
   if (key === 'height' || key === 'door_config' || key === 'handle_type' || key === 'drawer_count' ||
-      (key === 'width' && state.run_mode) || key === 'label') {
+      (key === 'width' && state.run_mode) || key === 'label' || key === 'storage' ||
+      key === 'platform_height') {
     kabinet.updateTotalHeight();
     kabinet.updateHeightSummary();
     // Re-render to update conditional sections (door_type row, hinge info, etc.)
-    if (key === 'door_config' || key === 'handle_type' || key === 'drawer_count') renderModuleList();
+    if (key === 'door_config' || key === 'handle_type' || key === 'drawer_count' ||
+        key === 'storage') renderModuleList();
   }
 }
 

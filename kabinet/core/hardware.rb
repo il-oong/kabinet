@@ -18,7 +18,12 @@ module Kabinet
         run_mode = spec['run_mode'] ? true : false
 
         spec['modules'].each_with_index do |m, idx|
-          next if m['kind'] == 'bed_gap'
+          if m['kind'] == 'bed_gap'
+            next unless m['storage']
+            # 수납침대 → 서랍 모듈 하드웨어 (레일/손잡이)
+            m = m.merge('kind' => 'drawer_module',
+                        'height' => m['platform_height'], 'depth' => m['bed_depth'])
+          end
           prefix = "M#{idx + 1}"
           mh     = run_mode ? spec['run_height'].to_f : m['height'].to_f
 
@@ -121,6 +126,8 @@ module Kabinet
         dc = (m['drawer_count'] || 1).to_i
         bt = m['body_thickness'].to_f
         inner_d = m['depth'].to_f - m['back_thickness'].to_f - Kabinet::Constants::BACK_RECESS_MM
+        # 박스 깊이 상한 (수납침대 — 레일도 박스 깊이 기준)
+        inner_d = [inner_d, m['box_depth_mm'].to_f].min if m['box_depth_mm']
         slide   = Kabinet::Core::Fitting.slide_length_mm(inner_d)
         label   = m['drawer_type'] == 'side_mount' ? '사이드 볼레일' : '언더마운트'
         len     = slide ? "L#{slide.round}" : '규격 미달(주문 확인)'

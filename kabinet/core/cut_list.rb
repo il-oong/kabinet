@@ -56,8 +56,15 @@ module Kabinet
 
         # ── 모듈별 부재 ─────────────────────────────────────────────────
         spec['modules'].each_with_index do |m, idx|
-          next if m['kind'] == 'bed_gap'
-          prefix = "M#{idx + 1}"
+          is_bed = false
+          if m['kind'] == 'bed_gap'
+            next unless m['storage']
+            # 수납침대: 서랍 모듈로 변환 — run_height 대신 플랫폼 자체 치수
+            is_bed = true
+            m = m.merge('kind' => 'drawer_module',
+                        'height' => m['platform_height'], 'depth' => m['bed_depth'])
+          end
+          prefix = is_bed ? "M#{idx + 1}(침대)" : "M#{idx + 1}"
 
           if m['kind'] == 'desk_module'
             # 런 모드: Assembly#do_run이 모든 모듈 높이를 run_height로
@@ -69,8 +76,9 @@ module Kabinet
           end
 
           # 지오메트리와 동일: stack 모드는 폭 강제, run 모드는 높이 강제
+          # (수납침대는 run_height 무시 — 플랫폼 자체 높이)
           mw = run_mode ? m['width'].to_f : carcase_w
-          mh = run_mode ? spec['run_height'].to_f : m['height'].to_f
+          mh = is_bed ? m['height'].to_f : (run_mode ? spec['run_height'].to_f : m['height'].to_f)
           md = (m['depth'] || max_d).to_f
           bt  = m['body_thickness'].to_f
           bkt = m['back_thickness'].to_f
@@ -367,6 +375,8 @@ module Kabinet
         open_w      = mw - 2.0 * bt
         open_h      = mh - 2.0 * bt
         inner_depth = md - bkt - C::BACK_RECESS_MM
+        # 박스 깊이 상한 (수납침대 — 지오메트리와 동일)
+        inner_depth = [inner_depth, m['box_depth_mm'].to_f].min if m['box_depth_mm']
         comp_h      = (open_h - C::DRAWER_REVEAL_BETWEEN_MM * (dc - 1)) / dc
         box = FIT.drawer_box_mm(open_w_mm: open_w, comp_h_mm: comp_h,
                                 inner_depth_mm: inner_depth,

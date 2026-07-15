@@ -27,7 +27,8 @@ module Kabinet
                      drawer_thickness: Kabinet::Constants::DEFAULT_DOOR_THICKNESS_MM.mm,
                      handle_type:     'none',
                      handle_hole_mm:  128,
-                     has_back:        true)
+                     has_back:        true,
+                     box_depth_mm:    nil)
         @width            = width
         @depth            = depth
         @height           = height
@@ -39,6 +40,8 @@ module Kabinet
         @handle_type      = handle_type.to_s
         @handle_hole_mm   = handle_hole_mm.to_i
         @has_back         = has_back ? true : false
+        # 서랍 박스 깊이 상한 (수납침대 등 깊은 카케이스에서 실물 서랍 깊이 제한)
+        @box_depth_mm     = box_depth_mm ? box_depth_mm.to_f : nil
       end
 
       def carcase
@@ -91,6 +94,7 @@ module Kabinet
         # ── 서랍통 치수: 슬라이드 규격 스냅 (mm 계산 후 SU Length 변환) ──
         inner_depth_mm = Kabinet::Core::Fitting.len_mm(@depth - @back_thickness -
                                                        Kabinet::Constants::BACK_RECESS_MM.mm)
+        inner_depth_mm = [inner_depth_mm, @box_depth_mm].min if @box_depth_mm
         compartment_h  = (opening_height - reveal * (@drawer_count - 1)) / @drawer_count.to_f
         box = Kabinet::Core::Fitting.drawer_box_mm(
           open_w_mm:      Kabinet::Core::Fitting.len_mm(opening_width),
@@ -145,7 +149,8 @@ module Kabinet
             drawer_thickness: (h['drawer_thickness'] || Kabinet::Constants::DEFAULT_DOOR_THICKNESS_MM).mm,
             handle_type:      h['handle_type']     || 'none',
             handle_hole_mm:   (h['handle_hole_mm'] || 128).to_i,
-            has_back:         h.fetch('has_back', true) ? true : false)
+            has_back:         h.fetch('has_back', true) ? true : false,
+            box_depth_mm:     h['box_depth_mm'])
       end
 
       private

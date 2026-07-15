@@ -58,11 +58,30 @@ module Kabinet
         kind = m['kind'].to_s
         raise ValidationError, "unknown module kind: #{kind}" unless MODULE_KINDS.include?(kind)
 
-        # 침대 공간 — 폭만 있는 단순 마커
+        # 침대 공간 — 기본은 폭만 차지하는 마커, storage: true면 수납침대
+        # (서랍 플랫폼: 침대 프레임 겸 발치 서랍장, run_height 무시하고 자체 높이)
         if kind == 'bed_gap'
-          return { 'kind' => 'bed_gap',
-                   'width' => Float(m['width'] || 1600),
-                   'label' => (m['label'] || '침대 공간').to_s }
+          out = { 'kind'    => 'bed_gap',
+                  'width'   => Float(m['width'] || 1600),
+                  'label'   => (m['label'] || '침대 공간').to_s,
+                  'storage' => m['storage'] ? true : false }
+          if out['storage']
+            out['platform_height'] = Float(m['platform_height'] || 350)
+            out['bed_depth']       = Float(m['bed_depth'] || 2000)
+            out['drawer_count']    = [Integer(m['drawer_count'] || 2), 1].max
+            out['drawer_type']     = DRAWER_TYPES.include?(m['drawer_type'].to_s) ? m['drawer_type'].to_s : 'undermount'
+            out['drawer_thickness'] = Float(m['drawer_thickness'] || Kabinet::Constants::DEFAULT_DOOR_THICKNESS_MM)
+            out['body_thickness']  = Float(m['body_thickness'] || Kabinet::Constants::DEFAULT_BODY_THICKNESS_MM)
+            out['back_thickness']  = Float(m['back_thickness'] || Kabinet::Constants::DEFAULT_BACK_THICKNESS_MM)
+            out['has_back']        = m.fetch('has_back', true) ? true : false
+            out['material']        = (m['material'] || 'LPM').to_s
+            out['door_material']   = (m['door_material'] || out['material']).to_s
+            out['handle_type']     = HANDLE_TYPES.include?(m['handle_type'].to_s) ? m['handle_type'].to_s : 'none'
+            out['handle_hole_mm']  = Integer(m['handle_hole_mm'] || Kabinet::Constants::DEFAULT_HANDLE_HOLE_MM)
+            # 서랍 박스 깊이 상한 — 침대 길이만큼 깊은 서랍은 실물 불가
+            out['box_depth_mm']    = Float(m['box_depth_mm'] || 600)
+          end
+          return out
         end
 
         # 책상 모듈 — 하위 필드 그대로 통과
@@ -180,6 +199,10 @@ module Kabinet
             # 크래시하므로(UI가 침대공간 버튼을 런 모드로 제한하지 않음) 여기서 차단.
             raise ValidationError,
                   "module[#{i}]: bed_gap 모듈은 수평 런 모드에서만 사용할 수 있습니다." unless run_mode
+            if m['storage']
+              raise ValidationError, "module[#{i}]: 수납침대 플랫폼 높이는 0보다 커야 합니다." unless m['platform_height'].to_f > 0
+              raise ValidationError, "module[#{i}]: 수납침대 깊이(침대 길이)는 0보다 커야 합니다." unless m['bed_depth'].to_f > 0
+            end
             next  # bed_gap has no height/depth
           end
           raise ValidationError, "module[#{i}] height must be > 0" unless m['height'].to_f > 0

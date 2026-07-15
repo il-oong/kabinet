@@ -88,6 +88,24 @@ module Kabinet
                cap - g[:base_h], 'OUTLINE') if g[:ep_r]
           # 상부 EP 밴드 (전체 폭)
           rect(v, 0, cap, g[:total_w], g[:ep_top_t], 'OUTLINE') if g[:ep_top_t] > 0
+
+          # 수납침대: 침대 공간의 서랍 플랫폼 (바닥부터 자체 높이)
+          bx = x_car
+          (spec['modules'] || []).each do |m|
+            bw = m['width'].to_f
+            if m['kind'] == 'bed_gap' && m['storage']
+              ph = m['platform_height'].to_f
+              rect(v, bx, 0, bw, ph, 'OUTLINE')
+              FIT.drawer_fronts(bw, ph, (m['drawer_count'] || 2).to_i,
+                                side_gap:   C::DRAWER_FRONT_GAP_MM.to_f,
+                                top_gap:    C::DOOR_GAP_TOP_MM.to_f,
+                                bottom_gap: C::DOOR_GAP_BOTTOM_MM.to_f,
+                                reveal:     C::DRAWER_REVEAL_BETWEEN_MM.to_f)
+                 .each { |f| rect(v, bx + f[:x], f[:z], f[:w], f[:h], 'FRONTS') }
+              dim(v, bx, 0, bx, ph, dim_off(g) * 0.4, fmt(ph), :v)
+            end
+            bx += bw
+          end
         else
           # 외곽
           rect(v, 0, g[:base_h], g[:total_w], cap - g[:base_h], 'OUTLINE')
