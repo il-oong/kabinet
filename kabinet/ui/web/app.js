@@ -1218,8 +1218,22 @@ const kabinet = (() => {
 
   // 선택 그룹/컴포넌트 → 3면도 DXF (직접 모델링한 가구)
   function exportGroupDXF() {
-    setStatus('선택 모델 DXF 생성 중…', '');
-    sketchup['kabinet:export_group_dxf']('');
+    const chk = id => { const el = document.getElementById(id); return el ? el.checked : true; };
+    const views = [];
+    if (chk('g-view-front')) views.push('front');
+    if (chk('g-view-side'))  views.push('side');
+    if (chk('g-view-top'))   views.push('top');
+    if (views.length === 0) { setStatus('출력할 뷰를 하나 이상 선택하세요.', 'error'); return; }
+    const opts = {
+      views: views,
+      dim_overall:  chk('g-dim-overall'),
+      dim_units:    chk('g-dim-units'),
+      hlr:          chk('g-hlr'),
+      include_soft: document.getElementById('g-include-soft') ?
+                    document.getElementById('g-include-soft').checked : false
+    };
+    setStatus('선택 모델 DXF 생성 중… (은선 제거 켜면 수 초 걸릴 수 있음)', '');
+    sketchup['kabinet:export_group_dxf'](JSON.stringify(opts));
   }
 
   // ── 스마트 반영: 불러온 어셈블리가 있으면 재생성, 없으면 신규 생성 ────

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabinet</title>
-  <link rel="stylesheet" href="styles.css?v=1.4.0">
+  <link rel="stylesheet" href="styles.css?v=1.5.0">
 </head>
 <body>
 
@@ -51,7 +51,7 @@
     </optgroup>
     <optgroup label="── 내 프리셋" id="user-preset-group"></optgroup>
   </select>
-  <span class="version-badge">v1.4.0</span>
+  <span class="version-badge">v1.5.0</span>
 </div>
 
 <!-- ══ 본문 (단일 스크롤) ══════════════════════════════════════════════ -->
@@ -213,6 +213,32 @@
     </div>
   </details>
 
+  <!-- 선택 DXF 출력 옵션 -->
+  <details class="card">
+    <summary>선택 DXF 옵션 — 뷰 · 치수 · 은선</summary>
+    <div class="view-grid">
+      <label class="view-check"><input type="checkbox" id="g-view-front" checked> 정면도</label>
+      <label class="view-check"><input type="checkbox" id="g-view-side" checked> 측면도</label>
+      <label class="view-check"><input type="checkbox" id="g-view-top" checked> 평면도</label>
+    </div>
+    <div class="toggle-row">
+      <label>전체 치수 (W/H/D)</label>
+      <input type="checkbox" id="g-dim-overall" checked>
+    </div>
+    <div class="toggle-row">
+      <label>유닛(장) 분할 치수</label>
+      <input type="checkbox" id="g-dim-units" checked>
+    </div>
+    <div class="toggle-row">
+      <label>은선 제거 <span class="dim-note">(가려진 선 숨김 — 권장)</span></label>
+      <input type="checkbox" id="g-hlr" checked>
+    </div>
+    <div class="toggle-row">
+      <label>곡면 메시 엣지 포함 <span class="dim-note">(소파 등 — 기본은 바운딩 박스로 대체)</span></label>
+      <input type="checkbox" id="g-include-soft">
+    </div>
+  </details>
+
   <!-- SketchUp 씬 도면 (보조) -->
   <details class="card">
     <summary>SketchUp 씬 도면 (PNG + PDF) — 보조 출력</summary>
@@ -251,7 +277,7 @@
   </div>
 </div>
 
-<script src="app.js?v=1.4.0"></script>
-<script src="modules.js?v=1.4.0"></script>
+<script src="app.js?v=1.5.0"></script>
+<script src="modules.js?v=1.5.0"></script>
 </body>
 </html>

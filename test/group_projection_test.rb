@@ -46,6 +46,20 @@ raise 'unit B height dim missing' unless f2[:dims].any? { |dd| dd[:dir] == :v &&
 v1 = GP.views_from_segments(segs, units: [units[0]])
 raise 'single unit should add no dims' unless v1[0][:dims].size == 2
 
+# 치수 끄기 옵션
+v0 = GP.views_from_segments(segs, units: units, dim_overall: false, dim_units: false)
+raise 'dims should be off' unless v0.all? { |vv| vv[:dims].empty? }
+
+# 뷰별 세그먼트 오버라이드 (은선 제거 결과 주입) — front는 바닥 4엣지만
+# 바닥 사각형은 정면 투영에서 수평선 1개로 합쳐짐 (앞뒤 dedupe + 깊이 붕괴)
+vo = GP.views_from_segments(segs, view_segs: { 'front' => segs.first(4) })
+raise "front override lines=#{vo[0][:lines].size} (expected 1)" unless vo[0][:lines].size == 1
+raise 'side keeps full segs' unless vo[1][:lines].size == 4
+
+# bbox_segments — 12엣지
+bb = GP.bbox_segments([0, 0, 0], [100, 200, 300])
+raise 'bbox 12 edges' unless bb.size == 12
+
 # OrderSheet.compose → DXF 직렬화 (SketchUp 밖에서만 — order_sheet는 독립 로드 가능)
 if defined?(Kabinet::Output::OrderSheet)
   dxf = Kabinet::Output::OrderSheet.compose(views, name: '테스트장', size: GP.size_string(segs),

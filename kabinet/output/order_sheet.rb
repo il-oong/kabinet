@@ -34,12 +34,13 @@ module Kabinet
                 notes:    build_notes(spec, g))
       end
 
-      # 뷰 3개(front/side/top) + 표제란 정보로 도면 시트 조립.
+      # 뷰(front 필수, side/top 선택) + 표제란 정보로 도면 시트 조립.
       # 스펙 기반(build)과 선택 그룹 투영(GroupProjection) 공용 경로.
       def compose(views, name:, size:, material:, notes: [])
-        front = views.find { |v| v[:name] == 'front' }
+        front = views.find { |v| v[:name] == 'front' } || views.first
         side  = views.find { |v| v[:name] == 'side' }
         top   = views.find { |v| v[:name] == 'top' }
+        raise ArgumentError, '출력할 뷰가 없습니다' unless front
 
         # 문자 높이/간격 — 가구 크기에 비례 (인쇄 축척 무관 가독성)
         ref = [front[:width], front[:height]].max
@@ -48,22 +49,24 @@ module Kabinet
 
         dxf = Dxf.new
 
-        # ── 뷰 배치 (3각법) ──────────────────────────────────────────────
+        # ── 뷰 배치 (3각법 — 빠진 뷰는 자리 생략) ───────────────────────
         fx0 = 0.0
         fy0 = 0.0
         render_view(dxf, front, fx0, fy0, th)
 
         sx0 = fx0 + front[:width] + gap
-        render_view(dxf, side, sx0, fy0, th)          # 측면도: 정면 우측, 바닥 정렬
+        render_view(dxf, side, sx0, fy0, th) if side  # 측면도: 정면 우측, 바닥 정렬
 
         tx0 = fx0
         ty0 = fy0 + front[:height] + gap
-        render_view(dxf, top, tx0, ty0, th)           # 평면도: 정면 위, 좌측 정렬
+        render_view(dxf, top, tx0, ty0, th) if top    # 평면도: 정면 위, 좌측 정렬
 
         # ── 도면 범위 계산 ───────────────────────────────────────────────
         margin  = gap * 0.8
-        right   = [sx0 + side[:width], tx0 + top[:width]].max
-        top_y   = ty0 + top[:height]
+        right   = [fx0 + front[:width],
+                   side ? sx0 + side[:width] : 0.0,
+                   top  ? tx0 + top[:width]  : 0.0].max
+        top_y   = top ? ty0 + top[:height] : fy0 + front[:height]
 
         bx0 = fx0 - margin
         by0 = fy0 - margin - title_height(th)         # 표제란 공간

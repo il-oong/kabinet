@@ -180,9 +180,22 @@ module Kabinet
         end
 
         # ── 선택 그룹/컴포넌트 → 발주도면 DXF (직접 모델링한 가구용) ────
-        # 엣지 직교투영 3면도 — 파라메트릭 해석 없음, 와이어프레임.
-        d.add_action_callback('kabinet:export_group_dxf') do |_ctx, _json|
+        # 엣지 직교투영 3면도. 옵션(JSON): views / dim_overall / dim_units /
+        # include_soft(곡면 엣지 포함) / hlr(은선 제거 레이캐스트)
+        d.add_action_callback('kabinet:export_group_dxf') do |_ctx, json_str|
           begin
+            opts = begin
+                     JSON.parse(json_str.to_s)
+                   rescue StandardError
+                     {}
+                   end
+            want_views   = Array(opts['views']).select { |v| %w[front side top].include?(v) }
+            want_views   = %w[front side top] if want_views.empty?
+            dim_overall  = opts.fetch('dim_overall', true) ? true : false
+            dim_units    = opts.fetch('dim_units', true) ? true : false
+            include_soft = opts['include_soft'] ? true : false
+            hlr          = opts.fetch('hlr', true) ? true : false
+
             model   = Sketchup.active_model
             targets = model.selection.to_a.select { |e|
               e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
@@ -190,10 +203,29 @@ module Kabinet
             if targets.empty?
               d.execute_script("kabinet.onError('그룹 또는 컴포넌트를 먼저 선택하세요.')")
             else
+              gp   = Kabinet::Output::GroupProjection
               segs = []
-              targets.each { |t| Kabinet::Output::GroupProjection.collect_segments_mm(t, segs) }
-              units = Kabinet::Output::GroupProjection.collect_unit_bounds_mm(targets)
-              views = Kabinet::Output::GroupProjection.views_from_segments(segs, units: units)
+              targets.each { |t| gp.collect_segments_mm(t, segs, include_soft: include_soft) }
+              units = gp.collect_unit_bounds_mm(targets)
+
+              # 곡면(메시) 전용 유닛 — 소파 등: 엣지가 전부 필터링되므로
+              # 바운딩 박스 외곽으로 대체 표시
+              unless include_soft
+                units.each do |u|
+                  segs.concat(gp.bbox_segments(u[:min], u[:max])) if u[:hard_edges].zero?
+                end
+              end
+
+              # 은선 제거: 뷰별 레이캐스트로 가려진 엣지 스킵
+              view_segs = nil
+              if hlr
+                view_segs = {}
+                want_views.each { |vn| view_segs[vn] = gp.visible_segments(model, segs, vn) }
+              end
+
+              views = gp.views_from_segments(segs, units: units, view_segs: view_segs,
+                                             dim_overall: dim_overall, dim_units: dim_units)
+              views = views.select { |v| want_views.include?(v[:name]) }
 
               first = targets.first
               gname = first.name.to_s
@@ -211,7 +243,8 @@ module Kabinet
                   size:     Kabinet::Output::GroupProjection.size_string(segs),
                   material: '-',
                   notes:    ['모든 치수 단위: mm. 도면 1:1 작도 (인쇄 축척 별도 지정)',
-                             '선택 모델 직교투영 (전체 엣지 표시 — 내부 구조 포함)'])
+                             hlr ? '선택 모델 직교투영 (은선 제거 — 보이는 외곽선만)' :
+                                   '선택 모델 직교투영 (전체 엣지 표시 — 내부 구조 포함)'])
                 dxf.write(path)
                 d.execute_script("kabinet.onSuccess('발주도면 저장 완료: #{File.basename(path)}')")
               end
