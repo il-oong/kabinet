@@ -22,11 +22,15 @@ module Kabinet
           page = model.pages.find { |p| p.name == page_name }
           next unless page
 
-          # ── 페이지 활성화 (카메라 + 렌더링 옵션 복원)
+          # ── 페이지 활성화 — 전환 애니메이션 제거 후 즉시 이동
+          # (기존 버그: 기본 전환 애니메이션 도중 write_image가 실행되어
+          #  중간 프레임이 캡처되거나 빈 이미지가 나왔음)
+          page.transition_time = 0 if page.respond_to?(:transition_time=)
           model.pages.selected_page = page
+          # 카메라를 페이지 저장값으로 직접 재적용 (전환 상태와 무관하게 확정)
+          model.active_view.camera = page.camera if page.camera
 
           # ── 렌더링 스타일 강제 적용 (Hidden Line — 2D 도면)
-          # page.update 로 저장됐지만 write_image 직전에 한 번 더 보장
           apply_drawing_style(model)
 
           model.active_view.zoom_extents
@@ -74,7 +78,8 @@ module Kabinet
           transparent: false
         )
       rescue StandardError => e
-        # Best effort — do not crash the export pipeline over a single image
+        # 실패를 조용히 삼키지 않는다 — "항상 안 되는" 증상의 원인 은폐 방지
+        puts "Kabinet write_image 실패 (#{File.basename(path)}): #{e.class}: #{e.message}"
         nil
       end
 

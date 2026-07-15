@@ -37,6 +37,8 @@ module Kabinet
         h['ep']['left']      = h['ep'].fetch('left', true) ? true : false
         h['ep']['right']     = h['ep'].fetch('right', true) ? true : false
         h['ep']['thickness'] = Float(h['ep'].fetch('thickness', Kabinet::Constants::DEFAULT_EP_THICKNESS_MM))
+        # EP가 도어/전판 전면까지 커버 (실무 기본) — false면 카케이스 깊이까지만
+        h['ep']['cover_fronts'] = h['ep'].fetch('cover_fronts', true) ? true : false
         # EP 윗면만 보이게: EP가 상판 두께 아래에서 끝나고 상판이 EP 위에 얹힘
         h['ep_top_flush'] = h.fetch('ep_top_flush', false) ? true : false
 
@@ -100,8 +102,8 @@ module Kabinet
           out['door_thickness'] = Float(m['door_thickness'] || Kabinet::Constants::DEFAULT_DOOR_THICKNESS_MM)
           out['door_material']  = (m['door_material'] || out['material']).to_s
           out['door_mount']     = DOOR_MOUNT_STYLES.include?(m['door_mount'].to_s) ? m['door_mount'].to_s : 'overlay'
-          # 도어 측면 갭: 0 = 플러시(측판 외면 딱 맞춤), 2 = 기본 2mm 갭
-          out['door_side_gap_mm']   = Float(m['door_side_gap_mm'] || 0)
+          # 도어 측면 갭: 기본 2mm (인접 모듈/벽과의 간섭 방지). 0 = 플러시.
+          out['door_side_gap_mm']   = Float(m['door_side_gap_mm'] || Kabinet::Constants::DOOR_GAP_OUTSIDE_MM)
           # 측판 생략 옵션 (속장 적층 시 EP 또는 인접 모듈이 측벽 역할)
           out['suppress_left_side']  = m.fetch('suppress_left_side',  false) ? true : false
           out['suppress_right_side'] = m.fetch('suppress_right_side', false) ? true : false
@@ -168,8 +170,16 @@ module Kabinet
         raise ValidationError, 'spec must be a Hash' unless spec.is_a?(Hash)
         raise ValidationError, 'width must be > 0'     unless spec['width'].to_f > 0
         raise ValidationError, 'max_depth must be > 0' unless spec['max_depth'].to_f > 0
+        run_mode = spec['run_mode'] ? true : false
         spec['modules'].each_with_index do |m, i|
-          next if m['kind'] == 'bed_gap'  # bed_gap has no height/depth
+          if m['kind'] == 'bed_gap'
+            # bed_gap은 폭만 있는 마커라 height/depth가 없다. run_mode 밖에서는
+            # Assembly#do_stack이 m['depth']/height를 그대로 사용해 nil.mm로
+            # 크래시하므로(UI가 침대공간 버튼을 런 모드로 제한하지 않음) 여기서 차단.
+            raise ValidationError,
+                  "module[#{i}]: bed_gap 모듈은 수평 런 모드에서만 사용할 수 있습니다." unless run_mode
+            next  # bed_gap has no height/depth
+          end
           raise ValidationError, "module[#{i}] height must be > 0" unless m['height'].to_f > 0
           raise ValidationError, "module[#{i}] depth must be > 0"  unless m['depth'].to_f > 0
         end

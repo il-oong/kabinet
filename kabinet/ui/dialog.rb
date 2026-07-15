@@ -53,7 +53,14 @@ module Kabinet
             spec = JSON.parse(json_str)
             grp  = Kabinet::Commands::Generate.run_assembly(spec)
             if grp
-              d.execute_script("kabinet.onSuccess('어셈블리가 생성되었습니다.')")
+              norm  = Kabinet::Persistence::Schema.normalize(spec)
+              warns = Kabinet::Core::Validation.warnings(norm)
+              msg   = if warns.empty?
+                        '어셈블리가 생성되었습니다.'
+                      else
+                        "어셈블리 생성 완료 — 경고 #{warns.size}건:\n" + warns.join("\n")
+                      end
+              d.execute_script("kabinet.onSuccess(#{JSON.generate(msg)})")
             end
           rescue Kabinet::Persistence::Schema::ValidationError => e
             d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
@@ -148,14 +155,38 @@ module Kabinet
           d.execute_script("kabinet.loadPresets(#{JSON.generate(presets)})")
         end
 
+        # ── 발주도면 DXF export ────────────────────────────────────────
+        # 현재 폼 스펙에서 직접 생성 — 모델 선택 불필요 (순수 계산).
+        d.add_action_callback('kabinet:export_dxf') do |_ctx, json_str|
+          begin
+            spec = JSON.parse(json_str)
+            norm = Kabinet::Persistence::Schema.normalize(spec)
+            Kabinet::Persistence::Schema.validate!(norm)
+
+            aname = norm['name'] || 'kabinet'
+            ts    = Time.now.strftime('%Y%m%d_%H%M%S')
+            safe  = aname.gsub(/[\\\/\:\*\?\"\<\>\|]/, '_')
+            path  = ::UI.savepanel('발주도면 DXF 저장', Dir.home, "#{safe}_발주도면_#{ts}.dxf")
+            if path
+              path += '.dxf' unless path.downcase.end_with?('.dxf')
+              Kabinet::Output::OrderSheet.generate(norm, path)
+              d.execute_script("kabinet.onSuccess('발주도면 저장 완료: #{File.basename(path)}')")
+            end
+          rescue Kabinet::Persistence::Schema::ValidationError => e
+            d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
+          rescue StandardError => e
+            d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
+          end
+        end
+
         # ── Cut list CSV export ────────────────────────────────────────
         d.add_action_callback('kabinet:export_cutlist') do |_ctx, json_str|
           begin
             spec = JSON.parse(json_str)
             norm = Kabinet::Persistence::Schema.normalize(spec)
             Kabinet::Persistence::Schema.validate!(norm)
-            rows = Kabinet::Core::CutList.generate(norm)
-            csv  = Kabinet::Core::CutList.to_csv(rows)
+            result = Kabinet::Core::CutList.generate_full(norm)
+            csv    = Kabinet::Core::CutList.full_csv(result)
 
             aname = norm['name'] || 'kabinet'
             ts    = Time.now.strftime('%Y%m%d_%H%M%S')
