@@ -36,6 +36,8 @@ module Kabinet
         h['ep'] ||= {}
         h['ep']['left']      = h['ep'].fetch('left', true) ? true : false
         h['ep']['right']     = h['ep'].fetch('right', true) ? true : false
+        # 상부 EP: 가구 최상단을 덮는 마감판 (전체 폭, 측면 EP 위에 얹힘)
+        h['ep']['top']       = h['ep'].fetch('top', false) ? true : false
         h['ep']['thickness'] = Float(h['ep'].fetch('thickness', Kabinet::Constants::DEFAULT_EP_THICKNESS_MM))
         # EP가 도어/전판 전면까지 커버 (실무 기본) — false면 카케이스 깊이까지만
         h['ep']['cover_fronts'] = h['ep'].fetch('cover_fronts', true) ? true : false

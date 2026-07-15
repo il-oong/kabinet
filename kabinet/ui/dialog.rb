@@ -179,6 +179,47 @@ module Kabinet
           end
         end
 
+        # ── 선택 그룹/컴포넌트 → 발주도면 DXF (직접 모델링한 가구용) ────
+        # 엣지 직교투영 3면도 — 파라메트릭 해석 없음, 와이어프레임.
+        d.add_action_callback('kabinet:export_group_dxf') do |_ctx, _json|
+          begin
+            model   = Sketchup.active_model
+            targets = model.selection.to_a.select { |e|
+              e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+            }
+            if targets.empty?
+              d.execute_script("kabinet.onError('그룹 또는 컴포넌트를 먼저 선택하세요.')")
+            else
+              segs = []
+              targets.each { |t| Kabinet::Output::GroupProjection.collect_segments_mm(t, segs) }
+              views = Kabinet::Output::GroupProjection.views_from_segments(segs)
+
+              first = targets.first
+              gname = first.name.to_s
+              gname = first.definition.name.to_s if gname.empty? && first.respond_to?(:definition)
+              gname = '선택가구' if gname.empty?
+
+              ts   = Time.now.strftime('%Y%m%d_%H%M%S')
+              safe = gname.gsub(/[\\\/\:\*\?\"\<\>\|]/, '_')
+              path = ::UI.savepanel('발주도면 DXF 저장', Dir.home, "#{safe}_발주도면_#{ts}.dxf")
+              if path
+                path += '.dxf' unless path.downcase.end_with?('.dxf')
+                dxf = Kabinet::Output::OrderSheet.compose(
+                  views,
+                  name:     gname,
+                  size:     Kabinet::Output::GroupProjection.size_string(segs),
+                  material: '-',
+                  notes:    ['모든 치수 단위: mm. 도면 1:1 작도 (인쇄 축척 별도 지정)',
+                             '선택 모델 직교투영 (전체 엣지 표시 — 내부 구조 포함)'])
+                dxf.write(path)
+                d.execute_script("kabinet.onSuccess('발주도면 저장 완료: #{File.basename(path)}')")
+              end
+            end
+          rescue StandardError => e
+            d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
+          end
+        end
+
         # ── Cut list CSV export ────────────────────────────────────────
         d.add_action_callback('kabinet:export_cutlist') do |_ctx, json_str|
           begin

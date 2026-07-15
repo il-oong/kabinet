@@ -64,6 +64,7 @@ module Kabinet
           total_w_mm = @width.to_f
           total_h_mm = @base_height + @modules.sum { |m| m['height'].to_f } + top_t
         end
+        total_h_mm += ep_top_t_mm
         Kabinet::Persistence::Attributes.set_role(root, 'assembly',
           width_mm: total_w_mm, depth_mm: @max_depth.to_f, height_mm: total_h_mm)
 
@@ -102,6 +103,24 @@ module Kabinet
 
       def top_t_mm
         @top_panel ? @top_panel['thickness'].to_f : 0
+      end
+
+      def ep_top_t_mm
+        @ep && @ep['top'] ? (@ep['thickness'] || Kabinet::Constants::DEFAULT_EP_THICKNESS_MM).to_f : 0.0
+      end
+
+      # 상부 EP: 가구 최상단을 덮는 마감판 — 전체 폭(측면 EP 포함), 측면 EP와
+      # 같은 깊이(도어 전면 커버 포함), 측면 EP 위에 얹힘.
+      def add_ep_top_panel(entities, total_w, top_z, depth)
+        t = ep_top_t_mm
+        return if t <= 0
+        cover = @ep.nil? || @ep.fetch('cover_fronts', true) ? true : false
+        prot  = cover ? Kabinet::Core::Fitting.front_protrusion_mm(@modules).mm : 0.mm
+        local = ::Geom::Transformation.new(::Geom::Point3d.new(0, -prot, top_z))
+        Kabinet::Geometry::Builder.box(entities, total_w, depth + prot, t.mm,
+                                       local,
+                                       role: 'ep_top', label: 'ep_top',
+                                       material_name: 'ep')
       end
 
       def add_top_panel(entities, x_origin, depth, width_su, top_z)
@@ -198,6 +217,8 @@ module Kabinet
                       0, ep_left_offset + carcase_inner_w,
                       ep_h, max_d)
 
+        add_ep_top_panel(entities, total_w, total_h, max_d)
+
         if @has_kickboard
           if ep_left || ep_right
             add_kickboard(entities, base_height_mm: @base_height.mm,
@@ -265,7 +286,8 @@ module Kabinet
         add_ep_panels(entities, ep_left, ep_right, ep_t,
                       0, ep_left_offset + carcase_inner_w,
                       ep_h, max_d)
-        _ = total_w
+
+        add_ep_top_panel(entities, total_w, total_h, max_d)
       end
 
       # ── Module factory ───────────────────────────────────────────────────

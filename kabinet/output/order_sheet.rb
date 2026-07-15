@@ -26,6 +26,17 @@ module Kabinet
       # DXF 객체 생성 (테스트에서 문자열 검증용으로 분리)
       def build(spec)
         views = Kabinet::Output::Drawing2D.views(spec)
+        g     = Kabinet::Output::Drawing2D.geometry_params(spec)
+        compose(views,
+                name:     spec['name'] || '가구',
+                size:     "#{g[:total_w].round}W x #{g[:max_d].round}D x #{g[:total_h].round}H",
+                material: material_label(spec['material']),
+                notes:    build_notes(spec, g))
+      end
+
+      # 뷰 3개(front/side/top) + 표제란 정보로 도면 시트 조립.
+      # 스펙 기반(build)과 선택 그룹 투영(GroupProjection) 공용 경로.
+      def compose(views, name:, size:, material:, notes: [])
         front = views.find { |v| v[:name] == 'front' }
         side  = views.find { |v| v[:name] == 'side' }
         top   = views.find { |v| v[:name] == 'top' }
@@ -63,7 +74,8 @@ module Kabinet
         dxf.rect(bx0, by0, bx1 - bx0, by1 - by0, 'TITLE')
 
         # ── 표제란 + NOTE ────────────────────────────────────────────────
-        draw_title_block(dxf, spec, bx0, by0, bx1, th)
+        draw_title_block(dxf, bx0, by0, bx1, th,
+                         name: name, size: size, material: material, notes: notes)
 
         dxf
       end
@@ -134,7 +146,7 @@ module Kabinet
         th * 6.0
       end
 
-      def draw_title_block(dxf, spec, bx0, by0, bx1, th)
+      def draw_title_block(dxf, bx0, by0, bx1, th, name:, size:, material:, notes: [])
         h     = title_height(th)
         ty    = by0            # 표제란 바닥 = 보더 바닥
         row_h = h / 2.0
@@ -146,29 +158,27 @@ module Kabinet
         dxf.rect(tx0, ty, tw, h, 'TITLE')
         dxf.line(tx0, ty + row_h, bx1, ty + row_h, 'TITLE')
 
-        g = Kabinet::Output::Drawing2D.geometry_params(spec)
-        size_str = "#{g[:total_w].round}W x #{g[:max_d].round}D x #{g[:total_h].round}H"
-        mat      = material_label(spec['material'])
-        date     = Time.now.strftime('%Y-%m-%d')
+        date = Time.now.strftime('%Y-%m-%d')
 
         # 상단 행: 품명 (크게)
         dxf.text(tx0 + th, ty + row_h + row_h * 0.32, th * 1.3,
-                 "품명: #{spec['name'] || '가구'}", 'TITLE')
+                 "품명: #{name}", 'TITLE')
         # 하단 행: 규격(넓게) | 재질 | 날짜
         c1 = tw * 0.46
         c2 = tw * 0.30
         dxf.line(tx0 + c1, ty, tx0 + c1, ty + row_h, 'TITLE')
         dxf.line(tx0 + c1 + c2, ty, tx0 + c1 + c2, ty + row_h, 'TITLE')
-        dxf.text(tx0 + th * 0.6,           ty + row_h * 0.32, th * 0.85, size_str, 'TITLE')
-        dxf.text(tx0 + c1 + th * 0.6,      ty + row_h * 0.32, th * 0.85, "재질: #{mat}", 'TITLE')
+        dxf.text(tx0 + th * 0.6,           ty + row_h * 0.32, th * 0.85, size, 'TITLE')
+        dxf.text(tx0 + c1 + th * 0.6,      ty + row_h * 0.32, th * 0.85, "재질: #{material}", 'TITLE')
         dxf.text(tx0 + c1 + c2 + th * 0.6, ty + row_h * 0.32, th * 0.85, date, 'TITLE')
 
         # NOTE (보더 좌하단, 표제란 왼쪽)
-        notes = build_notes(spec, g)
         ny = ty + h - th * 1.8
-        dxf.text(bx0 + th, ny + th * 1.6, th * 0.9, 'NOTE', 'TEXT')
-        notes.each_with_index do |n, i|
-          dxf.text(bx0 + th, ny - i * th * 1.6, th * 0.85, "#{i + 1}. #{n}", 'TEXT')
+        unless notes.empty?
+          dxf.text(bx0 + th, ny + th * 1.6, th * 0.9, 'NOTE', 'TEXT')
+          notes.each_with_index do |n, i|
+            dxf.text(bx0 + th, ny - i * th * 1.6, th * 0.85, "#{i + 1}. #{n}", 'TEXT')
+          end
         end
       end
 
