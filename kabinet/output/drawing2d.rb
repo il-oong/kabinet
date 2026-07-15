@@ -460,6 +460,19 @@ module Kabinet
           line(v, x_car + g[:carcase_w] - bt, y0, x_car + g[:carcase_w] - bt, y0 + g[:max_d], 'HIDDEN')
         end
 
+        # 수납침대: 서랍 플랫폼 풋프린트 — 앞으로 돌출 (bed_depth가 max_d 초과 가능)
+        bx = x_car
+        (spec['modules'] || []).each do |m|
+          bw = m['width'].to_f
+          if m['kind'] == 'bed_gap' && m['storage']
+            bd = m['bed_depth'].to_f
+            by = y0 + g[:max_d] - bd   # 뒷면(카케이스 뒷선) 기준, 앞으로 돌출
+            rect(v, bx, by, bw, bd, 'OUTLINE')
+            dim(v, bx, by, bx, by + bd, -dim_off(g) * 0.5, fmt(bd), :v)
+          end
+          bx += bw
+        end
+
         # 치수: 폭(하단=앞면 쪽), 깊이(우측)
         dim(v, 0, 0, g[:total_w], 0, -dim_off(g), fmt(g[:total_w]), :h)
         dim(v, g[:total_w], y0, g[:total_w], y0 + g[:max_d], dim_off(g), fmt(g[:max_d]), :v)

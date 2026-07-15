@@ -196,6 +196,12 @@ module Kabinet
                      'folding' => '접이식', 'lift_up' => '리프트업' }
           notes << "도어: #{door_types.map { |t| labels[t] || t }.join(', ')} (은선=내부 구조)"
         end
+        beds = (spec['modules'] || []).select { |m| m['kind'] == 'bed_gap' && m['storage'] }
+        beds.each do |b|
+          notes << "수납침대(#{b['label'] || '침대'}): 플랫폼 높이 #{b['platform_height'].round}mm, " \
+                   "침대 길이 #{b['bed_depth'].round}mm — 측면도는 카케이스 깊이 기준이라 침대 돌출부 미표기, 평면도 참조"
+        end
+
         warns = Kabinet::Core::Validation.warnings(spec)
         warns.first(3).each { |w| notes << "확인: #{w}" }
         notes

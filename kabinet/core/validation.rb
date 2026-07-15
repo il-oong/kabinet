@@ -25,7 +25,10 @@ module Kabinet
         end
 
         spec['modules'].each_with_index do |m, idx|
-          next if m['kind'] == 'bed_gap'
+          if m['kind'] == 'bed_gap'
+            warns.concat(bed_storage_warnings(m, "모듈#{idx + 1}")) if m['storage']
+            next
+          end
           prefix = "모듈#{idx + 1}"
           mh = run_mode ? spec['run_height'].to_f : m['height'].to_f
           mw = run_mode ? m['width'].to_f : stack_w
@@ -54,6 +57,26 @@ module Kabinet
           end
 
           warns.concat(sheet_warnings(m, prefix, mw, mh, md))
+        end
+        warns
+      end
+
+      # ── 수납침대(서랍 플랫폼) ────────────────────────────────────────────
+      def bed_storage_warnings(m, prefix)
+        warns   = []
+        inner_d = m['bed_depth'].to_f - m['back_thickness'].to_f - Kabinet::Constants::BACK_RECESS_MM
+        inner_d = [inner_d, m['box_depth_mm'].to_f].min if m['box_depth_mm']
+        slide   = Kabinet::Core::Fitting.slide_length_mm(inner_d)
+        if slide.nil?
+          warns << "#{prefix}(수납침대): 서랍 박스 깊이 #{inner_d.round}mm — 최소 슬라이드 규격(250mm)이 들어가지 않습니다."
+        end
+        open_w = m['width'].to_f - 2.0 * m['body_thickness'].to_f
+        if open_w > Kabinet::Constants::DRAWER_MAX_OPEN_W_MM
+          warns << "#{prefix}(수납침대): 서랍 개구폭 #{open_w.round}mm — #{Kabinet::Constants::DRAWER_MAX_OPEN_W_MM}mm 초과. " \
+                   '레일 하중/전판 휨 위험. 폭을 줄이거나 침대 폭을 나눠 서랍 유닛을 분리하세요.'
+        end
+        if m['platform_height'].to_f < 150
+          warns << "#{prefix}(수납침대): 플랫폼 높이 #{m['platform_height'].round}mm — 서랍 인출에 필요한 최소 높이(150mm) 미달입니다."
         end
         warns
       end
