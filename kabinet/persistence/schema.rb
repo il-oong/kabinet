@@ -170,8 +170,16 @@ module Kabinet
         raise ValidationError, 'spec must be a Hash' unless spec.is_a?(Hash)
         raise ValidationError, 'width must be > 0'     unless spec['width'].to_f > 0
         raise ValidationError, 'max_depth must be > 0' unless spec['max_depth'].to_f > 0
+        run_mode = spec['run_mode'] ? true : false
         spec['modules'].each_with_index do |m, i|
-          next if m['kind'] == 'bed_gap'  # bed_gap has no height/depth
+          if m['kind'] == 'bed_gap'
+            # bed_gap은 폭만 있는 마커라 height/depth가 없다. run_mode 밖에서는
+            # Assembly#do_stack이 m['depth']/height를 그대로 사용해 nil.mm로
+            # 크래시하므로(UI가 침대공간 버튼을 런 모드로 제한하지 않음) 여기서 차단.
+            raise ValidationError,
+                  "module[#{i}]: bed_gap 모듈은 수평 런 모드에서만 사용할 수 있습니다." unless run_mode
+            next  # bed_gap has no height/depth
+          end
           raise ValidationError, "module[#{i}] height must be > 0" unless m['height'].to_f > 0
           raise ValidationError, "module[#{i}] depth must be > 0"  unless m['depth'].to_f > 0
         end

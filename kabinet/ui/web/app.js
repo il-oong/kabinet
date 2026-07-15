@@ -1259,6 +1259,12 @@ const kabinet = (() => {
 
   // ── Module list (delegates to modules.js) ────────────────────────────
   function addModule(kind) {
+    // bed_gap은 런 모드(가로 배열) 전용 — 적층 모드에서 쓰면 3D 생성이
+    // 실패한다 (모듈에 height/depth가 없어 Assembly#do_stack이 크래시).
+    if (kind === 'bed_gap' && !state.run_mode) {
+      setStatus('침대 공간은 "수평 런 모드"를 켠 뒤에 추가할 수 있습니다.', 'error');
+      return;
+    }
     const w   = state.width   || 900;
     const d   = state.max_depth || 400;
     const mat = state.material || 'LPM';
