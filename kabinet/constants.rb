@@ -130,6 +130,10 @@ module Kabinet
     TOE_KICK_SETBACK_MM      = 50   # 도어 전면에서 걸레받이 판 전면까지 후퇴량
     TOE_KICK_BOARD_THICK_MM  = 18   # 걸레받이 판재 두께
 
+    # ── 철제 받침 프레임 (Steel Base) ────────────────────────────────────
+    STEEL_BASE_TUBE_MM       = 50   # 각파이프 단면 (50×50 각관)
+    STEEL_BASE_INSET_MM      = 50   # 전면 인셋
+
     # ── AttributeDictionary 키 ───────────────────────────────────────────
     DIMENSION_TAG_NAME           = 'Kabinet_Dimensions'.freeze
     ATTR_DICT                    = 'kabinet'.freeze

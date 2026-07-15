@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabinet</title>
-  <link rel="stylesheet" href="styles.css?v=1.3.0">
+  <link rel="stylesheet" href="styles.css?v=1.4.0">
 </head>
 <body>
 
@@ -51,7 +51,7 @@
     </optgroup>
     <optgroup label="── 내 프리셋" id="user-preset-group"></optgroup>
   </select>
-  <span class="version-badge">v1.3.0</span>
+  <span class="version-badge">v1.4.0</span>
 </div>
 
 <!-- ══ 본문 (단일 스크롤) ══════════════════════════════════════════════ -->
@@ -138,6 +138,7 @@
       <button class="btn-add" onclick="kabinet.addModule('drawer_module')">＋ 서랍</button>
       <button class="btn-add" onclick="kabinet.addModule('desk_module')">＋ 책상</button>
       <button class="btn-add" onclick="kabinet.addModule('bed_gap')" title="런 모드에서 폭만 차지">🛏 침대공간</button>
+      <button class="btn-add" onclick="kabinet.addModule('v_gap')" title="적층 모드에서 높이만 차지 (책상 위 이격 등)">⬜ 개방공간</button>
     </div>
   </div>
 
@@ -174,6 +175,13 @@
     <div class="toggle-row">
       <label>EP 윗면만 보이게 <span class="dim-note">(상판이 EP 위에 얹힘)</span></label>
       <input type="checkbox" id="f-ep-top-flush" onchange="kabinet.onEpTopFlush(this.checked)">
+    </div>
+    <div class="field-row">
+      <label>받침 구조</label>
+      <select id="f-base-type" onchange="kabinet.onField('base_type', this.value)">
+        <option value="wood">목재 받침 + 걸레받이 (기본)</option>
+        <option value="steel">철제 각파이프 프레임</option>
+      </select>
     </div>
     <div class="toggle-row">
       <label>걸레받이 (토킥)</label>
@@ -243,7 +251,7 @@
   </div>
 </div>
 
-<script src="app.js?v=1.3.0"></script>
-<script src="modules.js?v=1.3.0"></script>
+<script src="app.js?v=1.4.0"></script>
+<script src="modules.js?v=1.4.0"></script>
 </body>
 </html>

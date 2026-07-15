@@ -25,6 +25,7 @@ module Kabinet
         end
 
         spec['modules'].each_with_index do |m, idx|
+          next if m['kind'] == 'v_gap'
           if m['kind'] == 'bed_gap'
             warns.concat(bed_storage_warnings(m, "모듈#{idx + 1}")) if m['storage']
             next

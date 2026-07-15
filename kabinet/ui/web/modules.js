@@ -53,7 +53,8 @@ function moduleCardHtml(m, i, total) {
     drawer_module: isRun ? '서랍 섹션'   : '서랍 모듈',
     shelf_module:  isRun ? '선반/수납 섹션' : '선반/수납 모듈',
     desk_module:   '책상 모듈',
-    bed_gap:       '🛏 침대 공간'
+    bed_gap:       '🛏 침대 공간',
+    v_gap:         '⬜ 개방 공간'
   };
   const title   = TITLES[m.kind] || m.kind;
   const runH    = state.run_height || 740;
@@ -61,6 +62,8 @@ function moduleCardHtml(m, i, total) {
   let summary;
   if (m.kind === 'bed_gap') {
     summary = (m.label || '침대 공간') + ' ' + m.width + 'mm' + (m.storage ? '  🗄 수납침대' : '');
+  } else if (m.kind === 'v_gap') {
+    summary = (m.label || '개방 공간') + ' H' + (m.height || 0) + 'mm';
   } else if (m.kind === 'shelf_module') {
     const dcLabel = {none:'오픈', single:'단문', pair:'양개'}[m.door_config || 'none'] || '';
     summary = m.width + '×' + (m.depth || '?') + '×' + dispH + 'mm' + (dcLabel ? '  ' + dcLabel : '');
@@ -78,6 +81,8 @@ function moduleCardHtml(m, i, total) {
   let bodyHtml;
   if (m.kind === 'bed_gap') {
     bodyHtml = bedGapFields(m, i);
+  } else if (m.kind === 'v_gap') {
+    bodyHtml = vGapFields(m, i);
   } else if (m.kind === 'desk_module') {
     bodyHtml = deskFields(m, i);
   } else if (m.kind === 'drawer_module') {
@@ -188,6 +193,10 @@ function drawerFields(m, i) {
         '<input type="number" data-mod-idx="' + i + '" data-key="drawer_thickness" ' +
                'value="' + (m.drawer_thickness||18) + '" min="9" max="30">' +
         '<span class="unit">mm</span></div>' +
+      '<div class="field-row"><label>박스 깊이 지정</label>' +
+        '<input type="number" data-mod-idx="' + i + '" data-key="box_depth_mm" ' +
+               'value="' + (m.box_depth_mm||'') + '" min="200" max="800" placeholder="자동">' +
+        '<span class="unit">mm (빈칸=레일 규격 자동)</span></div>' +
     '</details>' +
     '<details><summary class="detail-summary">손잡이</summary>' +
       '<div class="field-row"><label>손잡이 타입</label>' +
@@ -407,6 +416,7 @@ function bedGapFields(m, i) {
       '<input type="checkbox" data-mod-idx="' + i + '" data-key="storage"' +
       (m.storage ? ' checked' : '') + '></div>';
   if (m.storage) {
+    const ds = m.drawer_side || 'foot';
     storageHtml +=
       '<div class="field-row"><label>플랫폼 높이</label>' +
         '<input type="number" data-mod-idx="' + i + '" data-key="platform_height" ' +
@@ -416,10 +426,19 @@ function bedGapFields(m, i) {
         '<input type="number" data-mod-idx="' + i + '" data-key="bed_depth" ' +
                'value="' + (m.bed_depth||2000) + '" min="1500" max="2400">' +
         '<span class="unit">mm</span></div>' +
-      '<div class="field-row"><label>발치 서랍 수</label>' +
+      '<div class="field-row"><label>서랍 위치</label>' +
+        '<select data-mod-idx="' + i + '" data-key="drawer_side">' +
+          '<option value="foot"'  + (ds==='foot'  ? ' selected' : '') + '>발치 (앞면)</option>' +
+          '<option value="left"'  + (ds==='left'  ? ' selected' : '') + '>좌측면</option>' +
+          '<option value="right"' + (ds==='right' ? ' selected' : '') + '>우측면</option>' +
+        '</select></div>' +
+      '<div class="field-row"><label>서랍 수</label>' +
         '<input type="number" data-mod-idx="' + i + '" data-key="drawer_count" ' +
                'value="' + (m.drawer_count||2) + '" min="1" max="4">' +
-        '<span class="unit">개</span></div>';
+        '<span class="unit">개' + (ds==='foot' ? ' (세로 적층)' : ' (길이 방향 분할)') + '</span></div>' +
+      '<div class="toggle-row"><label>리프트업 수납 <span style="font-size:10px;color:var(--text-dim)">(매트리스 받침 반분할 + 가스쇼바)</span></label>' +
+        '<input type="checkbox" data-mod-idx="' + i + '" data-key="lift_up_storage"' +
+        (m.lift_up_storage ? ' checked' : '') + '></div>';
   }
 
   return '<div style="background:var(--bg);border:1px dashed var(--border);border-radius:var(--radius);' +
@@ -436,6 +455,20 @@ function bedGapFields(m, i) {
     '<div class="field-row"><label>레이블</label>' +
       '<input type="text" data-mod-idx="' + i + '" data-key="label" ' +
              'value="' + (m.label||'침대 공간') + '"></div>';
+}
+
+/* ── 개방 공간 필드 (v_gap — 적층 전용) ─────────────────────────────── */
+function vGapFields(m, i) {
+  return '<div style="background:var(--bg);border:1px dashed var(--border);border-radius:var(--radius);' +
+         'padding:10px;margin-bottom:6px;text-align:center;font-size:12px;color:var(--text-dim)">' +
+         '⬜ 개방 공간 — 지오메트리 없음, 높이만 차지 (책상 위 이격 등)</div>' +
+    '<div class="field-row"><label>높이</label>' +
+      '<input type="number" data-mod-idx="' + i + '" data-key="height" ' +
+             'value="' + (m.height||500) + '" min="50" max="1500">' +
+      '<span class="unit">mm</span></div>' +
+    '<div class="field-row"><label>레이블</label>' +
+      '<input type="text" data-mod-idx="' + i + '" data-key="label" ' +
+             'value="' + (m.label||'개방 공간') + '"></div>';
 }
 
 /* ── 책상 모듈 필드 ──────────────────────────────────────────────────── */

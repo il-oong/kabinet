@@ -96,12 +96,18 @@ module Kabinet
             if m['kind'] == 'bed_gap' && m['storage']
               ph = m['platform_height'].to_f
               rect(v, bx, 0, bw, ph, 'OUTLINE')
-              FIT.drawer_fronts(bw, ph, (m['drawer_count'] || 2).to_i,
-                                side_gap:   C::DRAWER_FRONT_GAP_MM.to_f,
-                                top_gap:    C::DOOR_GAP_TOP_MM.to_f,
-                                bottom_gap: C::DOOR_GAP_BOTTOM_MM.to_f,
-                                reveal:     C::DRAWER_REVEAL_BETWEEN_MM.to_f)
-                 .each { |f| rect(v, bx + f[:x], f[:z], f[:w], f[:h], 'FRONTS') }
+              if (m['drawer_side'] || 'foot') == 'foot'
+                FIT.drawer_fronts(bw, ph, (m['drawer_count'] || 2).to_i,
+                                  side_gap:   C::DRAWER_FRONT_GAP_MM.to_f,
+                                  top_gap:    C::DOOR_GAP_TOP_MM.to_f,
+                                  bottom_gap: C::DOOR_GAP_BOTTOM_MM.to_f,
+                                  reveal:     C::DRAWER_REVEAL_BETWEEN_MM.to_f)
+                   .each { |f| rect(v, bx + f[:x], f[:z], f[:w], f[:h], 'FRONTS') }
+              end
+              # 리프트업 받침 플레이트 (플랫폼 위 18T)
+              if m['lift_up_storage']
+                rect(v, bx, ph, bw, C::DEFAULT_BODY_THICKNESS_MM.to_f, 'OUTLINE')
+              end
               dim(v, bx, 0, bx, ph, dim_off(g) * 0.4, fmt(ph), :v)
             end
             bx += bw
@@ -179,6 +185,10 @@ module Kabinet
           mods.each do |m|
             next if m['kind'] == 'bed_gap'
             h = m['height'].to_f
+            if m['kind'] == 'v_gap'   # 개방 공간 — 높이만 전진
+              z += h
+              next
+            end
             yield(m, 0.0, z, g[:carcase_w], h)
             z += h
           end

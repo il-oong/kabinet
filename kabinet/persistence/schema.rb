@@ -3,7 +3,9 @@ module Kabinet
     module Schema
       CURRENT_VERSION = 1
 
-      MODULE_KINDS      = %w[shelf_module drawer_module desk_module bed_gap].freeze
+      MODULE_KINDS      = %w[shelf_module drawer_module desk_module bed_gap v_gap].freeze
+      BED_DRAWER_SIDES  = %w[foot left right].freeze
+      BASE_TYPES        = %w[wood steel].freeze
       DRAWER_TYPES      = %w[undermount side_mount].freeze
       DOOR_CONFIGS      = %w[none single pair].freeze
       DOOR_TYPES        = %w[swing sliding folding lift_up none].freeze
@@ -26,6 +28,8 @@ module Kabinet
         h['width']           = Float(h['width'])
         h['max_depth']       = Float(h['max_depth'])
         h['base_height']     = Float(h['base_height'] || 0)
+        # 받침 구조: wood(목재 받침+걸레받이, 기본) / steel(철제 각파이프 프레임)
+        h['base_type']       = BASE_TYPES.include?(h['base_type'].to_s) ? h['base_type'].to_s : 'wood'
         h['material']        = h['material'] || 'LPM'
         h['edge_banding_mm'] = Float(h['edge_banding_mm'] || Kabinet::Constants::DEFAULT_EDGE_THICKNESS_MM)
         # 수평 런 모드: 모듈을 X축(가로)으로 배열
@@ -80,8 +84,20 @@ module Kabinet
             out['handle_hole_mm']  = Integer(m['handle_hole_mm'] || Kabinet::Constants::DEFAULT_HANDLE_HOLE_MM)
             # 서랍 박스 깊이 상한 — 침대 길이만큼 깊은 서랍은 실물 불가
             out['box_depth_mm']    = Float(m['box_depth_mm'] || 600)
+            # 서랍 위치: foot(발치, 기본) / left / right (측면 — 타워 깊이 밖 노출 구간)
+            out['drawer_side']     = BED_DRAWER_SIDES.include?(m['drawer_side'].to_s) ? m['drawer_side'].to_s : 'foot'
+            # 리프트업 수납: 상판(매트리스 받침)을 발치/헤드 반으로 나눠
+            # 발치 쪽 절반이 가스쇼바로 열리는 수납 구조
+            out['lift_up_storage'] = m['lift_up_storage'] ? true : false
           end
           return out
+        end
+
+        # 수직 빈 공간 (stack 전용) — 책상 위 개방부 등. 높이만 차지.
+        if kind == 'v_gap'
+          return { 'kind'   => 'v_gap',
+                   'height' => Float(m['height'] || 500),
+                   'label'  => (m['label'] || '개방 공간').to_s }
         end
 
         # 책상 모듈 — 하위 필드 그대로 통과
@@ -156,6 +172,9 @@ module Kabinet
 
         when 'drawer_module'
           out['drawer_count']     = Integer(m['drawer_count'] || 1)
+          # 서랍 박스 깊이 직접 지정 (0/빈값이면 레일 규격 자동 스냅)
+          bd = m['box_depth_mm'].to_f
+          out['box_depth_mm']     = bd > 0 ? bd : nil
           out['drawer_type']      = m['drawer_type'] || 'undermount'
           unless DRAWER_TYPES.include?(out['drawer_type'])
             raise ValidationError, "invalid drawer_type: #{out['drawer_type']}"
@@ -207,6 +226,12 @@ module Kabinet
               raise ValidationError, "module[#{i}]: 수납침대 깊이(침대 길이)는 0보다 커야 합니다." unless m['bed_depth'].to_f > 0
             end
             next  # bed_gap has no height/depth
+          end
+          if m['kind'] == 'v_gap'
+            raise ValidationError,
+                  "module[#{i}]: v_gap(개방 공간)은 적층 모드에서만 사용할 수 있습니다." if run_mode
+            raise ValidationError, "module[#{i}] v_gap height must be > 0" unless m['height'].to_f > 0
+            next  # v_gap has no depth
           end
           raise ValidationError, "module[#{i}] height must be > 0" unless m['height'].to_f > 0
           raise ValidationError, "module[#{i}] depth must be > 0"  unless m['depth'].to_f > 0

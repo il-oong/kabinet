@@ -20,10 +20,13 @@ module Kabinet
         spec['modules'].each_with_index do |m, idx|
           if m['kind'] == 'bed_gap'
             next unless m['storage']
-            # 수납침대 → 서랍 모듈 하드웨어 (레일/손잡이)
+            # 수납침대 → 서랍 모듈 하드웨어 (레일/손잡이).
+            # 측면 서랍은 레일 방향이 침대 폭 쪽이므로 depth = 침대 폭.
+            bed_d = %w[left right].include?(m['drawer_side']) ? m['width'] : m['bed_depth']
             m = m.merge('kind' => 'drawer_module',
-                        'height' => m['platform_height'], 'depth' => m['bed_depth'])
+                        'height' => m['platform_height'], 'depth' => bed_d)
           end
+          next if m['kind'] == 'v_gap'
           prefix = "M#{idx + 1}"
           mh     = run_mode ? spec['run_height'].to_f : m['height'].to_f
 
@@ -39,6 +42,21 @@ module Kabinet
           when 'desk_module'
             rows.concat(desk_hardware(m, prefix))
           end
+        end
+
+        # 수납침대 부가 하드웨어 (측면 서랍 레일/손잡이는 위 모듈 루프에서 산출)
+        spec['modules'].each_with_index do |m, idx|
+          next unless m['kind'] == 'bed_gap' && m['storage'] && m['lift_up_storage']
+          rows << row("M#{idx + 1}-가스쇼바", '리프트업 매트리스 받침용', 2, '개', '좌우 1개씩')
+          rows << row("M#{idx + 1}-리프트업 힌지", '피아노경첩 또는 전용힌지', 1, '식', '헤드측 회전축')
+        end
+
+        # 철제 받침: 각파이프 프레임 1식 (걸레받이·레벨러 대신)
+        if spec['base_type'] == 'steel' && (spec['base_height'] || 0).to_f > 0
+          t = Kabinet::Constants::STEEL_BASE_TUBE_MM
+          rows << row('철제 받침 프레임', "#{t}×#{t} 각관 H#{spec['base_height'].to_f.round}",
+                      1, '식', '용접 프레임 + 레벨러 볼트 포함, 분체도장')
+          return rows
         end
 
         if (spec['base_height'] || 0).to_f > 0

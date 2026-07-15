@@ -56,10 +56,17 @@ module Kabinet
 
         # ── 모듈별 부재 ─────────────────────────────────────────────────
         spec['modules'].each_with_index do |m, idx|
+          next if m['kind'] == 'v_gap'   # 개방 공간 — 부재 없음
           is_bed = false
           if m['kind'] == 'bed_gap'
             next unless m['storage']
-            # 수납침대: 서랍 모듈로 변환 — run_height 대신 플랫폼 자체 치수
+            rows.concat(bed_extra_rows(m, "M#{idx + 1}(침대)"))
+            # 측면 서랍(left/right)은 유닛 분할 — 전용 헬퍼에서 전부 산출
+            if %w[left right].include?(m['drawer_side'])
+              rows.concat(bed_side_unit_rows(m, "M#{idx + 1}(침대)"))
+              next
+            end
+            # 발치 서랍: 서랍 모듈로 변환 — run_height 대신 플랫폼 자체 치수
             is_bed = true
             m = m.merge('kind' => 'drawer_module',
                         'height' => m['platform_height'], 'depth' => m['bed_depth'])
@@ -153,7 +160,7 @@ module Kabinet
         end
 
         # ── 걸레받이 (런 모드: bed_gap 제외 구간별) ──────────────────────
-        if base_h > 0 && spec.fetch('has_kickboard', true)
+        if base_h > 0 && spec.fetch('has_kickboard', true) && spec['base_type'] != 'steel'
           segments =
             if run_mode
               run_segments(spec['modules'])
@@ -354,6 +361,45 @@ module Kabinet
                                   type: cd['type'] || 'undermount')
           rows.concat(box_rows("#{prefix}-셀서랍(칸#{cell_idx + 1})", box, dc, walls: 3))
         end
+        rows
+      end
+
+      # 수납침대 부가 부재 — 리프트업 매트리스 받침 플레이트 (지오메트리와 동일)
+      def bed_extra_rows(m, prefix)
+        return [] unless m['lift_up_storage']
+        t    = C::DEFAULT_BODY_THICKNESS_MM
+        half = m['bed_depth'].to_f / 2.0
+        [mkrow("#{prefix}-리프트업받침", m['width'].to_f, half, t, 1, m['material'] || 'LPM',
+               '가로결', edge: '4면', note: '발치 절반 — 가스쇼바 개폐'),
+         mkrow("#{prefix}-고정받침", m['width'].to_f, half, t, 1, m['material'] || 'LPM',
+               '가로결', edge: '4면', note: '헤드 절반 — 고정')]
+      end
+
+      # 수납침대 측면 서랍 — 침대 길이 방향 n유닛 분할 (지오메트리와 동일).
+      # ponytail: 유닛별 독립 카케이스 — 실물은 분할판 공유(측판 과산출), 정밀화 필요 시 교체.
+      def bed_side_unit_rows(m, prefix)
+        n       = [(m['drawer_count'] || 2).to_i, 1].max
+        unit_w  = m['bed_depth'].to_f / n
+        mh      = m['platform_height'].to_f
+        md      = m['width'].to_f            # 유닛 깊이 = 침대 폭 방향
+        bt      = m['body_thickness'].to_f
+        bkt     = m['back_thickness'].to_f
+        mat     = m['material'] || 'LPM'
+        mat_drw = m['door_material'] || mat
+        inner_w = unit_w - 2.0 * bt
+
+        rows = []
+        rows << mkrow("#{prefix}-측판", md, mh, bt, 2 * n, mat, '세로결',
+                      edge: '앞면', note: "측면서랍 유닛 ×#{n}")
+        rows << mkrow("#{prefix}-하판", inner_w, md, bt, n, mat, '가로결', edge: '앞면', note: '하판')
+        rows << mkrow("#{prefix}-상판", inner_w, md, bt, n, mat, '가로결', edge: '앞면', note: '상판')
+        if m.fetch('has_back', true)
+          rows << mkrow("#{prefix}-뒷판", inner_w, mh - 2.0 * bt, bkt, n, '합판', '세로결',
+                        edge: '-', note: "끼움식(전면 #{C::BACK_RECESS_MM}mm 후퇴)")
+        end
+        unit = m.merge('drawer_count' => 1)
+        one  = drawer_rows(unit, prefix, unit_w, mh, md, bt, bkt, mat_drw)
+        rows.concat(one.map { |r| r.merge(qty: r[:qty] * n) })
         rows
       end
 

@@ -488,7 +488,10 @@ const FURNITURE_PRESETS = {
         ],
         vertical_dividers: [], cell_shelves: [], cell_drawers: []
       },
-      { kind: 'bed_gap', width: 1600, label: '침대 공간 (퀸 1600mm)' },
+      { kind: 'bed_gap', width: 1600, label: '침대 공간 (퀸 1600mm)',
+        storage: true, platform_height: 350, bed_depth: 2000,
+        drawer_count: 2, drawer_side: 'foot', lift_up_storage: false,
+        material: 'LPM', door_material: 'LPM' },
       { kind: 'shelf_module', width: 600, depth: 580, height: 2020,
         body_thickness: 18, back_thickness: 9, has_back: true,
         door_config: 'pair', door_type: 'swing', door_thickness: 18,
@@ -525,7 +528,10 @@ const FURNITURE_PRESETS = {
         accessories: [],
         vertical_dividers: [], cell_shelves: [], cell_drawers: []
       },
-      { kind: 'bed_gap', width: 1600, label: '침대 공간 (퀸 1600mm)' },
+      { kind: 'bed_gap', width: 1600, label: '침대 공간 (퀸 1600mm)',
+        storage: true, platform_height: 350, bed_depth: 2000,
+        drawer_count: 2, drawer_side: 'foot', lift_up_storage: false,
+        material: 'LPM', door_material: 'LPM' },
       { kind: 'drawer_module', width: 600, depth: 580, height: 1200,
         body_thickness: 18, back_thickness: 9, has_back: true,
         drawer_count: 3, drawer_type: 'undermount', drawer_thickness: 18,
@@ -651,8 +657,8 @@ const FURNITURE_PRESETS = {
     run_mode: false,
     ep: { left: false, right: false, thickness: 18 },
     top_panel: null,
-    // 총 높이: 750(책상) + 400(상부장) = 1150mm
-    // 보고서 기준: 책상고 750mm, 상부장 D280 H400mm
+    // 총 높이: 750(책상) + 500(개방 이격) + 400(상부장) = 1650mm
+    // 보고서 기준: 책상고 750mm, 상부장 D280 H400mm, 책상면~상부장 이격 500mm
     modules: [
       { kind: 'desk_module', width: 1200, depth: 600, height: 750,
         top_thickness: 25, leg_type: 'box',
@@ -660,6 +666,7 @@ const FURNITURE_PRESETS = {
         has_modesty_panel: false, pedestal: null, under_unit: null,
         material: 'LPM', edge_banding_mm: 1.0
       },
+      { kind: 'v_gap', height: 500, label: '책상 위 개방 (모니터/작업 공간)' },
       { kind: 'shelf_module', width: 1200, depth: 280, height: 400,
         body_thickness: 15, back_thickness: 9, has_back: true,
         door_config: 'pair', door_type: 'swing', door_thickness: 15,
@@ -676,7 +683,7 @@ const FURNITURE_PRESETS = {
         cell_drawers: []
       }
     ],
-    _info: '자녀방 책상+상부장 W1200 | 책상750mm + 도어상부장400mm. 총 H1150mm. 초등~중학생 권장'
+    _info: '자녀방 책상+상부장 W1200 | 책상750 + 개방500 + 도어상부장400mm. 총 H1650mm. 초등~중학생 권장'
   },
 
   kids_bed_single: {
@@ -704,7 +711,10 @@ const FURNITURE_PRESETS = {
         accessories: [],
         vertical_dividers: [], cell_shelves: [], cell_drawers: []
       },
-      { kind: 'bed_gap', width: 1000, label: '싱글 침대 공간 (1000mm)' },
+      { kind: 'bed_gap', width: 1000, label: '싱글 침대 공간 (1000mm)',
+        storage: true, platform_height: 350, bed_depth: 2000,
+        drawer_count: 2, drawer_side: 'foot', lift_up_storage: false,
+        material: 'LPM', door_material: 'LPM' },
       { kind: 'drawer_module', width: 500, depth: 580, height: 2020,
         body_thickness: 18, back_thickness: 9, has_back: true,
         drawer_count: 4, drawer_type: 'undermount', drawer_thickness: 18,
@@ -853,6 +863,7 @@ const kabinet = (() => {
     width: 900,
     max_depth: 580,
     base_height: 0,
+    base_type: 'wood',
     has_kickboard: true,
     material: 'LPM',
     edge_banding_mm: 1.0,
@@ -1278,6 +1289,10 @@ const kabinet = (() => {
       setStatus('침대 공간은 "수평 런 모드"를 켠 뒤에 추가할 수 있습니다.', 'error');
       return;
     }
+    if (kind === 'v_gap' && state.run_mode) {
+      setStatus('개방 공간은 적층 모드(런 모드 꺼짐)에서만 추가할 수 있습니다.', 'error');
+      return;
+    }
     const w   = state.width   || 900;
     const d   = state.max_depth || 400;
     const mat = state.material || 'LPM';
@@ -1295,7 +1310,12 @@ const kabinet = (() => {
               has_modesty_panel: false, pedestal: null, under_unit: null,
               material: mat, edge_banding_mm: 1.0 };
     } else if (kind === 'bed_gap') {
-      mod = { kind, width: 1600, label: '침대 공간' };
+      mod = { kind, width: 1600, label: '침대 공간', storage: true,
+              platform_height: 350, bed_depth: 2000, drawer_count: 2,
+              drawer_side: 'foot', lift_up_storage: false,
+              material: mat, door_material: mat };
+    } else if (kind === 'v_gap') {
+      mod = { kind, height: 500, label: '개방 공간' };
     } else {
       mod = { kind, width: w, depth: d, height: 400,
               body_thickness: 18, back_thickness: 9, has_back: true,
@@ -1410,6 +1430,9 @@ const kabinet = (() => {
 
     const kickChk = document.getElementById('f-kickboard');
     if (kickChk) kickChk.checked = state.has_kickboard !== false;
+
+    const baseSel = document.getElementById('f-base-type');
+    if (baseSel) baseSel.value = state.base_type || 'wood';
 
     const matSel = document.getElementById('f-material');
     if (matSel) matSel.value = state.material || 'LPM';
@@ -1573,6 +1596,7 @@ const kabinet = (() => {
         }
       } else {
         if (m.kind === 'bed_gap') return;
+        if (m.kind === 'v_gap') { cz += m.height || 0; return; }  // 개방 공간 — 높이만 전진
         mw = carW; mh = m.height || 0; mx = 0; mz = cz; cz += mh;
       }
       drawModuleFront(m, epL + mx, base + mz, mw, mh);
