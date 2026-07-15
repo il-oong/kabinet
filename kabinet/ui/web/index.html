@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabinet</title>
-  <link rel="stylesheet" href="styles.css?v=1.5.0">
+  <link rel="stylesheet" href="styles.css?v=1.6.0">
 </head>
 <body>
 
@@ -51,7 +51,7 @@
     </optgroup>
     <optgroup label="── 내 프리셋" id="user-preset-group"></optgroup>
   </select>
-  <span class="version-badge">v1.5.0</span>
+  <span class="version-badge">v1.6.0</span>
 </div>
 
 <!-- ══ 본문 (단일 스크롤) ══════════════════════════════════════════════ -->
@@ -229,12 +229,25 @@
       <label>유닛(장) 분할 치수</label>
       <input type="checkbox" id="g-dim-units" checked>
     </div>
+    <div class="field-row">
+      <label>치수 반올림</label>
+      <select id="g-round">
+        <option value="1" selected>1mm (정수)</option>
+        <option value="0.1">0.1mm (정밀)</option>
+        <option value="5">5mm</option>
+        <option value="10">10mm</option>
+      </select>
+    </div>
     <div class="toggle-row">
       <label>은선 제거 <span class="dim-note">(가려진 선 숨김 — 권장)</span></label>
       <input type="checkbox" id="g-hlr" checked>
     </div>
     <div class="toggle-row">
-      <label>곡면 메시 엣지 포함 <span class="dim-note">(소파 등 — 기본은 바운딩 박스로 대체)</span></label>
+      <label>복잡 메시 박스로 표시 <span class="dim-note">(엣지 300개 초과 유닛 — 소파/매트리스 등)</span></label>
+      <input type="checkbox" id="g-mesh-box" checked>
+    </div>
+    <div class="toggle-row">
+      <label>곡면 메시 엣지 포함 <span class="dim-note">(soft/smooth — 기본 제외)</span></label>
       <input type="checkbox" id="g-include-soft">
     </div>
   </details>
@@ -277,7 +290,7 @@
   </div>
 </div>
 
-<script src="app.js?v=1.5.0"></script>
-<script src="modules.js?v=1.5.0"></script>
+<script src="app.js?v=1.6.0"></script>
+<script src="modules.js?v=1.6.0"></script>
 </body>
 </html>

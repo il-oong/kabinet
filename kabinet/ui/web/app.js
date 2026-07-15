@@ -1224,11 +1224,14 @@ const kabinet = (() => {
     if (chk('g-view-side'))  views.push('side');
     if (chk('g-view-top'))   views.push('top');
     if (views.length === 0) { setStatus('출력할 뷰를 하나 이상 선택하세요.', 'error'); return; }
+    const roundSel = document.getElementById('g-round');
     const opts = {
       views: views,
       dim_overall:  chk('g-dim-overall'),
       dim_units:    chk('g-dim-units'),
       hlr:          chk('g-hlr'),
+      mesh_box:     chk('g-mesh-box'),
+      round_mm:     roundSel ? parseFloat(roundSel.value) : 1,
       include_soft: document.getElementById('g-include-soft') ?
                     document.getElementById('g-include-soft').checked : false
     };

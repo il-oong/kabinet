@@ -195,6 +195,11 @@ module Kabinet
             dim_units    = opts.fetch('dim_units', true) ? true : false
             include_soft = opts['include_soft'] ? true : false
             hlr          = opts.fetch('hlr', true) ? true : false
+            round_mm     = opts['round_mm'].to_f
+            round_mm     = 1.0 if round_mm <= 0
+            # 복잡 메시(하드 삼각분할 임포트 모델 등) 박스 대체 임계값
+            mesh_box     = opts.fetch('mesh_box', true) ? true : false
+            mesh_limit   = 300
 
             model   = Sketchup.active_model
             targets = model.selection.to_a.select { |e|
@@ -203,18 +208,19 @@ module Kabinet
             if targets.empty?
               d.execute_script("kabinet.onError('그룹 또는 컴포넌트를 먼저 선택하세요.')")
             else
-              gp   = Kabinet::Output::GroupProjection
-              segs = []
-              targets.each { |t| gp.collect_segments_mm(t, segs, include_soft: include_soft) }
-              units = gp.collect_unit_bounds_mm(targets)
+              gp     = Kabinet::Output::GroupProjection
+              result = gp.collect_units_mm(targets, include_soft: include_soft)
+              units  = result[:units]
 
-              # 곡면(메시) 전용 유닛 — 소파 등: 엣지가 전부 필터링되므로
-              # 바운딩 박스 외곽으로 대체 표시
-              unless include_soft
-                units.each do |u|
-                  segs.concat(gp.bbox_segments(u[:min], u[:max])) if u[:hard_edges].zero?
-                end
+              # 유닛별 세그먼트 조립:
+              #   - 엣지가 임계값을 넘는 유닛(임포트 메시 소파/매트리스 등)이나
+              #     곡면 필터로 다 사라진 유닛 → 바운딩 박스 외곽으로 대체
+              segs = result[:loose].dup
+              units.each do |u|
+                replace = u[:segs].empty? || (mesh_box && u[:segs].size > mesh_limit)
+                segs.concat(replace ? gp.bbox_segments(u[:min], u[:max]) : u[:segs])
               end
+              raise '선택에 그릴 엣지가 없습니다' if segs.empty?
 
               # 은선 제거: 뷰별 레이캐스트로 가려진 엣지 스킵
               view_segs = nil
@@ -224,7 +230,8 @@ module Kabinet
               end
 
               views = gp.views_from_segments(segs, units: units, view_segs: view_segs,
-                                             dim_overall: dim_overall, dim_units: dim_units)
+                                             dim_overall: dim_overall, dim_units: dim_units,
+                                             round_mm: round_mm)
               views = views.select { |v| want_views.include?(v[:name]) }
 
               first = targets.first

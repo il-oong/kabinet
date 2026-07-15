@@ -60,6 +60,23 @@ raise 'side keeps full segs' unless vo[1][:lines].size == 4
 bb = GP.bbox_segments([0, 0, 0], [100, 200, 300])
 raise 'bbox 12 edges' unless bb.size == 12
 
+# 치수 반올림
+raise 'round 1'   unless GP.fmt(899.3, 1)   == '899'
+raise 'round 5'   unless GP.fmt(727.3, 5)   == '725'
+raise 'round 10'  unless GP.fmt(2235.4, 10) == '2240'
+raise 'round 0.1' unless GP.fmt(899.34, 0.1) == '899.3'
+
+# 유닛 높이 치수 — 같은 값은 1회, 뷰 우측 바깥 계단식
+units3 = [
+  { name: 'A', min: [0, 0, 0],   max: [300, 580, 500] },
+  { name: 'B', min: [300, 0, 0], max: [600, 580, 500] },
+  { name: 'C', min: [600, 0, 0], max: [900, 580, 720] }
+]
+v3 = GP.views_from_segments(segs, units: units3)
+hdims = v3[0][:dims].select { |dd| dd[:dir] == :v && dd[:offset] > 0 }
+raise "height dims=#{hdims.size} (expected 1 — 500 한 번만)" unless hdims.size == 1
+raise 'height dim at right edge' unless hdims.first[:x1] == 900.0
+
 # OrderSheet.compose → DXF 직렬화 (SketchUp 밖에서만 — order_sheet는 독립 로드 가능)
 if defined?(Kabinet::Output::OrderSheet)
   dxf = Kabinet::Output::OrderSheet.compose(views, name: '테스트장', size: GP.size_string(segs),
