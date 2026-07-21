@@ -101,6 +101,23 @@ noeq = GP.views_from_segments(segs, units: [
 ], eq: false)
 raise 'EQ off should add none' unless noeq[0][:texts].none? { |t| t[:text] == 'EQ' }
 
+# 세부 치수 간소화: 전체(900) 10%=90 미만 유닛 폭 생략
+# 850 + 50 → 50짜리 유닛 치수 생략, 850만 표기
+uf = GP.views_from_segments(segs, units: [
+  { name: 'big',  min: [0, 0, 0],   max: [850, 580, 720] },
+  { name: 'tiny', min: [850, 0, 0], max: [900, 580, 720] }
+], min_frac: 0.1)
+wchain = uf[0][:dims].select { |dd| dd[:dir] == :h && dd[:offset] > -GP.dim_off(900, 720) * 1.5 }
+raise "simplify: #{wchain.map { |c| c[:text] }}" unless wchain.map { |c| c[:text] } == %w[850]
+
+# min_frac 0이면 전부 표기 (850, 50 둘 다)
+uf0 = GP.views_from_segments(segs, units: [
+  { name: 'big',  min: [0, 0, 0],   max: [850, 580, 720] },
+  { name: 'tiny', min: [850, 0, 0], max: [900, 580, 720] }
+], min_frac: 0.0)
+w0 = uf0[0][:dims].select { |dd| dd[:dir] == :h && dd[:offset] > -GP.dim_off(900, 720) * 1.5 }
+raise 'min_frac 0 keeps all' unless w0.map { |c| c[:text] }.sort == %w[50 850]
+
 # OrderSheet.compose → DXF 직렬화 (SketchUp 밖에서만 — order_sheet는 독립 로드 가능)
 if defined?(Kabinet::Output::OrderSheet)
   dxf = Kabinet::Output::OrderSheet.compose(views, name: '테스트장', size: GP.size_string(segs),

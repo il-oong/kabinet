@@ -48,20 +48,27 @@ module Kabinet
         out
       end
 
-      # ── 은선 제거 (SketchUp raytest) ─────────────────────────────────────
-      # 각 세그먼트 중점에서 뷰어 방향으로 레이 발사 — 뭔가에 막히면 가려진
-      # 것으로 보고 제외. 중점 근사(부분 가림은 통째 판정)지만 발주도면엔 충분.
+      # ── 은선 제거 (SketchUp raytest, 다점 샘플링) ────────────────────────
+      # 각 세그먼트를 여러 지점에서 뷰어 방향으로 레이 발사. 한 지점이라도
+      # 안 막히면(보이면) 그 선을 그린다 — 부분만 보이는 외곽선 누락(안보임)
+      # 방지. 큰 오프셋으로 자기 면 자체 히트(오판정)도 억제.
+      # 관통(투시)은 raytest가 앞 면을 제대로 잡으면 걸러짐.
+      SAMPLES = [0.15, 0.35, 0.5, 0.65, 0.85].freeze
+
       def visible_segments(model, segs, view_name)
         dir_a = VIEW_DIRS[view_name]
         return segs unless dir_a
         dir = ::Geom::Vector3d.new(*dir_a)
-        eps = 0.5 / 25.4   # 0.5mm (인치) — 자기 면 자체 히트 방지 오프셋
+        eps = 2.0 / 25.4   # 2mm — 자기 면/인접 면 히트 방지 오프셋
         segs.select do |p, q|
-          mid = ::Geom::Point3d.new(((p[0] + q[0]) / 2.0) / 25.4,
-                                    ((p[1] + q[1]) / 2.0) / 25.4,
-                                    ((p[2] + q[2]) / 2.0) / 25.4)
-          start = mid.offset(dir, eps)
-          model.raytest([start, dir], true).nil?
+          SAMPLES.any? do |f|
+            sx = (p[0] + (q[0] - p[0]) * f) / 25.4
+            sy = (p[1] + (q[1] - p[1]) * f) / 25.4
+            sz = (p[2] + (q[2] - p[2]) * f) / 25.4
+            start = ::Geom::Point3d.new(sx, sy, sz).offset(dir, eps)
+            hit = model.raytest([start, dir], true)
+            hit.nil?   # 이 지점에서 아무것도 안 막으면 보임
+          end
         end
       end
 
@@ -71,8 +78,10 @@ module Kabinet
       # view_segs: { 'front' => [...], ... } — 뷰별로 그릴 세그먼트 오버라이드
       #            (은선 제거 결과). nil이면 세 뷰 모두 segs 사용.
       # dim_overall / dim_units: 치수 출력 여부
+      # min_frac: 전체 대비 이 비율보다 작은 유닛 치수는 생략 (0=전부 표기)
       def views_from_segments(segs, units: [], view_segs: nil,
-                              dim_overall: true, dim_units: true, round_mm: 1.0, eq: true)
+                              dim_overall: true, dim_units: true, round_mm: 1.0,
+                              eq: true, min_frac: 0.1)
         raise ArgumentError, '선택에 엣지가 없습니다' if segs.empty?
 
         pts  = segs.flatten(1)
@@ -99,24 +108,28 @@ module Kabinet
         off_t = dim_off(w, d)
         step  = 1.1   # 레벨 간 오프셋 배수 (텍스트 높이 대비 여유)
 
+        min_w = w * min_frac   # 이보다 좁은 유닛 폭 치수 생략
+        min_h = h * min_frac
+        min_d = d * min_frac
+
         # ── 정면도 ──────────────────────────────────────────────────────
-        add_width_chain(front, sorted, minx, -off_f, round_mm, eq: eq) if has_units
-        nh = has_units ? add_stacked_dims(front, sorted, minz, w, h, off_f, step, round_mm, axis: 2) : 0
+        add_width_chain(front, sorted, minx, -off_f, round_mm, eq: eq, min_len: min_w) if has_units
+        nh = has_units ? add_stacked_dims(front, sorted, minz, w, h, off_f, step, round_mm, axis: 2, min_len: min_h) : 0
         if dim_overall
           dim(front, 0, 0, w, 0, -off_f * (has_units ? 2.1 : 1.0), fmt(w, round_mm), :h)
           dim(front, w, 0, w, h, off_f * (1.0 + step * nh), fmt(h, round_mm), :v)
         end
 
         # ── 측면도 (높이 세부 공유, 깊이는 단일 실루엣) ─────────────────
-        ns = has_units ? add_stacked_dims(side, sorted, minz, d, h, off_s, step, round_mm, axis: 2) : 0
+        ns = has_units ? add_stacked_dims(side, sorted, minz, d, h, off_s, step, round_mm, axis: 2, min_len: min_h) : 0
         if dim_overall
           dim(side, 0, 0, d, 0, -off_s, fmt(d, round_mm), :h)
           dim(side, d, 0, d, h, off_s * (1.0 + step * ns), fmt(h, round_mm), :v)
         end
 
         # ── 평면도 ──────────────────────────────────────────────────────
-        add_width_chain(top, sorted, minx, -off_t, round_mm, eq: eq) if has_units
-        nd = has_units ? add_stacked_dims(top, sorted, miny, w, d, off_t, step, round_mm, axis: 1) : 0
+        add_width_chain(top, sorted, minx, -off_t, round_mm, eq: eq, min_len: min_w) if has_units
+        nd = has_units ? add_stacked_dims(top, sorted, miny, w, d, off_t, step, round_mm, axis: 1, min_len: min_d) : 0
         if dim_overall
           dim(top, 0, 0, w, 0, -off_t * (has_units ? 2.1 : 1.0), fmt(w, round_mm), :h)
           dim(top, w, 0, w, d, off_t * (1.0 + step * nd), fmt(d, round_mm), :v)
@@ -126,18 +139,19 @@ module Kabinet
       end
 
       # 폭 분할 체인 — 유닛별 폭을 한 줄로. 등폭 연속 구간은 EQ 텍스트 부기.
-      def add_width_chain(v, sorted, minx, offset, round_mm, eq: true)
+      # min_len 미만 유닛은 생략 (너무 디테일한 세부 치수 제거).
+      def add_width_chain(v, sorted, minx, offset, round_mm, eq: true, min_len: 0.0)
         sorted.each do |u|
           x1 = u[:min][0] - minx
           x2 = u[:max][0] - minx
-          next if (x2 - x1) < 1.0
+          next if (x2 - x1) < 1.0 || (x2 - x1) < min_len
           dim(v, x1, 0, x2, 0, offset, fmt(x2 - x1, round_mm), :h)
         end
-        add_eq_texts(v, sorted, minx, offset, round_mm) if eq
+        add_eq_texts(v, sorted, minx, offset, round_mm, min_len) if eq
       end
 
       # 등폭 2연속 이상 구간 → 각 칸 중앙에 'EQ' (치수선 바깥쪽에 부기)
-      def add_eq_texts(v, sorted, minx, offset, round_mm)
+      def add_eq_texts(v, sorted, minx, offset, round_mm, min_len = 0.0)
         i = 0
         n = sorted.size
         while i < n
@@ -145,7 +159,7 @@ module Kabinet
           j  = i
           j += 1 while j + 1 < n &&
                        round_val(sorted[j + 1][:max][0] - sorted[j + 1][:min][0], round_mm) == w0
-          if j > i && w0 > 1.0
+          if j > i && w0 > 1.0 && w0 >= min_len
             (i..j).each do |k|
               cx = ((sorted[k][:min][0] + sorted[k][:max][0]) / 2.0) - minx
               text(v, cx, offset * 0.5, 'EQ')   # 체인과 뷰 사이 (겹침 없음)
@@ -157,12 +171,13 @@ module Kabinet
 
       # 세로 세부 치수 계단식 — axis 2=높이(z), 1=깊이(y). 전체와 다른 값만,
       # 값별 1회, 각 값을 바깥으로 한 레벨씩 밀어 겹침 방지. 반환: 사용 레벨 수.
-      def add_stacked_dims(v, sorted, origin, x_anchor, overall, base, step, round_mm, axis:)
+      def add_stacked_dims(v, sorted, origin, x_anchor, overall, base, step, round_mm, axis:, min_len: 0.0)
         seen = {}
         k = 0
         sorted.each do |u|
           val = u[:max][axis] - u[:min][axis]
           next if (val - overall).abs <= 0.5
+          next if val < min_len   # 너무 작은 세부 치수 생략
           key = fmt(val, round_mm)
           next if seen[key]
           seen[key] = true

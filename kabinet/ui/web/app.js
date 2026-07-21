@@ -1230,6 +1230,7 @@ const kabinet = (() => {
       dim_overall:  chk('g-dim-overall'),
       dim_units:    chk('g-dim-units'),
       eq:           chk('g-eq'),
+      simplify_dims: chk('g-simplify'),
       hlr:          chk('g-hlr'),
       mesh_box:     chk('g-mesh-box'),
       round_mm:     roundSel ? parseFloat(roundSel.value) : 1,
