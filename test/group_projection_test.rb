@@ -38,7 +38,8 @@ v2 = GP.views_from_segments(segs, units: units)
 f2 = v2[0]
 # 전체 2개(W,H) + 유닛 폭 체인 2개 + B 높이 1개 = 5
 raise "front dims=#{f2[:dims].size} (expected 5)" unless f2[:dims].size == 5
-chain = f2[:dims].select { |dd| dd[:dir] == :h && dd[:offset] > -GP.dim_off(900, 720) }
+# 체인은 안쪽(-off), 전체 폭은 바깥(-off*2.1) — 그 사이 임계값으로 분리
+chain = f2[:dims].select { |dd| dd[:dir] == :h && dd[:offset] > -GP.dim_off(900, 720) * 1.5 }
 raise "chain widths #{chain.map { |c| c[:text] }}" unless chain.map { |c| c[:text] }.sort == %w[400 500]
 raise 'unit B height dim missing' unless f2[:dims].any? { |dd| dd[:dir] == :v && dd[:text] == '500' }
 
