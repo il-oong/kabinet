@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabinet</title>
-  <link rel="stylesheet" href="styles.css?v=1.6.0">
+  <link rel="stylesheet" href="styles.css?v=1.7.0">
 </head>
 <body>
 
@@ -51,7 +51,7 @@
     </optgroup>
     <optgroup label="── 내 프리셋" id="user-preset-group"></optgroup>
   </select>
-  <span class="version-badge">v1.6.0</span>
+  <span class="version-badge">v1.7.0</span>
 </div>
 
 <!-- ══ 본문 (단일 스크롤) ══════════════════════════════════════════════ -->
@@ -226,8 +226,12 @@
       <input type="checkbox" id="g-dim-overall" checked>
     </div>
     <div class="toggle-row">
-      <label>유닛(장) 분할 치수</label>
+      <label>유닛(장) 분할 치수 <span class="dim-note">(소단위 안쪽 / 전체 바깥)</span></label>
       <input type="checkbox" id="g-dim-units" checked>
+    </div>
+    <div class="toggle-row">
+      <label>등폭 구간 EQ 표기 <span class="dim-note">(같은 폭 연속 → EQ)</span></label>
+      <input type="checkbox" id="g-eq" checked>
     </div>
     <div class="field-row">
       <label>치수 반올림</label>
@@ -290,7 +294,7 @@
   </div>
 </div>
 
-<script src="app.js?v=1.6.0"></script>
-<script src="modules.js?v=1.6.0"></script>
+<script src="app.js?v=1.7.0"></script>
+<script src="modules.js?v=1.7.0"></script>
 </body>
 </html>

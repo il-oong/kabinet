@@ -197,6 +197,7 @@ module Kabinet
             hlr          = opts.fetch('hlr', true) ? true : false
             round_mm     = opts['round_mm'].to_f
             round_mm     = 1.0 if round_mm <= 0
+            eq           = opts.fetch('eq', true) ? true : false
             # 복잡 메시(하드 삼각분할 임포트 모델 등) 박스 대체 임계값
             mesh_box     = opts.fetch('mesh_box', true) ? true : false
             mesh_limit   = 300
@@ -231,7 +232,7 @@ module Kabinet
 
               views = gp.views_from_segments(segs, units: units, view_segs: view_segs,
                                              dim_overall: dim_overall, dim_units: dim_units,
-                                             round_mm: round_mm)
+                                             round_mm: round_mm, eq: eq)
               views = views.select { |v| want_views.include?(v[:name]) }
 
               first = targets.first

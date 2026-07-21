@@ -60,22 +60,45 @@ raise 'side keeps full segs' unless vo[1][:lines].size == 4
 bb = GP.bbox_segments([0, 0, 0], [100, 200, 300])
 raise 'bbox 12 edges' unless bb.size == 12
 
-# 치수 반올림
-raise 'round 1'   unless GP.fmt(899.3, 1)   == '899'
-raise 'round 5'   unless GP.fmt(727.3, 5)   == '725'
-raise 'round 10'  unless GP.fmt(2235.4, 10) == '2240'
+# 치수 반올림 + 천단위 쉼표
+raise 'round 1'   unless GP.fmt(899.3, 1)    == '899'
+raise 'round 5'   unless GP.fmt(727.3, 5)    == '725'
+raise 'round 10'  unless GP.fmt(2235.4, 10)  == '2,240'
 raise 'round 0.1' unless GP.fmt(899.34, 0.1) == '899.3'
+raise 'comma'     unless GP.fmt(3150, 1)     == '3,150'
+raise 'no comma <1000' unless GP.fmt(900, 1) == '900'
 
-# 유닛 높이 치수 — 같은 값은 1회, 뷰 우측 바깥 계단식
+# 소단위/대단위 레벨 분리: 세부(높이)는 안쪽(l1), 전체는 바깥(l2), 모두 우측
 units3 = [
   { name: 'A', min: [0, 0, 0],   max: [300, 580, 500] },
   { name: 'B', min: [300, 0, 0], max: [600, 580, 500] },
   { name: 'C', min: [600, 0, 0], max: [900, 580, 720] }
 ]
 v3 = GP.views_from_segments(segs, units: units3)
-hdims = v3[0][:dims].select { |dd| dd[:dir] == :v && dd[:offset] > 0 }
-raise "height dims=#{hdims.size} (expected 1 — 500 한 번만)" unless hdims.size == 1
-raise 'height dim at right edge' unless hdims.first[:x1] == 900.0
+vdims = v3[0][:dims].select { |dd| dd[:dir] == :v && dd[:x1] == 900.0 }
+# 세부 높이 500(1회, 720은 전체와 같아 생략) + 전체 높이 720 = 2, 모두 우측
+raise "right v-dims=#{vdims.size} (expected 2)" unless vdims.size == 2
+sub  = vdims.select { |dd| dd[:text] == '500' }
+over = vdims.select { |dd| dd[:text] == '720' }
+raise 'sub height 500 missing' unless sub.size == 1
+raise 'overall height 720 missing' unless over.size == 1
+# 대단위(전체) 오프셋이 소단위(세부)보다 바깥
+raise 'overall must be outermost' unless over.first[:offset] > sub.first[:offset]
+
+# EQ: 300폭 3연속(A/B/C) → EQ 텍스트 3개
+eqv = GP.views_from_segments(segs, units: [
+  { name: 'A', min: [0, 0, 0],   max: [300, 580, 720] },
+  { name: 'B', min: [300, 0, 0], max: [600, 580, 720] },
+  { name: 'C', min: [600, 0, 0], max: [900, 580, 720] }
+], eq: true)
+raise 'EQ texts expected 3' unless eqv[0][:texts].count { |t| t[:text] == 'EQ' } == 3
+# eq 끄면 EQ 없음
+noeq = GP.views_from_segments(segs, units: [
+  { name: 'A', min: [0, 0, 0],   max: [300, 580, 720] },
+  { name: 'B', min: [300, 0, 0], max: [600, 580, 720] },
+  { name: 'C', min: [600, 0, 0], max: [900, 580, 720] }
+], eq: false)
+raise 'EQ off should add none' unless noeq[0][:texts].none? { |t| t[:text] == 'EQ' }
 
 # OrderSheet.compose → DXF 직렬화 (SketchUp 밖에서만 — order_sheet는 독립 로드 가능)
 if defined?(Kabinet::Output::OrderSheet)

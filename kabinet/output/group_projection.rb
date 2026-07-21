@@ -72,7 +72,7 @@ module Kabinet
       #            (은선 제거 결과). nil이면 세 뷰 모두 segs 사용.
       # dim_overall / dim_units: 치수 출력 여부
       def views_from_segments(segs, units: [], view_segs: nil,
-                              dim_overall: true, dim_units: true, round_mm: 1.0)
+                              dim_overall: true, dim_units: true, round_mm: 1.0, eq: true)
         raise ArgumentError, '선택에 엣지가 없습니다' if segs.empty?
 
         pts  = segs.flatten(1)
@@ -88,64 +88,98 @@ module Kabinet
         side  = view('side',  '측면도  SIDE',  d, h, project(vs['side'],  1, 2, miny, minz))
         top   = view('top',   '평면도  TOP',   w, d, project(vs['top'],   0, 1, minx, miny))
 
+        has_units = dim_units && units.size >= 2
+        sorted    = units.sort_by { |u| u[:min][0] }
+
+        # 치수 레벨 (실무 관례): 세부(소단위)는 뷰에 가까운 안쪽,
+        # 전체(대단위)는 항상 제일 바깥. 두 레벨을 명확히 분리해 겹침 방지.
+        #   폭  → 하단, 세부 L1 / 전체 L2
+        #   높이·깊이 → 우측, 세부 L1 / 전체 L2
         off_f = dim_off(w, h)
+        off_s = dim_off(d, h)
+        off_t = dim_off(w, d)
+        l1 = 0.9   # 세부 레벨 오프셋 배수
+        l2 = 1.9   # 전체 레벨 오프셋 배수
+
+        # ── 정면도 ──────────────────────────────────────────────────────
+        add_width_chain(front, sorted, minx, -off_f * l1, round_mm, eq: eq) if has_units
+        add_height_dims(front, sorted, minz, w, h, off_f * l1, round_mm)      if has_units
         if dim_overall
-          # 전체 치수 — 제일 바깥
-          dim(front, 0, 0, w, 0, -off_f, fmt(w, round_mm), :h)
-          dim(front, 0, 0, 0, h, -off_f, fmt(h, round_mm), :v)
-          dim(side,  0, 0, d, 0, -dim_off(d, h), fmt(d, round_mm), :h)
-          dim(top,   w, 0, w, d, dim_off(w, d),  fmt(d, round_mm), :v)
+          dim(front, 0, 0, w, 0, -off_f * l2, fmt(w, round_mm), :h)
+          dim(front, w, 0, w, h, off_f * l2, fmt(h, round_mm), :v)
         end
 
-        if dim_units && units.size >= 2
-          add_unit_dims(front, top, units, minx, miny, minz, w, d, h, off_f, round_mm)
+        # ── 측면도 (높이 세부 공유, 깊이는 단일 실루엣) ─────────────────
+        add_height_dims(side, sorted, minz, d, h, off_s * l1, round_mm) if has_units
+        if dim_overall
+          dim(side, 0, 0, d, 0, -off_s * l2, fmt(d, round_mm), :h)
+          dim(side, d, 0, d, h, off_s * l2, fmt(h, round_mm), :v)
+        end
+
+        # ── 평면도 ──────────────────────────────────────────────────────
+        add_width_chain(top, sorted, minx, -off_t * l1, round_mm, eq: eq) if has_units
+        add_depth_dims(top, sorted, miny, w, d, off_t * l1, round_mm)     if has_units
+        if dim_overall
+          dim(top, 0, 0, w, 0, -off_t * l2, fmt(w, round_mm), :h)
+          dim(top, w, 0, w, d, off_t * l2, fmt(d, round_mm), :v)
         end
 
         [front, side, top]
       end
 
-      # 유닛(장) 분할 치수:
-      #   폭 체인 — 정면도 하단 안쪽 라인 (전체 치수보다 뷰에 가깝게)
-      #   높이   — 전체와 다른 값만, 같은 값은 1회, 뷰 우측 바깥에 계단식
-      #   깊이   — 전체와 다른 값만, 평면도 우측 바깥에 계단식
-      # (이전 버그: 높이/깊이 치수를 유닛 위치에 그대로 그려 뷰 내용과 겹침)
-      def add_unit_dims(front, top, units, minx, miny, minz, w, d, h, off_f, round_mm = 1.0)
-        inner  = -off_f * 0.55
-        sorted = units.sort_by { |u| u[:min][0] }
-
+      # 폭 분할 체인 — 유닛별 폭을 한 줄로. 등폭 연속 구간은 EQ 텍스트 부기.
+      def add_width_chain(v, sorted, minx, offset, round_mm, eq: true)
         sorted.each do |u|
           x1 = u[:min][0] - minx
           x2 = u[:max][0] - minx
           next if (x2 - x1) < 1.0
-          dim(front, x1, 0, x2, 0, inner, fmt(x2 - x1, round_mm), :h)
+          dim(v, x1, 0, x2, 0, offset, fmt(x2 - x1, round_mm), :h)
         end
+        add_eq_texts(v, sorted, minx, offset, round_mm) if eq
+      end
 
-        # 높이: 값별 1회, 뷰 오른쪽 바깥으로 계단식 오프셋
-        seen_h = {}
-        k = 0
+      # 등폭 2연속 이상 구간 → 각 칸 중앙에 'EQ' (치수선 아래 부기)
+      def add_eq_texts(v, sorted, minx, offset, round_mm)
+        i = 0
+        n = sorted.size
+        while i < n
+          w0 = round_val(sorted[i][:max][0] - sorted[i][:min][0], round_mm)
+          j  = i
+          j += 1 while j + 1 < n &&
+                       round_val(sorted[j + 1][:max][0] - sorted[j + 1][:min][0], round_mm) == w0
+          if j > i && w0 > 1.0
+            (i..j).each do |k|
+              cx = ((sorted[k][:min][0] + sorted[k][:max][0]) / 2.0) - minx
+              text(v, cx, offset * 1.5, 'EQ')
+            end
+          end
+          i = j + 1
+        end
+      end
+
+      # 높이 세부 — 전체와 다른 유닛만, 값별 1회, 우측 안쪽 레벨(단일 오프셋)
+      def add_height_dims(v, sorted, minz, x_anchor, h, offset, round_mm)
+        seen = {}
         sorted.each do |u|
           uh = u[:max][2] - u[:min][2]
-          next if (uh - h).abs <= 0.5          # 전체 높이와 같으면 생략
+          next if (uh - h).abs <= 0.5
           key = fmt(uh, round_mm)
-          next if seen_h[key]                  # 같은 높이는 1회만
-          seen_h[key] = true
-          off = off_f * (0.55 + 0.5 * k)       # 계단식 — 겹침 방지
-          dim(front, w, u[:min][2] - minz, w, u[:max][2] - minz, off, key, :v)
-          k += 1
+          next if seen[key]
+          seen[key] = true
+          dim(v, x_anchor, u[:min][2] - minz, x_anchor, u[:max][2] - minz, offset, key, :v)
         end
+      end
 
-        # 깊이: 값별 1회, 평면도 오른쪽 바깥 계단식
-        seen_d = {}
-        k = 0
+      # 깊이 세부 — 전체와 다른 유닛만, 값별 1회, 우측 안쪽 레벨
+      def add_depth_dims(v, sorted, miny, x_anchor, d, offset, round_mm)
+        seen = {}
         sorted.each do |u|
           ud = u[:max][1] - u[:min][1]
           next if (ud - d).abs <= 0.5
           key = fmt(ud, round_mm)
-          next if seen_d[key]
-          seen_d[key] = true
-          off = dim_off(w, d) * (0.55 + 0.5 * k)
-          dim(top, w, u[:min][1] - miny, w, u[:max][1] - miny, off, key, :v)
-          k += 1
+          next if seen[key]
+          seen[key] = true
+          dim(v, x_anchor, u[:min][1] - miny, x_anchor, u[:max][1] - miny, offset, key, :v)
         end
       end
 
@@ -234,22 +268,40 @@ module Kabinet
           lines: lines, rects: [], dims: [], texts: [] }
       end
 
-      def dim(v, x1, y1, x2, y2, offset, text, dir)
+      def dim(v, x1, y1, x2, y2, offset, txt, dir)
         v[:dims] << { x1: x1.to_f, y1: y1.to_f, x2: x2.to_f, y2: y2.to_f,
-                      offset: offset.to_f, text: text.to_s, dir: dir }
+                      offset: offset.to_f, text: txt.to_s, dir: dir }
+      end
+
+      def text(v, x, y, str, height = nil)
+        v[:texts] << { x: x.to_f, y: y.to_f, text: str.to_s, height: height, layer: 'TEXT' }
       end
 
       def dim_off(a, b)
         [[a, b].max * 0.06, 80.0].max.round(0)
       end
 
-      # round_mm: 반올림 단위 — 0.1(정밀) / 1 / 5 / 10
-      def fmt(val, round_mm = 1.0)
+      def round_val(val, round_mm)
         step = round_mm.to_f
         step = 1.0 if step <= 0
-        v = (val.to_f / step).round * step
-        v = v.round(1)
-        v == v.to_i ? v.to_i.to_s : v.to_s
+        (val.to_f / step).round * step
+      end
+
+      # round_mm: 반올림 단위 — 0.1(정밀) / 1 / 5 / 10. 천단위 쉼표 포함.
+      def fmt(val, round_mm = 1.0)
+        v = round_val(val, round_mm).round(1)
+        s = v == v.to_i ? v.to_i.to_s : v.to_s
+        commafy(s)
+      end
+
+      # 정수부에 천단위 쉼표 (3150 → 3,150)
+      def commafy(str)
+        neg = str.start_with?('-')
+        body = neg ? str[1..] : str
+        int, frac = body.split('.')
+        int = int.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse
+        out = frac ? "#{int}.#{frac}" : int
+        neg ? "-#{out}" : out
       end
     end
   end
