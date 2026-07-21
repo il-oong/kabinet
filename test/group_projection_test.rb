@@ -107,6 +107,8 @@ if defined?(Kabinet::Output::OrderSheet)
   s = dxf.to_s
   raise 'DXF EOF missing'   unless s.include?("EOF")
   raise 'DXF title missing' unless s.include?('품명: 테스트장')
+  raise 'KABINET style missing' unless s.include?('KABINET')
+  raise 'malgun font missing'   unless s.include?('malgun.ttf')
 end
 
 puts 'group_projection_test: OK'

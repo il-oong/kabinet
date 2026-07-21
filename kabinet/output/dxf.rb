@@ -47,10 +47,12 @@ module Kabinet
         track(x, y)
         h_code = { left: 0, center: 1, right: 2 }[align] || 0
         v_code = { base: 0, bottom: 1, middle: 2, top: 3 }[valign] || 0
+        # 모든 TEXT를 전용 스타일(KABINET=맑은고딕)에 강제 바인딩 —
+        # 기존 도면의 STANDARD(한글 SHX)에 덮이지 않게 함.
         e = [
           '0', 'TEXT', '8', layer,
           '10', fx(x), '20', fx(y), '30', '0.0',
-          '40', fx(height), '1', str.to_s
+          '40', fx(height), '1', str.to_s, '7', 'KABINET'
         ]
         e += ['50', fx(rotation)] if rotation != 0
         if h_code != 0 || v_code != 0
@@ -87,9 +89,14 @@ module Kabinet
                      '62', color.to_s, '6', ltype]
         end
         layers += ['0', 'ENDTAB']
-        # 문자 스타일: 맑은 고딕 TTF (한글 CAD 가독성 — 없는 환경은 자동 대체)
-        style = ['0', 'TABLE', '2', 'STYLE', '70', '1',
+        # 문자 스타일: 맑은 고딕 TTF. 전용 스타일 KABINET을 별도로 정의하고
+        # 모든 TEXT가 이를 참조(group 7)하게 해 기존 도면 STANDARD에 안 덮임.
+        # STANDARD도 맑은고딕으로 함께 정의 (호환용).
+        style = ['0', 'TABLE', '2', 'STYLE', '70', '2',
                  '0', 'STYLE', '2', 'STANDARD', '70', '0', '40', '0.0',
+                 '41', '1.0', '50', '0.0', '71', '0', '42', '2.5',
+                 '3', 'malgun.ttf', '4', '',
+                 '0', 'STYLE', '2', 'KABINET', '70', '0', '40', '0.0',
                  '41', '1.0', '50', '0.0', '71', '0', '42', '2.5',
                  '3', 'malgun.ttf', '4', '',
                  '0', 'ENDTAB']
