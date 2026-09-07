@@ -48,6 +48,8 @@ require File.join(Kabinet::PLUGIN_DIR, 'output', 'png_export')
 require File.join(Kabinet::PLUGIN_DIR, 'output', 'pdf_bundler')
 
 # UI (last — depends on everything)
+require File.join(Kabinet::PLUGIN_DIR, 'geometry', 'preview_entities')
+require File.join(Kabinet::PLUGIN_DIR, 'ui', 'live_preview')
 require File.join(Kabinet::PLUGIN_DIR, 'ui', 'dialog')
 require File.join(Kabinet::PLUGIN_DIR, 'ui', 'menu')
 
@@ -82,6 +84,7 @@ module Kabinet
       persistence/attributes.rb persistence/schema.rb
       geometry/transforms.rb geometry/builder.rb
       geometry/joinery.rb geometry/handle_builder.rb
+      geometry/preview_entities.rb ui/live_preview.rb ui/web/live-preview.js
       core/fitting.rb core/panel.rb core/carcase.rb core/door_panel.rb
       core/ep_finish_panel.rb core/accessory.rb
       core/shelf_module.rb core/drawer_module.rb
@@ -140,6 +143,7 @@ module Kabinet
       'output/drawing2d', 'output/dxf', 'output/order_sheet',
       'output/dimensions', 'output/views',
       'output/png_export', 'output/pdf_bundler',
+      'geometry/preview_entities', 'ui/live_preview',
       'ui/dialog', 'ui/menu'
     ]
 

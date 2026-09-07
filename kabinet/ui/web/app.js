@@ -13,13 +13,13 @@ const FURNITURE_PRESETS = {
     furniture_type: 'wardrobe',
     width: 1200, max_depth: 580, base_height: 100,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 18 },
+    ep: { left: true, right: true, thickness: 20 },
     top_panel: { thickness: 18 },
     // 총 높이: 100(걸레받이) + 1982 + 18(상판) = 2100mm
     modules: [
       { kind: 'shelf_module', width: 1200, depth: 580, height: 1982,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'bar', material: 'LPM',
         edge_banding_mm: 1.0, shelves: [],
         accessories: [
@@ -35,14 +35,14 @@ const FURNITURE_PRESETS = {
     furniture_type: 'kitchen_base',
     width: 900, max_depth: 580, base_height: 80,
     material: 'LPM',
-    ep: { left: false, right: false, thickness: 18 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: { thickness: 20 },
     // 총 높이: 80(걸레받이) + 740(단일 몸통) + 20(상판) = 840mm
     // 주방 하부장은 단일 카케이스 몸통으로 구성 (도어+선반 내부 배치)
     modules: [
       { kind: 'shelf_module', width: 900, depth: 580, height: 740,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'bar', material: 'LPM',
         edge_banding_mm: 1.0,
         shelves: [{ height_from_bottom: 330, thickness: 18, depth_inset: 20 }],
@@ -57,13 +57,13 @@ const FURNITURE_PRESETS = {
     furniture_type: 'kitchen_upper',
     width: 900, max_depth: 320, base_height: 0,
     material: 'LPM',
-    ep: { left: false, right: false, thickness: 15 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: null,
     // 총 높이: 0 + 700 = 700mm
     modules: [
       { kind: 'shelf_module', width: 900, depth: 320, height: 700,
-        body_thickness: 15, back_thickness: 9, has_back: true,
-        door_config: 'pair', door_type: 'swing', door_thickness: 15,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'knob', material: 'LPM',
         edge_banding_mm: 1.0,
         shelves: [{ height_from_bottom: 300, thickness: 15, depth_inset: 20 }],
@@ -78,7 +78,7 @@ const FURNITURE_PRESETS = {
     furniture_type: 'vanity',
     width: 900, max_depth: 350, base_height: 0,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 18 },
+    ep: { left: true, right: true, thickness: 20 },
     top_panel: { thickness: 20 },
     // 총 높이: 0 + 480(서랍3단) + 200(오픈선반) + 20(상판) = 700mm
     // 하단 서랍: 주수납. 상단 오픈선반: 화장품·소품 진열.
@@ -86,12 +86,12 @@ const FURNITURE_PRESETS = {
     modules: [
       { kind: 'drawer_module', width: 900, depth: 350, height: 480,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        drawer_count: 3, drawer_type: 'undermount', drawer_thickness: 18,
+        drawer_count: 3, drawer_type: 'undermount', drawer_thickness: 20,
         door_material: 'LPM', handle_type: 'cup_pull', material: 'LPM', edge_banding_mm: 1.0
       },
       { kind: 'shelf_module', width: 900, depth: 350, height: 200,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'none', door_type: 'none', door_thickness: 18,
+        door_config: 'none', door_type: 'none', door_thickness: 20,
         door_material: 'LPM', handle_type: 'none', material: 'LPM',
         edge_banding_mm: 1.0,
         shelves: [],
@@ -106,13 +106,13 @@ const FURNITURE_PRESETS = {
     furniture_type: 'shoe_cabinet',
     width: 900, max_depth: 350, base_height: 0,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 18 },
+    ep: { left: true, right: true, thickness: 20 },
     top_panel: { thickness: 18 },
     // 총 높이: 0 + 1782 + 18 = 1800mm
     modules: [
       { kind: 'shelf_module', width: 900, depth: 350, height: 1782,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'none', material: 'LPM',
         edge_banding_mm: 1.0,
         shelves: [
@@ -135,13 +135,13 @@ const FURNITURE_PRESETS = {
     furniture_type: 'bookshelf',
     width: 900, max_depth: 300, base_height: 0,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 18 },
+    ep: { left: true, right: true, thickness: 20 },
     top_panel: { thickness: 18 },
     // 총 높이: 0 + 1782 + 18 = 1800mm
     modules: [
       { kind: 'shelf_module', width: 900, depth: 300, height: 1782,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'none', door_type: 'none', door_thickness: 18,
+        door_config: 'none', door_type: 'none', door_thickness: 20,
         door_material: 'LPM', handle_type: 'none', material: 'LPM',
         edge_banding_mm: 1.0,
         // 책 하중 기준: 864mm 스팬은 18T 처짐 — 25T 사용 (실무 표준)
@@ -163,7 +163,7 @@ const FURNITURE_PRESETS = {
     furniture_type: 'tv_unit',
     width: 1800, max_depth: 450, base_height: 80,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 18 },
+    ep: { left: true, right: true, thickness: 20 },
     top_panel: { thickness: 25 },
     // 총 높이: 80 + 200 + 495 + 25 = 800mm (입식 표준 TV장)
     // 실무 보정: 1764 폭 통짜 서랍은 레일 하중 불가 → 3칸 분할 서랍.
@@ -171,7 +171,7 @@ const FURNITURE_PRESETS = {
     modules: [
       { kind: 'shelf_module', width: 1764, depth: 450, height: 200,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'none', door_type: 'swing', door_thickness: 18,
+        door_config: 'none', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'channel', material: 'LPM',
         edge_banding_mm: 1.0,
         shelves: [], accessories: [],
@@ -185,7 +185,7 @@ const FURNITURE_PRESETS = {
       },
       { kind: 'shelf_module', width: 1764, depth: 450, height: 495,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'none', door_type: 'swing', door_thickness: 18,
+        door_config: 'none', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'none', material: 'LPM',
         edge_banding_mm: 1.0,
         shelves: [], accessories: [],
@@ -207,13 +207,13 @@ const FURNITURE_PRESETS = {
     furniture_type: 'display_800',
     width: 800, max_depth: 400, base_height: 0,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 18 },
+    ep: { left: true, right: true, thickness: 20 },
     top_panel: { thickness: 18 },
     // 총 높이: 0 + 1032 + 18 = 1050mm
     modules: [
       { kind: 'shelf_module', width: 800, depth: 400, height: 1032,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'bar', material: 'LPM',
         edge_banding_mm: 1.0,
         shelves: [
@@ -232,14 +232,14 @@ const FURNITURE_PRESETS = {
     furniture_type: 'display_1200',
     width: 1200, max_depth: 400, base_height: 0,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 18 },
+    ep: { left: true, right: true, thickness: 20 },
     top_panel: { thickness: 18 },
     // 총 높이: 0 + 1032 + 18 = 1050mm
     modules: [
       // 실무 보정: 1164 스팬 18T 선반 처짐 → 중앙 분할판 + 셀 선반
       { kind: 'shelf_module', width: 1200, depth: 400, height: 1032,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'bar', material: 'LPM',
         edge_banding_mm: 1.0,
         shelves: [], accessories: [],
@@ -263,13 +263,13 @@ const FURNITURE_PRESETS = {
     furniture_type: 'drawer_tower',
     width: 400, max_depth: 450, base_height: 0,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 18 },
+    ep: { left: true, right: true, thickness: 20 },
     top_panel: { thickness: 18 },
     // 총 높이: 0 + 1032 + 18 = 1050mm (서랍 4단)
     modules: [
       { kind: 'drawer_module', width: 400, depth: 450, height: 1032,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        drawer_count: 4, drawer_type: 'undermount', drawer_thickness: 18,
+        drawer_count: 4, drawer_type: 'undermount', drawer_thickness: 20,
         door_material: 'LPM', handle_type: 'bar', material: 'LPM', edge_banding_mm: 1.0
       }
     ],
@@ -281,13 +281,13 @@ const FURNITURE_PRESETS = {
     furniture_type: 'wardrobe_sliding',
     width: 1600, max_depth: 600, base_height: 100,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 18 },
+    ep: { left: true, right: true, thickness: 20 },
     top_panel: { thickness: 18 },
     // 총 높이: 100 + 1982 + 18 = 2100mm
     modules: [
       { kind: 'shelf_module', width: 1600, depth: 600, height: 1982,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'pair', door_type: 'sliding', door_thickness: 18,
+        door_config: 'pair', door_type: 'sliding', door_thickness: 20,
         door_material: 'LPM', handle_type: 'channel', material: 'LPM',
         edge_banding_mm: 1.0,
         // 실무 보정: 2단 행거 표준 높이 (상단 ~1850, 하단 ~930 — 상의 2단걸이)
@@ -309,7 +309,7 @@ const FURNITURE_PRESETS = {
     furniture_type: 'desk_basic',
     width: 1400, max_depth: 700, base_height: 0,
     material: 'LPM',
-    ep: { left: false, right: false, thickness: 18 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: null,  // 상판이 desk_module 자체에 포함됨
     // 총 높이 = 0 + 750 = 750mm (상판 높이 기준)
     modules: [
@@ -329,7 +329,7 @@ const FURNITURE_PRESETS = {
     furniture_type: 'desk_with_pedestal',
     width: 1400, max_depth: 700, base_height: 0,
     material: 'LPM',
-    ep: { left: false, right: false, thickness: 18 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: null,
     // 우측 페데스탈 W450으로 지지 → 우측 다리 생략
     modules: [
@@ -357,7 +357,7 @@ const FURNITURE_PRESETS = {
     width: 2100, max_depth: 700, base_height: 0,
     material: 'LPM',
     run_mode: true, run_height: 725,  // 상판포함 750 → top_thickness=25
-    ep: { left: false, right: false, thickness: 18 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: { thickness: 25 },     // 런 공통 상판
     // 런 모드: 책상(1400) + 코너 선반(700) 배치
     modules: [
@@ -386,14 +386,14 @@ const FURNITURE_PRESETS = {
     furniture_type: 'shelf_grid',
     width: 1200, max_depth: 400, base_height: 0,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 18 },
+    ep: { left: true, right: true, thickness: 20 },
     top_panel: { thickness: 18 },
     // 총 높이: 0 + 1032 + 18 = 1050mm
     // 내부: 세로 3칸(분할 2개) → 좌칸 선반, 중칸 서랍, 우칸 선반
     modules: [
       { kind: 'shelf_module', width: 1200, depth: 400, height: 1032,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'none', door_type: 'none', door_thickness: 18,
+        door_config: 'none', door_type: 'none', door_thickness: 20,
         door_material: 'LPM', handle_type: 'none', material: 'LPM',
         edge_banding_mm: 1.0,
         shelves: [],
@@ -429,7 +429,7 @@ const FURNITURE_PRESETS = {
     material: 'LPM',
     run_mode: true,
     run_height: 660,          // 작업대 하부 내부 높이 (받침80+본체660+상판20=760mm, 작업대는 별도)
-    ep: { left: true, right: true, thickness: 18 },
+    ep: { left: true, right: true, thickness: 20 },
     top_panel: { thickness: 20 },
     // 수평 배열: 600(서랍) + 600(선반도어) + 600(선반도어)
     // 총 외부 폭: 18(EP좌) + 1800 + 18(EP우) = 1836mm
@@ -437,12 +437,12 @@ const FURNITURE_PRESETS = {
     modules: [
       { kind: 'drawer_module', width: 600, depth: 580, height: 660,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        drawer_count: 3, drawer_type: 'undermount', drawer_thickness: 18,
+        drawer_count: 3, drawer_type: 'undermount', drawer_thickness: 20,
         door_material: 'LPM', handle_type: 'bar', material: 'LPM', edge_banding_mm: 1.0
       },
       { kind: 'shelf_module', width: 600, depth: 580, height: 660,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'bar', material: 'LPM',
         edge_banding_mm: 1.0,
         shelves: [{ height_from_bottom: 300, thickness: 18, depth_inset: 20 }],
@@ -450,7 +450,7 @@ const FURNITURE_PRESETS = {
       },
       { kind: 'shelf_module', width: 600, depth: 580, height: 660,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'bar', material: 'LPM',
         edge_banding_mm: 1.0,
         shelves: [{ height_from_bottom: 300, thickness: 18, depth_inset: 20 }],
@@ -470,13 +470,13 @@ const FURNITURE_PRESETS = {
     material: 'LPM',
     run_mode: true,
     run_height: 2020,   // 80(받침) + 2020(타워) = 2100mm 전체 높이
-    ep: { left: true, right: true, thickness: 18 },
+    ep: { left: true, right: true, thickness: 20 },
     top_panel: null,    // 전고 타워 — 상판 없음
     // 좌타워 600 + 침대 공간 1600(퀸사이즈) + 우타워 600 = 2800mm
     modules: [
       { kind: 'shelf_module', width: 600, depth: 580, height: 2020,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'bar', handle_hole_mm: 128,
         door_mount: 'overlay', material: 'LPM', edge_banding_mm: 1.0,
         shelves: [
@@ -494,7 +494,7 @@ const FURNITURE_PRESETS = {
         material: 'LPM', door_material: 'LPM' },
       { kind: 'shelf_module', width: 600, depth: 580, height: 2020,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'bar', handle_hole_mm: 128,
         door_mount: 'overlay', material: 'LPM', edge_banding_mm: 1.0,
         shelves: [
@@ -516,12 +516,12 @@ const FURNITURE_PRESETS = {
     material: 'LPM',
     run_mode: true,
     run_height: 1200,   // 하부 타워 높이 (80+1200=1280mm → 침대 헤드와 같은 높이)
-    ep: { left: true, right: true, thickness: 18 },
+    ep: { left: true, right: true, thickness: 20 },
     top_panel: { thickness: 18 },  // 브릿지 상판 (타워 위를 잇는 가로 패널)
     modules: [
       { kind: 'shelf_module', width: 600, depth: 580, height: 1200,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'bar', handle_hole_mm: 128,
         door_mount: 'overlay', material: 'LPM', edge_banding_mm: 1.0,
         shelves: [{ height_from_bottom: 500, thickness: 18, depth_inset: 20 }],
@@ -534,7 +534,7 @@ const FURNITURE_PRESETS = {
         material: 'LPM', door_material: 'LPM' },
       { kind: 'drawer_module', width: 600, depth: 580, height: 1200,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        drawer_count: 3, drawer_type: 'undermount', drawer_thickness: 18,
+        drawer_count: 3, drawer_type: 'undermount', drawer_thickness: 20,
         door_material: 'LPM', handle_type: 'bar', handle_hole_mm: 128,
         material: 'LPM', edge_banding_mm: 1.0
       }
@@ -552,14 +552,14 @@ const FURNITURE_PRESETS = {
     has_kickboard: true,
     material: 'LPM',
     run_mode: false,
-    ep: { left: true, right: true, thickness: 18 },
+    ep: { left: true, right: true, thickness: 20 },
     top_panel: { thickness: 18 },
     // 총 높이: 80(받침) + 1500(행거존) + 502(상부존) + 18(상판) = 2100mm
     modules: [
       // 하부: 긴 행거 + 하단 선반
       { kind: 'shelf_module', width: 1200, depth: 580, height: 1500,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'bar', handle_hole_mm: 128,
         door_mount: 'overlay', material: 'LPM', edge_banding_mm: 1.0,
         // 1164 스팬 18T 처짐 → 하단 선반 25T
@@ -574,7 +574,7 @@ const FURNITURE_PRESETS = {
       // 상부: 도어 수납존 (이불·계절용품)
       { kind: 'shelf_module', width: 1200, depth: 580, height: 502,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'knob', handle_hole_mm: 128,
         door_mount: 'overlay', material: 'LPM', edge_banding_mm: 1.0,
         // 1164 스팬 18T 처짐 → 25T (이불 하중)
@@ -595,13 +595,13 @@ const FURNITURE_PRESETS = {
     has_kickboard: false,
     material: 'LPM',
     run_mode: false,
-    ep: { left: false, right: false, thickness: 15 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: null,
     // 총 높이: 400mm — 책상·수납장 상부 벽면 설치용
     modules: [
       { kind: 'shelf_module', width: 1200, depth: 280, height: 400,
-        body_thickness: 15, back_thickness: 9, has_back: true,
-        door_config: 'none', door_type: 'swing', door_thickness: 15,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'none', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'none', handle_hole_mm: 128,
         door_mount: 'overlay', material: 'LPM', edge_banding_mm: 1.0,
         // 1170 스팬 15T 처짐 → 중앙 분할 + 셀 선반 (실무 보정)
@@ -625,13 +625,13 @@ const FURNITURE_PRESETS = {
     has_kickboard: false,
     material: 'LPM',
     run_mode: false,
-    ep: { left: false, right: false, thickness: 15 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: null,
     // 총 높이: 400mm — 방진+정리 효과 도어형
     modules: [
       { kind: 'shelf_module', width: 1200, depth: 280, height: 400,
-        body_thickness: 15, back_thickness: 9, has_back: true,
-        door_config: 'pair', door_type: 'swing', door_thickness: 15,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'knob', handle_hole_mm: 128,
         door_mount: 'overlay', material: 'LPM', edge_banding_mm: 1.0,
         // 1170 스팬 15T 처짐 → 중앙 분할 + 셀 선반 (실무 보정)
@@ -655,7 +655,7 @@ const FURNITURE_PRESETS = {
     has_kickboard: false,
     material: 'LPM',
     run_mode: false,
-    ep: { left: false, right: false, thickness: 18 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: null,
     // 총 높이: 750(책상) + 500(개방 이격) + 400(상부장) = 1650mm
     // 보고서 기준: 책상고 750mm, 상부장 D280 H400mm, 책상면~상부장 이격 500mm
@@ -668,8 +668,8 @@ const FURNITURE_PRESETS = {
       },
       { kind: 'v_gap', height: 500, label: '책상 위 개방 (모니터/작업 공간)' },
       { kind: 'shelf_module', width: 1200, depth: 280, height: 400,
-        body_thickness: 15, back_thickness: 9, has_back: true,
-        door_config: 'pair', door_type: 'swing', door_thickness: 15,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'knob', handle_hole_mm: 128,
         door_mount: 'overlay', material: 'LPM', edge_banding_mm: 1.0,
         // 1170 스팬 15T 처짐 → 중앙 분할 + 셀 선반 (실무 보정)
@@ -694,13 +694,13 @@ const FURNITURE_PRESETS = {
     material: 'LPM',
     run_mode: true,
     run_height: 2020,   // 80(받침) + 2020(타워) = 2100mm
-    ep: { left: true, right: true, thickness: 18 },
+    ep: { left: true, right: true, thickness: 20 },
     top_panel: null,
     // 좌선반 500 + 싱글침대 1000 + 우서랍 500 = 2000mm
     modules: [
       { kind: 'shelf_module', width: 500, depth: 580, height: 2020,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'bar', handle_hole_mm: 128,
         door_mount: 'overlay', material: 'LPM', edge_banding_mm: 1.0,
         shelves: [
@@ -717,7 +717,7 @@ const FURNITURE_PRESETS = {
         material: 'LPM', door_material: 'LPM' },
       { kind: 'drawer_module', width: 500, depth: 580, height: 2020,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        drawer_count: 4, drawer_type: 'undermount', drawer_thickness: 18,
+        drawer_count: 4, drawer_type: 'undermount', drawer_thickness: 20,
         door_material: 'LPM', handle_type: 'bar', handle_hole_mm: 128,
         material: 'LPM', edge_banding_mm: 1.0
       }
@@ -732,13 +732,13 @@ const FURNITURE_PRESETS = {
     furniture_type: 'open_shelf',
     width: 900, max_depth: 300, base_height: 0,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 18 },
+    ep: { left: true, right: true, thickness: 20 },
     top_panel: { thickness: 18 },
     // 총 높이: 0 + 1182 + 18 = 1200mm
     modules: [
       { kind: 'shelf_module', width: 900, depth: 300, height: 1182,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'none', door_type: 'none', door_thickness: 18,
+        door_config: 'none', door_type: 'none', door_thickness: 20,
         door_material: 'LPM', handle_type: 'none', handle_hole_mm: 128,
         door_side_gap_mm: 2,
         suppress_left_side: false, suppress_right_side: false,
@@ -760,13 +760,13 @@ const FURNITURE_PRESETS = {
     furniture_type: 'corner_unit',
     width: 600, max_depth: 600, base_height: 0,
     material: 'LPM',
-    ep: { left: false, right: false, thickness: 18 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: { thickness: 18 },
     // 총 높이: 0 + 782 + 18 = 800mm — 정사각형 오픈 선반, 코너 배치용
     modules: [
       { kind: 'shelf_module', width: 600, depth: 600, height: 782,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'none', door_type: 'none', door_thickness: 18,
+        door_config: 'none', door_type: 'none', door_thickness: 20,
         door_material: 'LPM', handle_type: 'none', handle_hole_mm: 128,
         door_side_gap_mm: 2,
         suppress_left_side: false, suppress_right_side: false,
@@ -787,7 +787,7 @@ const FURNITURE_PRESETS = {
     width: 1800, max_depth: 700, base_height: 0,
     material: 'LPM',
     run_mode: true, run_height: 725,  // 상판 포함 총 750mm
-    ep: { left: true, right: true, thickness: 18 },
+    ep: { left: true, right: true, thickness: 20 },
     top_panel: { thickness: 25 },
     // 런 모드: 책상(1200) + 사이드 수납장(600)
     modules: [
@@ -799,7 +799,7 @@ const FURNITURE_PRESETS = {
       },
       { kind: 'shelf_module', width: 600, depth: 400, height: 725,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'bar', handle_hole_mm: 128,
         door_side_gap_mm: 2,
         suppress_left_side: false, suppress_right_side: false,
@@ -818,18 +818,18 @@ const FURNITURE_PRESETS = {
     material: 'LPM',
     run_mode: true,
     run_height: 420,   // 80(받침) + 420 + 25(상판) = 525mm — 거실 로우보드
-    ep: { left: true, right: true, thickness: 18 },
+    ep: { left: true, right: true, thickness: 20 },
     top_panel: { thickness: 25 },
     // 수평 배열: 600(서랍2단) + 1200(도어수납) + 600(도어수납)
     modules: [
       { kind: 'drawer_module', width: 600, depth: 450, height: 420,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        drawer_count: 2, drawer_type: 'undermount', drawer_thickness: 18,
+        drawer_count: 2, drawer_type: 'undermount', drawer_thickness: 20,
         door_material: 'LPM', handle_type: 'channel', material: 'LPM', edge_banding_mm: 1.0
       },
       { kind: 'shelf_module', width: 1200, depth: 450, height: 420,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'channel', handle_hole_mm: 128,
         door_side_gap_mm: 2,
         suppress_left_side: false, suppress_right_side: false,
@@ -840,7 +840,7 @@ const FURNITURE_PRESETS = {
       },
       { kind: 'shelf_module', width: 600, depth: 450, height: 420,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'channel', handle_hole_mm: 128,
         door_side_gap_mm: 2,
         suppress_left_side: false, suppress_right_side: false,
@@ -869,7 +869,7 @@ const kabinet = (() => {
     edge_banding_mm: 1.0,
     run_mode: false,
     run_height: 740,
-    ep: { left: true, right: true, top: false, thickness: 18 },
+    ep: { left: true, right: true, top: false, thickness: 20 },
     ep_top_flush: false,
     top_panel: { thickness: 20 },
     modules: []
@@ -934,6 +934,7 @@ const kabinet = (() => {
 
   // ── Field helpers ────────────────────────────────────────────────────
   function onField(key, value) {
+    const previousDepth = state.max_depth > 0 ? state.max_depth : Math.max(...state.modules.map(m => m.depth || 0));
     state[key] = value;
 
     if (key === 'width') {
@@ -949,6 +950,12 @@ const kabinet = (() => {
       }
       updateTotalHeight();
     } else if (key === 'max_depth') {
+      if (previousDepth > 0 && value > 0) {
+        state.modules.forEach(m => {
+          if (m.depth > 0) m.depth = Math.round(m.depth * value / previousDepth);
+        });
+        renderModuleList();
+      }
       updateTotalHeight();
     } else if (key === 'base_height') {
       updateTotalHeight();
@@ -966,7 +973,7 @@ const kabinet = (() => {
 
     const topT      = state.top_panel ? (state.top_panel.thickness || 0) : 0;
     const base      = state.base_height || 0;
-    const remaining = targetTotal - topT - base;
+    const remaining = targetTotal - topT - base - _epTopT();
     if (remaining < 10) return;
 
     const currentTotal = state.modules.reduce((s, m) => s + (m.height || 0), 0);
@@ -1034,13 +1041,17 @@ const kabinet = (() => {
 
   function onEP(key, value) {
     state.ep[key] = value;
+    if (!state.run_mode) {
+      state.modules.forEach(m => { if (m.kind !== 'bed_gap' && m.kind !== 'v_gap') m.width = _carcaseInnerWidth(state.width); });
+      renderModuleList();
+    }
     updateTotalHeight();   // 상부 EP는 총 높이에 반영됨
   }
 
   // 상부 EP 두께 (총 높이 가산분)
   function _epTopT() {
     const ep = state.ep || {};
-    return ep.top ? (ep.thickness || 18) : 0;
+    return ep.top ? (ep.thickness || 20) : 0;
   }
 
   function onEpTopFlush(checked) {
@@ -1092,7 +1103,7 @@ const kabinet = (() => {
   // EP 포함 전체 폭 → 카케이스 내부 폭 계산
   function _carcaseInnerWidth(totalW) {
     const ep = state.ep || {};
-    const t  = ep.thickness || 18;
+    const t  = ep.thickness || 20;
     const epTotal = (ep.left ? t : 0) + (ep.right ? t : 0);
     return Math.max(Math.round(totalW - epTotal), 50);
   }
@@ -1157,12 +1168,14 @@ const kabinet = (() => {
   // ── Generate / Regenerate ────────────────────────────────────────────
   function generate() {
     if (!validateState()) return;
+    kabinetLivePreview.pauseForApply();
     setStatus('생성 중…', '');
     sketchup['kabinet:generate'](JSON.stringify(state));
   }
 
   function regenerate() {
     if (!validateState()) return;
+    kabinetLivePreview.pauseForApply();
     setStatus('재생성 중…', '');
     const payload = JSON.stringify({ spec: state, entityID: currentEntityID });
     sketchup['kabinet:regenerate'](payload);
@@ -1176,8 +1189,9 @@ const kabinet = (() => {
   function loadSpec(payload) {
     try {
       const { spec, entityID } = typeof payload === 'string' ? JSON.parse(payload) : payload;
-      state = spec;
+      state = deepClone(spec);
       currentEntityID = entityID || null;
+      kabinetLivePreview.reset();
       syncFormFromState();
       renderModuleList();
       updateTotalHeight();
@@ -1186,6 +1200,15 @@ const kabinet = (() => {
     } catch (e) {
       setStatus('스펙 파싱 오류: ' + e.message, 'error');
     }
+  }
+
+  function onApplied(payload) {
+    state = deepClone(payload.spec);
+    currentEntityID = payload.entityID;
+    syncFormFromState();
+    renderModuleList();
+    document.getElementById('btn-apply').textContent = '수정 적용';
+    kabinetLivePreview.finishApply(true);
   }
 
   // ── Export ───────────────────────────────────────────────────────────
@@ -1319,7 +1342,7 @@ const kabinet = (() => {
     if (kind === 'drawer_module') {
       mod = { kind, width: w, depth: d, height: 200,
               body_thickness: 18, back_thickness: 9, has_back: true,
-              drawer_count: 2, drawer_type: 'undermount', drawer_thickness: 18,
+              drawer_count: 2, drawer_type: 'undermount', drawer_thickness: 20,
               door_material: mat, handle_type: 'none', handle_hole_mm: 128,
               material: mat, edge_banding_mm: 1.0 };
     } else if (kind === 'desk_module') {
@@ -1338,7 +1361,7 @@ const kabinet = (() => {
     } else {
       mod = { kind, width: w, depth: d, height: 400,
               body_thickness: 18, back_thickness: 9, has_back: true,
-              door_config: 'none', door_type: 'swing', door_thickness: 18,
+              door_config: 'none', door_type: 'swing', door_thickness: 20,
               door_material: mat, handle_type: 'none', handle_hole_mm: 128,
               door_side_gap_mm: 2,
               suppress_left_side: false, suppress_right_side: false,
@@ -1414,7 +1437,10 @@ const kabinet = (() => {
 
   // ── Status ───────────────────────────────────────────────────────────
   function onSuccess(msg) { setStatus(msg || '완료.', 'ok'); }
-  function onError(msg)   { setStatus('오류: ' + msg, 'error'); }
+  function onError(msg)   {
+    setStatus('오류: ' + msg, 'error');
+    if (typeof kabinetLivePreview !== 'undefined') kabinetLivePreview.finishApply(false);
+  }
 
   function setStatus(msg, cls) {
     const bar = document.getElementById('status-bar');
@@ -1442,6 +1468,7 @@ const kabinet = (() => {
 
   // ── Sync form ↔ state ────────────────────────────────────────────────
   function syncFormFromState() {
+    document.getElementById('btn-apply').textContent = currentEntityID ? '수정 적용' : '가구 생성';
     setVal('f-name',   state.name);
     setVal('f-width',  state.width);
     setVal('f-depth',  state.max_depth);
@@ -1468,7 +1495,7 @@ const kabinet = (() => {
     document.getElementById('f-ep-right').checked = !!(state.ep && state.ep.right);
     const epTopChk = document.getElementById('f-ep-top');
     if (epTopChk) epTopChk.checked = !!(state.ep && state.ep.top);
-    setVal('f-ep-t', state.ep ? state.ep.thickness : 18);
+    setVal('f-ep-t', state.ep ? state.ep.thickness : 20);
     const epFlushChk = document.getElementById('f-ep-top-flush');
     if (epFlushChk) epFlushChk.checked = !!state.ep_top_flush;
 
@@ -1500,6 +1527,7 @@ const kabinet = (() => {
   // ── 실시간 정면도 미리보기 (canvas) ──────────────────────────────────
   // Ruby Drawing2D.front_view와 같은 배치 논리의 축약판.
   function renderPreview() {
+    if (typeof kabinetLivePreview !== 'undefined') kabinetLivePreview.schedule();
     const cv = document.getElementById('preview-canvas');
     if (!cv || !cv.getContext) return;
     const ctx = cv.getContext('2d');
@@ -1507,7 +1535,7 @@ const kabinet = (() => {
     ctx.clearRect(0, 0, CW, CH);
 
     const ep   = state.ep || {};
-    const epT  = ep.thickness || 18;
+    const epT  = ep.thickness || 20;
     const epL  = ep.left ? epT : 0;
     const epR  = ep.right ? epT : 0;
     const topT = state.top_panel ? (state.top_panel.thickness || 0) : 0;
@@ -1751,7 +1779,7 @@ const kabinet = (() => {
     onTargetHeightLive,
     updateTotalHeight, updateHeightSummary, renderPreview,
     onRunMode,
-    onSuccess, onError,
-    getState
+    onSuccess, onError, onApplied,
+    getState, getEntityID: () => currentEntityID
   };
 })();

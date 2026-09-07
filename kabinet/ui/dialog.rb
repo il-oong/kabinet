@@ -11,19 +11,11 @@ module Kabinet
       end
 
       def show_with_selection
-        d = get_or_create_dialog
-        d.show
-        # After dialog is visible, push current selection's spec into the form
         model = Sketchup.active_model
         grp   = Kabinet::Persistence::Attributes.find_assembly_in_selection(model)
-        if grp
-          spec = Kabinet::Persistence::Attributes.read_assembly_spec(grp)
-          if spec
-            json = JSON.generate(spec)
-            safe = json.gsub("'", "\\'")
-            d.execute_script("kabinet.loadSpec('#{safe}')")
-          end
-        end
+        @pending_selection = grp
+        show
+        push_pending_selection if @ready
       end
 
       def get_or_create_dialog
@@ -33,6 +25,7 @@ module Kabinet
       end
 
       def create_dialog
+        @dialog_model = Sketchup.active_model
         opts = {
           dialog_title:    'Kabinet — 카케이스 생성기',
           preferences_key: 'kabinet_dialog',
@@ -42,14 +35,53 @@ module Kabinet
         }
         d = ::UI::HtmlDialog.new(opts)
         d.set_file(File.join(WEB_DIR, 'index.html'))
+        @ready = false
         register_callbacks(d)
+        d.set_on_closed { stop_preview; @ready = false }
         d
       end
 
       def register_callbacks(d)
+        d.add_action_callback('kabinet:ready') do |_ctx, _params|
+          @ready = true
+          push_pending_selection
+        end
+
+        d.add_action_callback('kabinet:preview') do |_ctx, json_str|
+          begin
+            payload = JSON.parse(json_str)
+            model = Sketchup.active_model
+            ensure_dialog_model!
+            id = payload['entityID'].to_s
+            target = id.empty? ? nil : find_entity_by_id(model, id)
+            raise '수정할 가구를 찾을 수 없습니다. 선택 불러오기를 다시 실행하세요.' if !id.empty? && !target
+            stop_preview if @preview && @preview.model != model
+            unless @preview
+              preview = LivePreview.new(model) do
+                if @preview.equal?(preview)
+                  @preview = nil
+                  d.execute_script('kabinetLivePreview.onStopped()') if d.visible?
+                end
+              end
+              @preview = preview
+            end
+            @preview.update(payload['spec'], target: target, internal: payload['internal'] == true,
+                            selected_module: payload['selectedModule'])
+            d.execute_script("kabinetLivePreview.onResult(#{JSON.generate({ revision: payload['revision'], ok: true })})")
+          rescue StandardError => e
+            stop_preview
+            result = { revision: payload && payload['revision'], ok: false, message: e.message }
+            d.execute_script("kabinetLivePreview.onResult(#{JSON.generate(result)})")
+          end
+        end
+        d.add_action_callback('kabinet:preview_stop') { |_ctx, _params| stop_preview }
+        d.add_action_callback('kabinet:preview_view') { |_ctx, name| @preview&.set_view(name.to_s) }
+
         # ── Generate (fresh assembly at world origin) ──────────────────
         d.add_action_callback('kabinet:generate') do |_ctx, json_str|
           begin
+            stop_preview
+            ensure_dialog_model!
             spec = JSON.parse(json_str)
             grp  = Kabinet::Commands::Generate.run_assembly(spec)
             if grp
@@ -61,6 +93,7 @@ module Kabinet
                         "어셈블리 생성 완료 — 경고 #{warns.size}건:\n" + warns.join("\n")
                       end
               d.execute_script("kabinet.onSuccess(#{JSON.generate(msg)})")
+              send_applied(d, grp)
             end
           rescue Kabinet::Persistence::Schema::ValidationError => e
             d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
@@ -72,14 +105,22 @@ module Kabinet
         # ── Regenerate (update existing assembly group) ────────────────
         d.add_action_callback('kabinet:regenerate') do |_ctx, json_str|
           begin
+            stop_preview
+            ensure_dialog_model!
             payload = JSON.parse(json_str)
             spec    = payload['spec']
             entity_id = payload['entityID']
             model   = Sketchup.active_model
             grp     = entity_id ? find_entity_by_id(model, entity_id) : nil
+            raise '수정할 가구를 찾을 수 없습니다. 선택 불러오기를 다시 실행하세요.' unless grp
+            raise 'Kabinet 가구 그룹을 선택하세요.' unless grp.is_a?(Sketchup::Group) && Kabinet::Persistence::Attributes.assembly?(grp)
+            raise '잠긴 가구는 수정할 수 없습니다.' if grp.locked?
             result  = Kabinet::Commands::Regenerate.run(spec, group: grp)
             if result
               d.execute_script("kabinet.onSuccess('재생성 완료.')")
+              send_applied(d, result)
+            else
+              d.execute_script("kabinet.onError('가구를 수정하지 못했습니다. 선택 불러오기를 다시 실행하세요.')")
             end
           rescue StandardError => e
             d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
@@ -88,11 +129,13 @@ module Kabinet
 
         # ── Load selection → JS ────────────────────────────────────────
         d.add_action_callback('kabinet:load_selection') do |_ctx, _params|
+          stop_preview
           model = Sketchup.active_model
           grp   = Kabinet::Persistence::Attributes.find_assembly_in_selection(model)
           if grp
             spec = Kabinet::Persistence::Attributes.read_assembly_spec(grp)
             if spec
+              @dialog_model = model
               entity_id = grp.entityID.to_s
               payload = JSON.generate({ spec: spec, entityID: entity_id })
               d.execute_script("kabinet.loadSpec(#{payload})")
@@ -107,6 +150,9 @@ module Kabinet
         # ── Export drawings ────────────────────────────────────────────
         d.add_action_callback('kabinet:export_drawings') do |_ctx, json_str|
           begin
+            stop_preview
+            d.execute_script('kabinetLivePreview.onStopped()')
+            ensure_dialog_model!
             payload   = JSON.parse(json_str)
             views     = (payload['views'] || %w[front right top section]).map(&:to_sym)
             entity_id = payload['entityID'].to_s.strip
@@ -290,6 +336,31 @@ module Kabinet
             d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
           end
         end
+      end
+
+      def stop_preview
+        preview = @preview
+        @preview = nil
+        preview&.stop
+      end
+
+      def ensure_dialog_model!
+        return if @dialog_model == Sketchup.active_model
+        raise '다른 SketchUp 모델로 전환되었습니다. 창을 다시 열거나 선택 불러오기를 실행하세요.'
+      end
+
+      def send_applied(d, group)
+        payload = { spec: Kabinet::Persistence::Attributes.read_assembly_spec(group), entityID: group.entityID.to_s }
+        d.execute_script("kabinet.onApplied(#{JSON.generate(payload)})")
+      end
+
+      def push_pending_selection
+        grp = @pending_selection
+        @pending_selection = nil
+        return unless grp && grp.valid?
+        @dialog_model = Sketchup.active_model
+        payload = { spec: Kabinet::Persistence::Attributes.read_assembly_spec(grp), entityID: grp.entityID.to_s }
+        @dialog.execute_script("kabinet.loadSpec(#{JSON.generate(payload)})")
       end
 
       # ── Preset persistence via Sketchup.read/write_default ──────────

@@ -10,11 +10,11 @@ module Kabinet
     BACK_THICKNESS_HEAVY_MM      = 12   # 하중 큰 경우
     BACK_RECESS_MM               = 10   # 뒷판 앞면으로부터 후퇴(mm)
 
-    DEFAULT_DOOR_THICKNESS_MM    = 18   # 도어판 (도포 후 약 18mm)
+    DEFAULT_DOOR_THICKNESS_MM    = 20   # 도어판 (도포 후 약 18mm)
     DOOR_THICKNESS_SLIM_MM       = 15   # 슬림 도어
     DOOR_THICKNESS_HEAVY_MM      = 22   # 마감재 두꺼운 도어 (HPL 등)
 
-    DEFAULT_EP_THICKNESS_MM      = 18   # EP 측면 마감판
+    DEFAULT_EP_THICKNESS_MM      = 20   # EP 측면 마감판
     DEFAULT_TOP_PANEL_MM         = 20   # 상판
     DEFAULT_SHELF_THICKNESS_MM   = 18   # 고정/가동 선반
     SHELF_THICKNESS_HEAVY_MM     = 25   # 스팬 >600mm 처짐 방지

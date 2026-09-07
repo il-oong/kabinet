@@ -549,3 +549,9 @@ details.card[open] > summary { color: var(--accent); margin-bottom: 8px; }
   color: #fff;
 }
 .btn-accent:hover { background: #347a55; }
+/* SketchUp live preview controls */
+.live-preview-toggle { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.live-preview-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0; }
+#live-preview-status { font-size: 12px; line-height: 1.6; color: #71b7f5; }
+#live-preview-status.error { color: #f29a85; }
+.live-preview-card .field-hint { padding-left: 0; margin: 6px 0 0; }
