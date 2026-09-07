@@ -191,7 +191,7 @@ function drawerFields(m, i) {
         '</select></div>' +
       '<div class="field-row"><label>전판 두께</label>' +
         '<input type="number" data-mod-idx="' + i + '" data-key="drawer_thickness" ' +
-               'value="' + (m.drawer_thickness||18) + '" min="9" max="30">' +
+               'value="' + (m.drawer_thickness||20) + '" min="9" max="30">' +
         '<span class="unit">mm</span></div>' +
       '<div class="field-row"><label>박스 깊이 지정</label>' +
         '<input type="number" data-mod-idx="' + i + '" data-key="box_depth_mm" ' +
@@ -306,7 +306,7 @@ function shelfFields(m, i) {
             '</select></div>' +
           '<div class="field-row"><label>도어 두께</label>' +
             '<input type="number" data-mod-idx="' + i + '" data-key="door_thickness" ' +
-                   'value="' + (m.door_thickness||18) + '" min="9" max="30">' +
+                   'value="' + (m.door_thickness||20) + '" min="9" max="30">' +
             '<span class="unit">mm</span></div>' +
           '<div class="field-row"><label>측면 갭</label>' +
             '<input type="number" data-mod-idx="' + i + '" data-key="door_side_gap_mm" ' +
