@@ -191,7 +191,14 @@ function drawerInner(m) {
   const bt  = m.body_thickness || 18;
   const bkt = m.back_thickness || 9;
   const h   = state.run_mode ? (state.run_height || 740) : (m.height || 0);
-  return { w: (m.width || 0) - 2 * bt, h: h - 2 * bt,
+  // 적층 모드: 지오메트리는 모듈 폭을 (전체 폭 − EP)로 강제하므로 그 값을 기준으로
+  let w = m.width || 0;
+  if (!state.run_mode) {
+    const ep = state.ep || {};
+    const t  = ep.thickness || 20;
+    w = (state.width || 0) - (ep.left ? t : 0) - (ep.right ? t : 0);
+  }
+  return { w: w - 2 * bt, h: h - 2 * bt,
            d: (m.depth || 0) - bkt - BACK_RECESS_MM };
 }
 
