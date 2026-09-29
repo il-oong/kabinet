@@ -37,11 +37,24 @@ function renderModuleList() {
 
   // Input sync
   el.querySelectorAll('[data-mod-idx]').forEach(input => {
-    input.addEventListener('change', e => syncModuleField(e.target));
+    input.addEventListener('change', e => {
+      syncModuleField(e.target);
+      refreshDrawerCalc(e.target);
+    });
     input.addEventListener('input',  e => syncModuleField(e.target));
   });
 
   kabinet.updateHeightSummary();
+}
+
+// 서랍 모듈: 외경/두께/레일 공간 변경 확정 시 내부공간·서랍통 계산 표시 갱신
+function refreshDrawerCalc(el) {
+  const m = kabinet.getState().modules[parseInt(el.dataset.modIdx)];
+  if (m && m.kind === 'drawer_module' &&
+      ['width', 'depth', 'height', 'body_thickness', 'back_thickness',
+       'rail_clearance_mm', 'box_depth_mm'].includes(el.dataset.key)) {
+    renderModuleList();
+  }
 }
 
 /* ── 모듈 카드 HTML ───────────────────────────────────────────────────── */
@@ -160,14 +173,122 @@ function commonFields(m, i) {
   return mainBlock + detailBlock;
 }
 
+/* ── 서랍 치수 계산 (core/fitting.rb 와 동일 공식) ─────────────────── */
+const SLIDE_LENGTHS_MM = [250, 300, 350, 400, 450, 500, 550, 600];
+const BACK_RECESS_MM   = 10;
+
+function railClearanceDefault(type) {
+  return type === 'undermount' ? 5 : 19;
+}
+
+function railClearance(m) {
+  return m.rail_clearance_mm > 0 ? m.rail_clearance_mm : railClearanceDefault(m.drawer_type);
+}
+
+// 모듈 외경(width/height/depth) → 내부공간 (몸통 안쪽 폭·높이, 뒷판 앞까지 깊이)
+function drawerInner(m) {
+  const state = kabinet.getState();
+  const bt  = m.body_thickness || 18;
+  const bkt = m.back_thickness || 9;
+  const h   = state.run_mode ? (state.run_height || 740) : (m.height || 0);
+  return { w: (m.width || 0) - 2 * bt, h: h - 2 * bt,
+           d: (m.depth || 0) - bkt - BACK_RECESS_MM };
+}
+
+function drawerBoxCalc(m) {
+  const inner = drawerInner(m);
+  const dc    = Math.max(m.drawer_count || 1, 1);
+  const under = (m.drawer_type || 'undermount') === 'undermount';
+  const side  = railClearance(m);
+  const zOff  = under ? 15 : 25;
+  let innerD  = inner.d;
+  if (m.box_depth_mm > 0) innerD = Math.min(innerD, m.box_depth_mm);
+  const fit   = SLIDE_LENGTHS_MM.filter(l => l <= innerD - 10);
+  const slide = fit.length ? Math.max(...fit) : null;
+  const compH = (inner.h - 3 * (dc - 1)) / dc;
+  return { inner, side, slide,
+           w: inner.w - 2 * side,
+           h: compH - zOff - 20,
+           d: slide || Math.max(innerD - 50, 100) };
+}
+
+// 내부공간 입력 → 외경 역산 후 반영
+function onDrawerInner(i, key, value) {
+  const state = kabinet.getState();
+  const m = state.modules[i];
+  if (!m || !(value > 0)) return;
+  const bt  = m.body_thickness || 18;
+  const bkt = m.back_thickness || 9;
+  if (key === 'w') {
+    m.width = value + 2 * bt;
+    if (!state.run_mode) {
+      // 적층 모드: 모듈 폭 = 카케이스 내부 폭이므로 전체 폭을 EP 포함으로 갱신
+      const ep = state.ep || {};
+      const t  = ep.thickness || 20;
+      const total = m.width + (ep.left ? t : 0) + (ep.right ? t : 0);
+      const f = document.getElementById('f-width');
+      if (f) f.value = total;
+      kabinet.onField('width', total);
+    }
+  } else if (key === 'h') {
+    if (state.run_mode) return;
+    m.height = value + 2 * bt;
+  } else if (key === 'd') {
+    m.depth = value + bkt + BACK_RECESS_MM;
+    const maxD = Math.max(...state.modules.map(x => x.depth || 0));
+    if (maxD > 0) {
+      state.max_depth = maxD;
+      const f = document.getElementById('f-depth');
+      if (f) f.value = maxD;
+    }
+  }
+  kabinet.updateTotalHeight();
+  renderModuleList();
+}
+
+function onDrawerType(i, value) {
+  const m = kabinet.getState().modules[i];
+  if (!m) return;
+  // 기본값을 그대로 쓰던 경우엔 새 타입의 기본값으로 따라가게 비움
+  if (!(m.rail_clearance_mm > 0) || m.rail_clearance_mm === railClearanceDefault(m.drawer_type)) {
+    delete m.rail_clearance_mm;
+  }
+  m.drawer_type = value;
+  renderModuleList();
+}
+
 /* ── 서랍 모듈 필드 ─────────────────────────────────────────────────── */
 function drawerFields(m, i) {
+  const state  = kabinet.getState();
+  const isRun  = !!state.run_mode;
   const handleOpts = handleOptions(m.handle_type);
-  const bt     = m.body_thickness || 18;
   const dc     = m.drawer_count  || 1;
-  const openH  = m.height - 2 * bt;
+  const calc   = drawerBoxCalc(m);
+  const openH  = calc.inner.h;
   const frontH = Math.round((openH - 4 - 3 * (dc - 1)) / dc);
   const showHole = (m.handle_type === 'bar');
+  const r1 = v => Math.round(v * 10) / 10;
+  const typeLabel = (m.drawer_type || 'undermount') === 'undermount' ? '언더레일' : '사이드 볼레일';
+  const warn = (calc.w <= 0 || calc.h <= 0)
+    ? '<div style="color:var(--danger,#d9534f)">⚠ 내부공간이 작아 서랍통이 들어가지 않습니다</div>' : '';
+
+  const innerInput = (key, val, disabled) =>
+    '<input type="number" value="' + r1(val) + '" min="50" max="3000"' +
+      (disabled ? ' disabled style="opacity:0.5"'
+                : ' onchange="onDrawerInner(' + i + ',\'' + key + '\',+this.value)"') + '>';
+
+  // ── 내부공간 치수 (입력하면 외경 자동 역산)
+  const innerBlock =
+    '<div class="main-fields">' +
+      '<div class="calc-info" style="margin:0 0 4px;font-size:11px;color:var(--text-dim)">' +
+        '내부공간(몸통 안쪽 폭·높이, 뒷판 앞까지 깊이) 입력 → 외경 자동 계산</div>' +
+      '<div class="field-row"><label>내부 폭</label>' + innerInput('w', calc.inner.w) +
+        '<span class="unit">mm</span></div>' +
+      '<div class="field-row"><label>내부 높이</label>' + innerInput('h', calc.inner.h, isRun) +
+        '<span class="unit">mm' + (isRun ? ' (런 공통)' : '') + '</span></div>' +
+      '<div class="field-row"><label>내부 깊이</label>' + innerInput('d', calc.inner.d) +
+        '<span class="unit">mm</span></div>' +
+    '</div>';
 
   // ── 주요 설정 (항상 표시)
   const mainBlock =
@@ -176,19 +297,27 @@ function drawerFields(m, i) {
         '<input type="number" data-mod-idx="' + i + '" data-key="drawer_count" ' +
                'value="' + (m.drawer_count||1) + '" min="1" max="6">' +
         '<span class="unit">개</span></div>' +
-      '<div class="calc-info" style="margin:0;font-size:11px;color:var(--text-dim)">' +
-        '전판 높이 약 ' + frontH + 'mm × ' + dc + '개' +
+      '<div class="field-row"><label>레일 타입</label>' +
+        '<select onchange="onDrawerType(' + i + ',this.value)">' +
+          '<option value="side_mount"' + (m.drawer_type==='side_mount'?' selected':'') + '>사이드 볼레일</option>' +
+          '<option value="undermount"' + (m.drawer_type!=='side_mount'?' selected':'') + '>언더레일 (Blum)</option>' +
+        '</select></div>' +
+      '<div class="field-row"><label>레일 공간(편측)</label>' +
+        '<input type="number" data-mod-idx="' + i + '" data-key="rail_clearance_mm" ' +
+               'value="' + railClearance(m) + '" min="1" max="50" step="0.5">' +
+        '<span class="unit">mm</span></div>' +
+      '<div class="calc-info" style="margin:0;font-size:11px;color:var(--text-dim);line-height:1.6">' +
+        '전판 약 ' + frontH + 'mm × ' + dc + '개<br>' +
+        '서랍통 외경 ' + r1(calc.w) + ' × ' + r1(calc.h) + '(H) × ' + r1(calc.d) + '(D) mm<br>' +
+        typeLabel + ' ' + (calc.slide ? 'L' + calc.slide : '규격 미달') + ' · 좌우 ' + r1(calc.side) +
+        ' + ' + r1(calc.w) + ' + ' + r1(calc.side) + ' = ' + r1(calc.inner.w) + 'mm' +
+        warn +
       '</div>' +
     '</div>';
 
   // ── 서랍 세부 (접이)
   const detailBlock =
     '<details><summary class="detail-summary">서랍 세부 옵션</summary>' +
-      '<div class="field-row"><label>슬라이드 타입</label>' +
-        '<select data-mod-idx="' + i + '" data-key="drawer_type">' +
-          '<option value="undermount"' + (m.drawer_type==='undermount'?' selected':'') + '>언더레일 (Blum)</option>' +
-          '<option value="side_mount"' + (m.drawer_type==='side_mount'?' selected':'') + '>사이드마운트</option>' +
-        '</select></div>' +
       '<div class="field-row"><label>전판 두께</label>' +
         '<input type="number" data-mod-idx="' + i + '" data-key="drawer_thickness" ' +
                'value="' + (m.drawer_thickness||20) + '" min="9" max="30">' +
@@ -208,7 +337,7 @@ function drawerFields(m, i) {
           '<span class="unit">mm</span></div>' : '') +
     '</details>';
 
-  return mainBlock + detailBlock;
+  return innerBlock + mainBlock + detailBlock;
 }
 
 /* ── 선반/수납 모듈 필드 ─────────────────────────────────────────────── */

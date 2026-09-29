@@ -59,11 +59,14 @@ module Kabinet
 
     # ── 서랍 슬라이드 기준 ───────────────────────────────────────────────
     # 언더마운트(Blum Tandem 등): 서랍통 외폭 = 개구폭 − 약 10mm (편측 5mm)
-    # 사이드마운트(볼레일 12.7mm): 서랍통 외폭 = 개구폭 − 약 26mm (편측 13mm)
+    # 사이드마운트(볼레일): 서랍통 외폭 = 내부폭 − 38mm (편측 19mm, 공장 기준)
+    # 모듈별 rail_clearance_mm 로 편측 레일 공간을 직접 지정할 수 있다.
     UNDERMOUNT_SIDE_CLEARANCE_MM = 5    # 언더마운트 편측 클리어런스
     UNDERMOUNT_HEIGHT_OFFSET_MM  = 15   # 언더레일 위 서랍통 바닥 높이
-    SIDEMOUNT_SIDE_CLEARANCE_MM  = 13   # 사이드마운트 편측 (12.7mm 볼레일)
+    SIDEMOUNT_SIDE_CLEARANCE_MM  = 19   # 사이드마운트 편측 레일 공간 (양측 19mm씩 안쪽)
     SIDEMOUNT_HEIGHT_OFFSET_MM   = 25   # 사이드마운트 하단
+    SIDE_RAIL_HEIGHT_MM          = 45   # 볼레일 높이 (3D/도면 표현용)
+    UNDERMOUNT_RAIL_WIDTH_MM     = 40   # 언더레일 폭 (측판에서 서랍통 밑으로)
     DRAWER_BOX_TOP_CLEAR_MM      = 20   # 서랍통 상단 여유 (인출 간섭 방지)
 
     DRAWER_FRONT_GAP_MM          = 2    # 전판 상하/좌우 갭

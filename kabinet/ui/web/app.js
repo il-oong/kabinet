@@ -1342,7 +1342,7 @@ const kabinet = (() => {
     if (kind === 'drawer_module') {
       mod = { kind, width: w, depth: d, height: 200,
               body_thickness: 18, back_thickness: 9, has_back: true,
-              drawer_count: 2, drawer_type: 'undermount', drawer_thickness: 20,
+              drawer_count: 2, drawer_type: 'side_mount', drawer_thickness: 20,
               door_material: mat, handle_type: 'none', handle_hole_mm: 128,
               material: mat, edge_banding_mm: 1.0 };
     } else if (kind === 'desk_module') {

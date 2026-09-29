@@ -358,7 +358,8 @@ module Kabinet
                     C::DRAWER_REVEAL_BETWEEN_MM * (dc - 1)) / dc
           box = FIT.drawer_box_mm(open_w_mm: cw, comp_h_mm: comp_h,
                                   inner_depth_mm: inner_depth,
-                                  type: cd['type'] || 'undermount')
+                                  type: cd['type'] || 'undermount',
+                                  side_clear_mm: cd['rail_clearance_mm'])
           rows.concat(box_rows("#{prefix}-셀서랍(칸#{cell_idx + 1})", box, dc, walls: 3))
         end
         rows
@@ -426,7 +427,8 @@ module Kabinet
         comp_h      = (open_h - C::DRAWER_REVEAL_BETWEEN_MM * (dc - 1)) / dc
         box = FIT.drawer_box_mm(open_w_mm: open_w, comp_h_mm: comp_h,
                                 inner_depth_mm: inner_depth,
-                                type: m['drawer_type'] || 'undermount')
+                                type: m['drawer_type'] || 'undermount',
+                                side_clear_mm: m['rail_clearance_mm'])
         rows.concat(box_rows("#{prefix}-서랍", box, dc, walls: 4))
         rows
       end
@@ -436,6 +438,7 @@ module Kabinet
         bw   = C::DRAWER_BOX_WALL_MM.to_f
         bb   = C::DRAWER_BOX_BOTTOM_MM.to_f
         note = box[:slide_len] ? "레일 L#{box[:slide_len].round}" : '레일 규격 미달 — 깊이 확인'
+        note += " · 편측 #{fmt_mm(box[:side_clear])}" if box[:side_clear]
         rows = []
         rows << mkrow("#{name}-옆판", box[:d], box[:h], bw, qty * 2, '합판', '가로결',
                       edge: '상면', note: "#{note} ×#{qty}")
@@ -523,6 +526,11 @@ module Kabinet
           thickness_mm: t.to_f.round(1),
           qty: qty, material: mat.to_s, grain_dir: grain,
           edge: edge, note: note.to_s }
+      end
+
+      def fmt_mm(v)
+        f = v.to_f.round(1)
+        "#{f == f.to_i ? f.to_i : f}mm"
       end
 
       def csv_escape(str)
