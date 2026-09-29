@@ -17,7 +17,7 @@ module Kabinet
     class DrawerModule
       attr_reader :width, :depth, :height, :body_thickness, :back_thickness,
                   :drawer_count, :drawer_type, :drawer_thickness,
-                  :handle_type, :handle_hole_mm, :has_back
+                  :handle_type, :handle_hole_mm, :has_back, :rail_clearance_mm
 
       def initialize(width:, depth:, height:,
                      body_thickness:  Kabinet::Constants::DEFAULT_BODY_THICKNESS_MM.mm,
@@ -28,7 +28,8 @@ module Kabinet
                      handle_type:     'none',
                      handle_hole_mm:  128,
                      has_back:        true,
-                     box_depth_mm:    nil)
+                     box_depth_mm:    nil,
+                     rail_clearance_mm: nil)
         @width            = width
         @depth            = depth
         @height           = height
@@ -42,6 +43,8 @@ module Kabinet
         @has_back         = has_back ? true : false
         # 서랍 박스 깊이 상한 (수납침대 등 깊은 카케이스에서 실물 서랍 깊이 제한)
         @box_depth_mm     = box_depth_mm ? box_depth_mm.to_f : nil
+        # 편측 레일 공간(mm). nil → 타입 기본 (사이드 19 / 언더 5)
+        @rail_clearance_mm = rail_clearance_mm && rail_clearance_mm.to_f > 0 ? rail_clearance_mm.to_f : nil
       end
 
       def carcase
@@ -100,8 +103,10 @@ module Kabinet
           open_w_mm:      Kabinet::Core::Fitting.len_mm(opening_width),
           comp_h_mm:      Kabinet::Core::Fitting.len_mm(compartment_h),
           inner_depth_mm: inner_depth_mm,
-          type:           @drawer_type)
+          type:           @drawer_type,
+          side_clear_mm:  @rail_clearance_mm)
         side_clear = (opening_width - box[:w].mm) / 2.0
+        rails      = Kabinet::Core::Fitting.drawer_rails_mm(box, @drawer_type)
 
         @drawer_count.times do |i|
           f = fronts[i]
@@ -133,6 +138,9 @@ module Kabinet
                            w: box[:w].mm, d: box[:d].mm, h: box[:h].mm,
                            wall_t: wall_t, bot_t: bot_t,
                            index: i)
+          self.class.build_rails(drawers_grp.entities, rails,
+                                 x: @body_thickness + side_clear, z: z_box,
+                                 role: "drawer_rails_#{i}", label: "서랍레일_#{i + 1}")
         end
 
         group
@@ -150,7 +158,24 @@ module Kabinet
             handle_type:      h['handle_type']     || 'none',
             handle_hole_mm:   (h['handle_hole_mm'] || 128).to_i,
             has_back:         h.fetch('has_back', true) ? true : false,
-            box_depth_mm:     h['box_depth_mm'])
+            box_depth_mm:     h['box_depth_mm'],
+            rail_clearance_mm: h['rail_clearance_mm'])
+      end
+
+      # 레일 좌우 1세트 geometry. rails: Fitting.drawer_rails_mm 결과(mm),
+      # x/z: 서랍통 외곽 좌-앞-하단 위치 (SU Length).
+      def self.build_rails(parent_entities, rails, x:, z:, role:, label:)
+        return if rails.empty?
+        wrap = parent_entities.add_group
+        wrap.transformation = ::Geom::Transformation.new(::Geom::Point3d.new(x, 0, z))
+        Kabinet::Persistence::Attributes.set_role(wrap, role, label: label)
+        rails.each do |r|
+          Kabinet::Geometry::Builder.box(
+            wrap.entities, r[:w].mm, r[:d].mm, r[:h].mm,
+            ::Geom::Transformation.new(::Geom::Point3d.new(r[:x].mm, r[:y].mm, r[:z].mm)),
+            role: "drawer_rail_#{r[:side]}", label: "#{label}_#{r[:side] == :left ? '좌' : '우'}",
+            material_name: 'drawer_rail')
+        end
       end
 
       private

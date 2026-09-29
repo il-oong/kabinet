@@ -294,7 +294,9 @@ module Kabinet
             open_w_mm:      Kabinet::Core::Fitting.len_mm(cell_w),
             comp_h_mm:      Kabinet::Core::Fitting.len_mm(compartment_h),
             inner_depth_mm: inner_depth_mm,
-            type:           dt)
+            type:           dt,
+            side_clear_mm:  cd['rail_clearance_mm'])
+          rails = Kabinet::Core::Fitting.drawer_rails_mm(box, dt)
           box_w = box[:w].mm
           box_d = box[:d].mm
           box_h = box[:h].mm
@@ -335,6 +337,10 @@ module Kabinet
             Kabinet::Geometry::Builder.box(bgrp.entities, box_w - 2 * wall_t, wall_t, box_h,
                                            ::Geom::Transformation.new(::Geom::Point3d.new(wall_t, box_d - wall_t, 0)),
                                            role: 'drawer_back', material_name: 'drawer_box')
+
+            Kabinet::Core::DrawerModule.build_rails(
+              entities, rails, x: box_x, z: z_box,
+              role: "cell_drails_#{cell_idx}_#{i}", label: "셀서랍레일_c#{cell_idx}_#{i + 1}")
           end
         end
       end
