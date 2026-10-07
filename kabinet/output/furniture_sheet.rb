@@ -174,13 +174,19 @@ module Kabinet
 
       def width_tiers(parts, origin)
         front = parts.map { |p| p[:lo][1] }.min
+        left = parts.map { |p| p[:lo][0] }.min
+        right = parts.map { |p| p[:hi][0] }.max
+        bottom = parts.map { |p| p[:lo][2] }.min
+        top = parts.map { |p| p[:hi][2] }.max
         doors, ep, bodies, remaining = [], [], [], []
         parts.each do |part|
           a, b = part[:lo], part[:hi]
           role = part[:role]
           if role == 'door' || (role == 'auto' && a[1] <= front + 2.1 && b[1] - a[1] <= 35 && b[0] - a[0] > 50 && b[2] - a[2] > 50)
             doors << part if b[0] - a[0] > 50 && b[2] - a[2] > 50
-          elsif role == 'ep'
+          elsif role == 'ep' || (role == 'auto' && b[0] - a[0] <= 35 &&
+                b[1] - a[1] > 50 && b[2] - a[2] >= (top - bottom) * 0.9 &&
+                ((a[0] - left).abs < 0.1 || (b[0] - right).abs < 0.1))
             ep << [a[0] - origin[0], b[0] - origin[0]]
           elsif role == 'body'
             bodies << [a[0] - origin[0], b[0] - origin[0]]
@@ -199,7 +205,18 @@ module Kabinet
           cut = top - top_doors.map { |p| p[:hi][2] - p[:lo][2] }.min / 2
           doors = doors.select { |p| p[:lo][2] < cut && p[:hi][2] >= cut }
         end
-        doors = doors.map { |p| [p[:lo][0] - origin[0] - 2, p[:hi][0] - origin[0] + 2] }
+        doors = doors.sort_by { |p| p[:lo][0] }
+        # Interior facing door edges receive 1mm each; exposed outer edges 2mm.
+        # Keep measured widths: never force equal widths or absorb model errors.
+        doors = doors.each_with_index.map do |p, i|
+          previous = i > 0 ? doors[i - 1] : nil
+          following = doors[i + 1]
+          left_gap = previous && p[:lo][0] - previous[:hi][0]
+          right_gap = following && following[:lo][0] - p[:hi][0]
+          left_allowance = left_gap && left_gap >= -0.1 && left_gap <= 10 ? 1 : 2
+          right_allowance = right_gap && right_gap >= -0.1 && right_gap <= 10 ? 1 : 2
+          [p[:lo][0] - origin[0] - left_allowance, p[:hi][0] - origin[0] + right_allowance]
+        end
         normalize = ->(items) { items.map { |a,b| [a.round(3),b.round(3)] }.uniq.sort }
         { doors: normalize.call(doors), bodies: normalize.call(ep + bodies) }
       end
@@ -283,7 +300,7 @@ module Kabinet
           end
         end
         scaled_geometry(doc, before_geometry, scale, 'ELEVATION')
-        # Width dimensions: door including both 2mm clearances, EP/body, overall.
+        # Width dimensions: door including 1mm internal / 2mm external clearances, EP/body, overall.
         roof = front_top - dy
         horizontal_dimension(doc, x, x + w * scale, front_top, roof - 20, w)
         data[:tiers][:doors].each do |a, b|

@@ -72,8 +72,18 @@ UI.start_timer(2, false) do
       {role:'door',lo:[382,-20,700],hi:[758,-2,2000]},
       {role:'door',lo:[2,-20,0],hi:[758,-2,696]}
     ], [0,-20,0])
-    raise 'Stacked door widths overlap' unless stacked[:doors] == [[0,380],[380,760]]
-    results << 'Stacked lower door excluded from upper door chain passed'
+    raise 'Stacked door widths overlap' unless stacked[:doors] == [[0,379],[381,760]]
+    results << 'Stacked lower door excluded; interior edges receive 1mm passed'
+    inferred = Kabinet::Output::FurnitureSheet.width_tiers([
+      {role:'auto',lo:[0,0,0],hi:[20,620,2300]},
+      {role:'auto',lo:[20,20,0],hi:[1540,620,2300]},
+      {role:'auto',lo:[22,-1,0],hi:[398,17,2300]},
+      {role:'auto',lo:[401,-1,650],hi:[779,17,2300]},
+      {role:'auto',lo:[782,-1,650],hi:[1159,17,2300]},
+      {role:'auto',lo:[1162,-1,650],hi:[1539,17,2300]}
+    ], [0,-1,0])
+    raise 'Outer EP was absorbed into body' unless inferred[:bodies] == [[0,20],[20,1540]]
+    raise 'Door allowances ignored measured widths' unless inferred[:doors].map { |a,b| b-a } == [379,380,379,380]
     identity = Geom::Transformation.new
     # Rotate upright XY-thin panels into side boards: width becomes cabinet depth.
     rot = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 90.degrees)
