@@ -400,7 +400,9 @@ module Kabinet
         scaled_geometry(doc, before_geometry, scale, 'ELEVATION')
         # Width dimensions: door including 1mm internal / 2mm external clearances, EP/body, overall.
         roof = front_top - dy
-        horizontal_dimension(doc, x, x + w * scale, front_top, roof - 20, w)
+        # Anchor the overall width to the rear roof edge of the projected
+        # cabinet, as the side-view height is anchored to its rear edge.
+        horizontal_dimension(doc, x + dx, x + dx + w * scale, roof, roof - 20, w)
         data[:tiers][:doors].each do |a, b|
           horizontal_dimension(doc, x + a * scale, x + b * scale, front_top, roof - 6, b - a)
         end

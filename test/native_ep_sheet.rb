@@ -156,6 +156,12 @@ UI.start_timer(2, false) do
       raise 'Wrong dimension unit' unless dim.style.dimension_units.first == Layout::Style::DECIMAL_MILLIMETERS
       raise 'Wrong dimension font' unless dim.text.style.font_family == '맑은 고딕'
     end
+    overall_width=original_dims[0].round.to_s
+    rear_overall=dims.find do |dim|
+      dim.text.display_text.strip==overall_width && dim.start_connection_point.y*25.4>80
+    end
+    raise 'Elevation overall width not anchored at rear roof edge' unless rear_overall && rear_overall.start_connection_point.x*25.4>21
+    results << 'Elevation overall width uses rear roof edge passed'
     probe = dims.first
     old_point = probe.end_connection_point
     old_text = probe.text.display_text
