@@ -184,9 +184,33 @@ module Kabinet
         include FurnitureSheet
         public :line, :text, :horizontal_dimension, :vertical_dimension
         def initialize(doc,page); @page=page; end
-        def add(doc,entity); doc.add_entity(entity,doc.layers.first,@page); entity; end
+        def add(doc,entity); doc.add_entity(entity,doc.layers[doc.layers.length-1],@page); entity; end
         def poly(doc,points,**style)
           points.each_with_index { |a,i| b=points[(i+1)%points.length]; line(doc,*a,*b,**style) }
+        end
+        def rect(doc,x,y,w,h,color)
+          entity=Layout::Rectangle.new(bounds(x,y,w,h))
+          style=entity.style
+          style.solid_filled=true
+          style.fill_color=Sketchup::Color.new(color)
+          style.stroked=false
+          entity.style=style
+          add(doc,entity)
+        end
+        def filled_poly(doc,points,color,stroke:'#4a4a48')
+          return if points.length<3
+          point=->(p){Geom::Point2d.new(p[0]/25.4,p[1]/25.4)}
+          entity=Layout::Path.new(point.call(points[0]),point.call(points[1]))
+          points.drop(2).each { |p| entity.append_point(point.call(p)) }
+          entity.close
+          style=entity.style
+          style.solid_filled=true
+          style.fill_color=Sketchup::Color.new(color)
+          style.stroked=true
+          style.stroke_color=Sketchup::Color.new(stroke)
+          style.stroke_width=0.3
+          entity.style=style
+          add(doc,entity)
         end
         def scaled(doc,before,scale)
           paths=@page.entities.grep(Layout::Path).reject { |e| before.any? { |old| old==e } }
@@ -216,28 +240,41 @@ module Kabinet
         doc=Layout::Document.open(File.join(__dir__,'drawing_template.layout'))
         doc.units=Layout::Document::DECIMAL_MILLIMETERS; doc.precision=1.0
         doc.page_info.width=420.0/25.4; doc.page_info.height=297.0/25.4
+        # The blank LayOut template uses a shared layer. Keep each sheet's
+        # drawings on a non-shared layer so pages cannot print over each other.
+        doc.layers.add('공간 도면 내용',false)
         doc.pages.first.name='공간 평면도'
         c=Canvas.new(doc,doc.pages.first)
-        scale=1.0/[data[:width]/190.0,data[:depth]/180.0,1].max.ceil
-        project=->(p){[38+p[0]*scale,242-p[1]*scale]}
-        c.frame(doc,title,options,"평면도 1:#{(1/scale).round} · 단위 mm · 모델 입력값 기준 · 가구 내부선 생략")
+        # The first sheet is an overview: a large room axonometric drawing
+        # beside a measured plan, with notes and project details below.
+        c.rect(doc,20,12,383,235,'#d4d4d2')
+        c.text(doc,title,23,14,190,8,size:11,bold:true)
+        scale=1.0/[data[:width]/145.0,data[:depth]/152.0,1].max.ceil
+        left=238.0; bottom=199.0
+        top=bottom-data[:depth]*scale
+        right=left+data[:width]*scale
+        project=->(p){[left+p[0]*scale,bottom-p[1]*scale]}
+        draw_iso(doc,c,data,25,28,190,207)
         before=doc.pages.first.entities.to_a
-        c.poly(doc,data[:floor].map { |p| project.call(p) },weight:0.8)
+        c.filled_poly(doc,data[:floor].map { |p| project.call(p) },'#f8f8f6',stroke:'#202020')
         data[:walls].each_with_index do |wall,i|
           mid=wall[:a].zip(wall[:b]).map { |a,b| (a+b)/2 }
-          p=project.call(mid); c.text(doc,wall[:name],p[0]+2,p[1]+2,25,6,size:9,bold:true)
+          p=project.call(mid); c.text(doc,wall[:name],p[0]+2,p[1]+2,25,6,size:8,bold:true)
         end
         data[:items].each do |item|
           color={'furniture'=>'#555951','window'=>'#24627c','door'=>'#8c6034'}.fetch(item[:role])
           item[:plan].each { |loop| c.poly(doc,loop.map { |p| project.call(p) },color:color,weight:0.5) }
-          p=project.call(item[:lo]); c.text(doc,item[:label],p[0]+2,p[1]-6,28,6,size:9,bold:true,color:color)
+          p=project.call(item[:lo]); c.text(doc,item[:label],p[0]+1,p[1]-5,28,5,size:8,bold:true,color:color)
         end
         c.scaled(doc,before,scale)
-        c.horizontal_dimension(doc,38,38+data[:width]*scale,242,254,data[:width])
-        c.vertical_dimension(doc,38,242-data[:depth]*scale,242,25,data[:depth])
-        c.text(doc,'메모 / 몰딩·걸레받이·설치 유의사항',262,32,140,8,size:11,bold:true)
-        c.text(doc,memo.empty? ? '메모를 입력하세요.' : memo,262,43,140,48,size:11,bold:true)
-        draw_iso(doc,c,data,262,105,140,152)
+        draw_plan_dimensions(doc,c,data,left,right,top,bottom,scale)
+        c.text(doc,'메모 / 몰딩·걸레받이·설치 유의사항',21,250,380,6,size:9,bold:true)
+        c.text(doc,memo.empty? ? '메모를 입력하세요.' : memo,21,257,380,19,size:8,bold:true)
+        c.line(doc,20,279,402,279,weight:0.3)
+        fields=[['공간',title],['현장',options['site']],['실측일',options['survey_date']],['제작일',options['drawing_date']]]
+        fields.each_with_index do |(key,value),i|
+          c.text(doc,"#{key}: #{value}",20+i*96,282,94,8,size:8,bold:true)
+        end
         draw_schedule(doc,data,options,title)
         if options.fetch('wall_views',true)
           data[:walls].each_with_index { |wall,i| draw_wall(doc,data,wall,i,options,title) }
@@ -251,26 +288,57 @@ module Kabinet
         path
       end
 
-      def draw_iso(doc,c,data,x,y,w,h)
-        # Diagrammatic open-room view with only furniture perimeter lines.
-        raw=->(p){[p[0]-p[1]*0.6,-p[2]+p[1]*0.35]}
-        polylines=[data[:floor],data[:floor].map { |p| [p[0],p[1],data[:height]] }]
-        data[:items].each do |item|
-          item[:plan].each do |loop|
-            low=loop.map { |p| [*p,item[:lo][2]] }; high=loop.map { |p| [*p,item[:hi][2]] }
-            polylines << low << high
-            low.zip(high).each { |a,b| polylines << [a,b] }
-          end
+      def draw_plan_dimensions(doc,c,data,left,right,top,bottom,scale)
+        c.horizontal_dimension(doc,left,right,top,top-20,data[:width])
+        c.vertical_dimension(doc,right,top,bottom,right+14,data[:depth])
+        # A short chain beneath the plan identifies the actual furniture
+        # extents without exposing shelves or door seams.
+        breaks=[0.0,data[:width]]
+        data[:items].select { |item| item[:role]=='furniture' }.each do |item|
+          breaks << item[:lo][0] << item[:hi][0]
         end
-        data[:floor].each { |p| polylines << [p,[p[0],p[1],data[:height]]] }
-        points=polylines.flatten(1).map { |p| raw.call(p) }
+        breaks=breaks.select { |x| x.between?(0,data[:width]) }.map { |x| x.round(1) }.uniq.sort
+        breaks=[breaks.first,*breaks[1...-1].select.with_index { |_,i| i.even? }.first(5),breaks.last].uniq.sort if breaks.length>7
+        breaks.each_cons(2) do |a,b|
+          next if b-a<80
+          c.horizontal_dimension(doc,left+a*scale,left+b*scale,bottom,bottom+10,b-a)
+        end
+      end
+
+      def draw_iso(doc,c,data,x,y,w,h)
+        # A simple cutaway: the far walls and floor establish the room,
+        # while furniture uses only its outer footprint and height.
+        raw=->(p){[p[0]-p[1]*0.6,-p[2]*1.35+p[1]*0.35]}
+        vertices=data[:floor]+data[:floor].map { |p| [p[0],p[1],data[:height]] }
+        points=vertices.map { |p| raw.call(p) }
         lo=[points.map(&:first).min,points.map(&:last).min]; hi=[points.map(&:first).max,points.map(&:last).max]
         scale=[(w-10)/(hi[0]-lo[0]),(h-10)/(hi[1]-lo[1])].min
-        polylines.each do |loop|
-          points=loop.map { |p| q=raw.call(p);[x+5+(q[0]-lo[0])*scale,y+5+(q[1]-lo[1])*scale] }
-          c.poly(doc,points,weight:0.35)
+        offset_x=x+(w-(hi[0]-lo[0])*scale)/2
+        offset_y=y+(h-(hi[1]-lo[1])*scale)/2
+        paper=->(p){q=raw.call(p);[offset_x+(q[0]-lo[0])*scale,offset_y+(q[1]-lo[1])*scale]}
+        c.filled_poly(doc,data[:floor].map { |p| paper.call(p) },'#c8b9a6')
+        min_x=data[:floor].map(&:first).min; max_y=data[:floor].map { |p| p[1] }.max
+        data[:walls].each do |wall|
+          a=wall[:a]; b=wall[:b]
+          next unless ((a[0]+b[0])/2-min_x).abs<1 || ((a[1]+b[1])/2-max_y).abs<1
+          face=[a,b,[b[0],b[1],data[:height]],[a[0],a[1],data[:height]]]
+          c.filled_poly(doc,face.map { |p| paper.call(p) },'#babbb9')
         end
-        c.text(doc,'입체 배치도 · 외곽 윤곽 / 축척 없음',x,y+h,140,7,size:9)
+        data[:items].sort_by { |item| -(item[:lo][0]+item[:lo][1]) }.each do |item|
+          item[:plan].each do |loop|
+            low=loop.map { |p| [*p,item[:lo][2]] }
+            high=loop.map { |p| [*p,item[:hi][2]] }
+            faces=low.each_index.map do |i|
+              j=(i+1)%low.length
+              [low[i],low[j],high[j],high[i]]
+            end
+            faces.sort_by { |face| -face.sum { |p| p[0]+p[1] } }.each_with_index do |face,i|
+              c.filled_poly(doc,face.map { |p| paper.call(p) },i.even? ? '#e5e5e1' : '#f1f1ee')
+            end
+            c.filled_poly(doc,high.map { |p| paper.call(p) },'#f8f8f5')
+          end
+        end
+        c.text(doc,'공간 입체도 · 가구 외곽 / 축척 없음',x,y+h-5,w,6,size:8,bold:true)
       end
 
       def point_segment_distance(p,a,b)
