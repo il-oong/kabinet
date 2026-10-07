@@ -213,7 +213,7 @@ module Kabinet
         path ||= ::UI.savepanel('공간 도면 저장',nil,title.gsub(/[\\\/:*?"<>|]/,'_')+'.layout')
         return unless path
         path=path.sub(/\.(layout|pdf)\z/i,'')+'.layout'
-        doc=Layout::Document.new
+        doc=Layout::Document.open(File.join(__dir__,'drawing_template.layout'))
         doc.units=Layout::Document::DECIMAL_MILLIMETERS; doc.precision=1.0
         doc.page_info.width=420.0/25.4; doc.page_info.height=297.0/25.4
         doc.pages.first.name='공간 평면도'

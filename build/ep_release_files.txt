@@ -9,3 +9,4 @@ kabinet/ui/web/ep.html
 kabinet/ui/web/ep.css
 kabinet/ui/web/ep.js
 kabinet/output/space_sheet.rb
+kabinet/output/drawing_template.layout

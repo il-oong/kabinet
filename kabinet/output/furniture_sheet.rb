@@ -312,7 +312,9 @@ module Kabinet
       end
 
       def compose(data, title, options = {})
-        doc = Layout::Document.new
+        # Keep LayOut's tool defaults in the document, so dimensions drawn
+        # later by hand match the dimensions generated below.
+        doc = Layout::Document.open(File.join(__dir__, 'drawing_template.layout'))
         doc.units = Layout::Document::DECIMAL_MILLIMETERS
         doc.precision = 1.0
         doc.page_info.width = 420.0 / 25.4
