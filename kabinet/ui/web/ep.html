@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kabinet — EP 판재</title><link rel="stylesheet" href="ep.css"></head>
+<body><header><span>KABINET / 02</span><h1>판재에서 가구까지</h1><p>EP를 한 장씩 만들고, 직접 조합하세요.</p></header>
+<main><section><h2>EP 한 장 만들기 <small>단위 mm</small></h2>
+<form id="board-form"><div class="fields"><label>가로<input id="width" type="number" min="0.1" max="10000" step="any" value="600" required></label>
+<label>깊이 · 두께<select id="thickness"><option>3</option><option>9</option><option>12</option><option selected>18</option><option>20</option><option>30</option></select></label>
+<label>높이<input id="height" type="number" min="0.1" max="10000" step="any" value="2400" required></label></div>
+<p class="hint">가로는 빨강축(X), 두께는 초록축(Y), 높이는 파랑축(Z). 현재 편집 공간의 원점에 한 장을 생성합니다.</p>
+<button type="submit">EP 한 장 생성</button></form></section>
+<section><h2>내 가구 보관함 <small>이 컴퓨터에 저장</small></h2>
+<form id="library-form"><label>가구 이름<input id="library-name" maxlength="60" placeholder="예: 침실 3단 서랍장" required></label>
+<p class="hint">만든 가구의 판재·그룹을 모두 선택한 뒤 저장하세요. 같은 이름도 새 항목으로 보관합니다.</p>
+<button type="submit" class="secondary">선택한 가구 저장</button></form>
+<label class="library-search">저장 가구 검색<input id="library-search" type="search" placeholder="이름으로 찾기"></label>
+<div id="library-list" aria-label="저장된 가구 목록"><p class="hint">보관함을 불러오고 있습니다…</p></div>
+<p class="hint">목록에서 누르고 모델 화면에 클릭하면 배치됩니다. 같은 가구는 컴포넌트로 연결됩니다. 하나만 수정하려면 우클릭 → 고유하게 만들기를 사용하세요.</p></section>
+<section><h2>가구 도면 출력 <small>A3 가로</small></h2>
+<div class="sheet" aria-label="도면 배치 미리보기"><div class="top">평면도</div><div class="iso">컬러 입체도</div><div class="front">정면도</div><div class="side">측면도</div><div class="materials">마감재 견본</div></div>
+<label>도면 이름<input id="title" maxlength="60" value="가구 도면"></label>
+<label class="check"><input id="internal" type="checkbox" checked> 도어 뒤 선반·칸막이 등 가려진 선을 점선으로 표시</label>
+<p class="hint">출력할 판재 또는 조합한 가구 그룹을 선택하세요. 정면은 초록축의 음(-) 방향에서 봅니다. 적용한 재질을 견본으로 넣습니다.</p>
+<button id="export" type="button" class="secondary">도면 출력 · LayOut + PDF</button></section>
+<p id="status" role="status" aria-live="polite">판재를 이동·회전·복사해서 원하는 가구로 조합하세요.</p></main>
+<script src="ep.js"></script></body></html>
