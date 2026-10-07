@@ -17,6 +17,21 @@ module Kabinet
       values
     end
 
+    def mark_role(role, model: Sketchup.active_model)
+      raise ArgumentError, '올바른 부품 구분을 선택하세요.' unless %w[auto door ep body].include?(role)
+      selected = model.selection.to_a
+      raise '구분할 판재 또는 몸통장 그룹을 선택하세요.' if selected.empty? || selected.any? { |e| !e.is_a?(Sketchup::Group) && !e.is_a?(Sketchup::ComponentInstance) }
+      model.start_operation('도면 부품 구분', true)
+      begin
+        selected.each { |entity| entity.set_attribute('kabinet_ep', 'drawing_role', role) }
+        model.commit_operation
+      rescue StandardError
+        model.abort_operation
+        raise
+      end
+      selected.length
+    end
+
     def create(payload, model: Sketchup.active_model)
       w, t, h = dimensions(payload)
       model.start_operation('EP 한 장 생성', true)

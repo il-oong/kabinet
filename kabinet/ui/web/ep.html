@@ -17,6 +17,8 @@
 <p class="hint">목록에서 누르고 모델 화면에 클릭하면 배치됩니다. 같은 가구는 컴포넌트로 연결됩니다. 하나만 수정하려면 우클릭 → 고유하게 만들기를 사용하세요.</p></section>
 <section><h2>가구 도면 출력 <small>A3 가로</small></h2>
 <div class="sheet" aria-label="도면 배치 미리보기"><div class="top">평면도</div><div class="iso">컬러 입체도</div><div class="front">정면도</div><div class="side">측면도</div><div class="materials">마감재 견본</div></div>
+<p class="hint">가로 치수는 도어(+좌우 2mm씩) → EP·몸통장 → 전체 외경의 3단입니다. 앞쪽 얇은 판재는 도어로 추정합니다. 정확히 구분하려면 부품을 선택하고 아래 버튼을 누르세요. 몸통장은 한 통씩 그룹으로 묶어 지정합니다.</p>
+<div class="fields"><button type="button" data-role="door">선택 → 도어</button><button type="button" data-role="ep">선택 → EP</button><button type="button" data-role="body">선택 → 몸통장</button><button type="button" data-role="auto">자동 구분</button></div>
 <label>도면 이름<input id="title" maxlength="60" value="가구 도면"></label>
 <label>가구명<input id="furniture-name" maxlength="50" placeholder="비우면 도면 이름 사용"></label>
 <label>현장정보<input id="site" maxlength="50" placeholder="현장명 · 동/호수 · 설치 위치"></label>

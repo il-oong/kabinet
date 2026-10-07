@@ -39,6 +39,8 @@ module Kabinet
       end
 
       def capture(model, targets, dir, internal)
+        parts = []
+        targets.each { |e| collect_parts(e, Geom::Transformation.new, parts) }
         mats = []
         segs = []
         boxes = []
@@ -86,7 +88,7 @@ module Kabinet
           end
           { name: mat.display_name, color: mat.color, image: image }
         end
-        { size: size, lo: lo, views: visible, boxes: boxes, skp: skp, snapshot_corners: snapshot_corners, materials: swatches, internal: internal }
+        { tiers: width_tiers(parts, lo), size: size, lo: lo, views: visible, boxes: boxes, skp: skp, snapshot_corners: snapshot_corners, materials: swatches, internal: internal }
       end
 
       # Sample each edge, then refine visible/occluded transitions. A partially
@@ -141,6 +143,45 @@ module Kabinet
         end
       end
 
+      # Explicit roles win. Unmarked front-facing thin panels can be doors;
+      # remaining unmarked geometry forms one body until the user marks modules.
+      def collect_parts(entity, parent, parts)
+        return unless entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)
+        return if entity.hidden? || !entity.layer.visible?
+        transform = parent * entity.transformation
+        role = entity.get_attribute('kabinet_ep', 'drawing_role', 'auto')
+        children = entity.definition.entities
+        if role != 'auto' || !children.grep(Sketchup::Face).empty?
+          corners = (0..7).map { |i| entity.definition.bounds.corner(i).transform(transform).to_a.map(&:to_mm) }
+          parts << { role: role, lo: (0..2).map { |i| corners.map { |p| p[i] }.min }, hi: (0..2).map { |i| corners.map { |p| p[i] }.max } }
+        else
+          children.each { |child| collect_parts(child, transform, parts) }
+        end
+      end
+
+      def width_tiers(parts, origin)
+        front = parts.map { |p| p[:lo][1] }.min
+        doors, ep, bodies, remaining = [], [], [], []
+        parts.each do |part|
+          a, b = part[:lo], part[:hi]
+          role = part[:role]
+          if role == 'door' || (role == 'auto' && a[1] <= front + 2.1 && b[1] - a[1] <= 35 && b[0] - a[0] > 50 && b[2] - a[2] > 50)
+            doors << [a[0] - origin[0] - 2, b[0] - origin[0] + 2]
+          elsif role == 'ep'
+            ep << [a[0] - origin[0], b[0] - origin[0]]
+          elsif role == 'body'
+            bodies << [a[0] - origin[0], b[0] - origin[0]]
+          else
+            remaining << part
+          end
+        end
+        unless remaining.empty?
+          bodies << [remaining.map { |p| p[:lo][0] }.min - origin[0], remaining.map { |p| p[:hi][0] }.max - origin[0]]
+        end
+        normalize = ->(items) { items.map { |a,b| [a.round(3),b.round(3)] }.uniq.sort }
+        { doors: normalize.call(doors), bodies: normalize.call(ep + bodies) }
+      end
+
       def compose(data, title, options = {})
         doc = Layout::Document.new
         doc.units = Layout::Document::DECIMAL_MILLIMETERS
@@ -150,7 +191,7 @@ module Kabinet
         doc.pages.first.name = title
         w, d, h = data[:size]
         # One scale across all orthographic views, with fixed room for dimensions.
-        scale = [130.0 / (w + d * 0.45), 175.0 / (h + d * 0.3), 47.0 / d, 1.0].min
+        scale = [130.0 / (w + d * 0.45), 165.0 / (h + d * 0.3), 47.0 / d, 1.0].min
         # Round the actual scale denominator upward, so its one-decimal label
         # matches the geometry without making the views overflow their frames.
         scale = 1.0 / ((1.0 / scale * 10).ceil / 10.0)
@@ -220,9 +261,21 @@ module Kabinet
           end
         end
         scaled_geometry(doc, before_geometry, scale, 'ELEVATION')
-        horizontal_dimension(doc, x, x + w * scale, front_top, front_top - dy - 14, w)
-        chain(data, 0, scale).each_cons(2) do |a, b|
-          horizontal_dimension(doc, x + a * scale, x + b * scale, front_top, front_top - dy - 6, b - a)
+        # Width dimensions: door including both 2mm clearances, EP/body, overall.
+        roof = front_top - dy
+        horizontal_dimension(doc, x, x + w * scale, front_top, roof - 26, w)
+        data[:tiers][:doors].each do |a, b|
+          horizontal_dimension(doc, x + a * scale, x + b * scale, front_top, roof - 6, b - a)
+        end
+        data[:tiers][:bodies].each_with_index do |(a, b), i|
+          dim = horizontal_dimension(doc, x + a * scale, x + b * scale, front_top, roof - 16, b - a)
+          # Narrow EPs retain their own dimension. Stagger the label above/below
+          # the middle tier instead of silently dropping the panel thickness.
+          if (b - a) * scale < 7
+            label = dim.text
+            label.transform!(Geom::Transformation2d.translation(Geom::Vector2d.new(0, (i.even? ? -3.0 : 3.0) / 25.4)))
+            dim.text = label
+          end
         end
         vertical_dimension(doc, x + w * scale + dx, front_top - dy, bottom - dy, x + w * scale + dx + 14, h)
         chain(data, 2, scale).each_cons(2) do |a, b|

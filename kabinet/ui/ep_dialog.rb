@@ -35,6 +35,12 @@ module Kabinet
           "#{board.name} 생성 완료. 이동·회전·복사로 조합하세요."
         end
       end
+      d.add_action_callback('ep_role') do |_context, role|
+        respond(d) do
+          count = EPBoard.mark_role(role)
+          "#{count}개 부품 구분 완료. 가구 전체를 다시 선택하고 출력하세요."
+        end
+      end
       d.add_action_callback('ep_export') do |_context, raw|
         respond(d) do
           result = Output::FurnitureSheet.run(JSON.parse(raw))

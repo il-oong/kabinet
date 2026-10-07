@@ -58,14 +58,26 @@ UI.start_timer(2, false) do
       boards << b
       b
     end
+    tiers = Kabinet::Output::FurnitureSheet.width_tiers([
+      {role:'door',lo:[20,-20,0],hi:[396,-2,700]},
+      {role:'ep',lo:[0,0,0],hi:[18,600,700]},
+      {role:'body',lo:[18,0,0],hi:[778,600,700]},
+      {role:'ep',lo:[778,0,0],hi:[796,600,700]}
+    ], [0,-20,0])
+    raise 'Door clearance not merged' unless tiers[:doors] == [[18,398]]
+    raise 'EP/body tiers incorrect' unless tiers[:bodies] == [[0,18],[18,778],[778,796]]
+    results << 'Door 376+4=380 and EP/body tiers passed'
     identity = Geom::Transformation.new
     # Rotate upright XY-thin panels into side boards: width becomes cabinet depth.
     rot = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 90.degrees)
-    [18, 518, 1018, 1518].each { |x| make.call(500,18,2400,Geom::Transformation.translation([x.mm,0,0])*rot,wood) }
+    [18, 518, 1018, 1518].each do |x|
+      board = make.call(500,18,2400,Geom::Transformation.translation([x.mm,0,0])*rot,wood)
+      Kabinet::EPBoard.mark_role('ep') if [18,1518].include?(x)
+    end
     # Shelves use EP height as depth after rotating around X.
     flat = Geom::Transformation.rotation(ORIGIN, X_AXIS, 90.degrees)
-    [18, 600, 1200, 1800, 2400].each { |z| make.call(1500,18,500,Geom::Transformation.translation([0,500.mm,(z-18).mm])*flat,wood) }
-    [0, 506, 1012].each { |x| make.call(502,18,2398,Geom::Transformation.translation([x.mm,-20.mm,0]),material) }
+    [18, 600, 1200, 1800, 2400].each { |z| make.call(1482,18,500,Geom::Transformation.translation([18.mm,500.mm,(z-18).mm])*flat,wood) }
+    [2, 508, 1014].each { |x| make.call(502,18,2398,Geom::Transformation.translation([x.mm,-20.mm,0]),material) }
     unselected = make.call(900,30,1000,Geom::Transformation.translation([5000.mm,0,0]),material)
     boards.delete(unselected)
     model.selection.clear
