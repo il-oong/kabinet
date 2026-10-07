@@ -83,6 +83,11 @@ document.querySelectorAll('[data-role]').forEach(button => button.addEventListen
   try { window.sketchup.ep_role(button.dataset.role); }
   catch (error) { epResult('SketchUp의 Kabinet 창에서 실행하세요.', true); }
 }));
+document.querySelectorAll('[data-front]').forEach(button => button.addEventListener('click', () => {
+  busy('가구의 정면 방향을 확인하고 있습니다…');
+  try { window.sketchup.ep_front(button.dataset.front); }
+  catch (error) { epResult('SketchUp의 Kabinet 창에서 실행하세요.', true); }
+}));
 
 byId('space-mode').addEventListener('change', () => {
   byId('space-options').hidden = !byId('space-mode').checked;

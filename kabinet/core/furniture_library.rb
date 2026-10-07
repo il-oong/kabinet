@@ -50,10 +50,15 @@ module Kabinet
       staging = File.join(directory, ".saving-#{id}")
       FileUtils.mkdir_p(staging)
       begin
+        saved_front = Output::FurnitureSheet.front_axis(targets)
         model.start_operation('가구 보관함 저장용 복사', true)
         begin
           container = model.entities.add_group
           container.name = name
+          # Library geometry is normalized by translation only, so its local
+          # front vector can follow a placed instance when the user rotates it.
+          Output::FurnitureSheet.save_front(container, saved_front)
+          container.definition.set_attribute('kabinet_ep', 'front_local', container.get_attribute('kabinet_ep', 'front_local'))
           move = Geom::Transformation.translation(ORIGIN - bounds.min)
           targets.each do |entity|
             copy = container.entities.add_instance(entity.definition, move * entity.transformation)

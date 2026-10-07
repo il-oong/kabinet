@@ -41,6 +41,16 @@ module Kabinet
           "#{count}개 부품 구분 완료. 가구 전체를 다시 선택하고 출력하세요."
         end
       end
+      d.add_action_callback('ep_front') do |_context, action|
+        respond(d) do
+          case action
+          when 'set' then Output::FurnitureSheet.set_front
+          when 'reverse' then Output::FurnitureSheet.reverse_front
+          when 'status' then Output::FurnitureSheet.front_status
+          else raise '알 수 없는 정면 설정입니다.'
+          end
+        end
+      end
       d.add_action_callback('ep_space_role') do |_context, role|
         respond(d) do
           count = Output::SpaceSheet.mark(role)

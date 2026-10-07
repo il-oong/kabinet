@@ -7,6 +7,83 @@ module Kabinet
     module FurnitureSheet
       module_function
 
+      FRONT_AXES = { '-Y' => [0.0, -1.0], '+Y' => [0.0, 1.0], '-X' => [-1.0, 0.0], '+X' => [1.0, 0.0] }.freeze
+
+      def axis_from_vector(vector)
+        vector.x.abs > vector.y.abs ? (vector.x > 0 ? '+X' : '-X') : (vector.y > 0 ? '+Y' : '-Y')
+      end
+
+      def save_front(entity, axis)
+        direction = FRONT_AXES.fetch(axis)
+        local = Geom::Vector3d.new(direction[0], direction[1], 0).transform(entity.transformation.inverse)
+        entity.set_attribute('kabinet_ep', 'front_local', local.to_a)
+        entity.set_attribute('kabinet_ep', 'front_axis', axis)
+      end
+
+      def set_front(model = Sketchup.active_model)
+        raise '그룹 편집을 닫고 가구 전체를 선택하세요.' if model.active_path
+        targets = model.selection.to_a
+        raise '가구 그룹 또는 컴포넌트를 선택하세요.' if targets.empty? || targets.any? { |e| !e.is_a?(Sketchup::Group) && !e.is_a?(Sketchup::ComponentInstance) }
+        camera = model.active_view.camera
+        outward = camera.eye - camera.target
+        horizontal = Math.sqrt(outward.x**2 + outward.y**2)
+        raise '가구의 앞쪽을 화면에서 바라본 뒤 다시 누르세요. 위에서 내려보는 화면은 사용할 수 없습니다.' if horizontal / outward.length < 0.25
+        axis = axis_from_vector(outward)
+        model.start_operation('가구 정면 지정', true)
+        begin
+          targets.each { |e| save_front(e, axis) }
+          model.commit_operation
+        rescue StandardError
+          model.abort_operation
+          raise
+        end
+        "정면 저장: #{axis} 방향에서 바라본 모습. 좌우는 정면을 보는 사람 기준입니다."
+      end
+
+      def front_axis(targets)
+        axes = targets.map do |e|
+          local = e.get_attribute('kabinet_ep', 'front_local') || e.definition.get_attribute('kabinet_ep', 'front_local')
+          if local.is_a?(Array) && local.length == 3 && local.all? { |n| n.is_a?(Numeric) && n.finite? }
+            axis_from_vector(Geom::Vector3d.new(*local).transform(e.transformation))
+          else
+            e.get_attribute('kabinet_ep', 'front_axis', e.definition.get_attribute('kabinet_ep', 'front_axis', '-Y'))
+          end
+        end.uniq
+        raise '서로 다른 정면 기준의 가구가 선택되었습니다. 가구마다 따로 출력하거나 정면을 다시 지정하세요.' unless axes.length == 1 && FRONT_AXES.key?(axes.first)
+        axes.first
+      end
+
+      def front_status(model = Sketchup.active_model)
+        targets = model.selection.to_a
+        raise '가구 그룹 또는 컴포넌트를 선택하세요.' if targets.empty?
+        "현재 정면: #{front_axis(targets)} 방향에서 바라본 모습. 평면도 화살표와 정면도를 확인하세요."
+      end
+
+      def reverse_front(model = Sketchup.active_model)
+        targets = model.selection.to_a
+        raise '가구 그룹 또는 컴포넌트를 선택하세요.' if targets.empty?
+        old = front_axis(targets)
+        axis = old.start_with?('+') ? old.sub('+', '-') : old.sub('-', '+')
+        model.start_operation('가구 정면 반전', true)
+        begin
+          targets.each { |e| save_front(e, axis) }
+          model.commit_operation
+        rescue StandardError
+          model.abort_operation
+          raise
+        end
+        "정면 반전 완료: #{axis} 방향에서 바라본 모습."
+      end
+
+      def orientation(axis)
+        fx, fy = FRONT_AXES.fetch(axis)
+        right = [-fy, fx]
+        back = [-fx, -fy]
+        to_local = ->(p) { [p[0] * right[0] + p[1] * right[1], p[0] * back[0] + p[1] * back[1], p[2]] }
+        rotation = Geom::Transformation.axes(ORIGIN, Geom::Vector3d.new(right[0], right[1], 0), Geom::Vector3d.new(back[0], back[1], 0), Z_AXIS).inverse
+        [to_local, rotation, right, back]
+      end
+
       def run(options = {}, model: Sketchup.active_model, path: nil)
         raise 'SketchUp 2022 이상에서 실행하세요.' unless defined?(Layout::Document)
         raise '그룹 편집을 닫고 가구를 선택한 뒤 출력하세요.' if model.active_path
@@ -39,6 +116,8 @@ module Kabinet
       end
 
       def capture(model, targets, dir, internal)
+        axis = front_axis(targets)
+        to_local, rotation, right, back = orientation(axis)
         parts = []
         targets.each { |e| collect_parts(e, Geom::Transformation.new, parts) }
         mats = []
@@ -47,7 +126,7 @@ module Kabinet
         targets.each { |e| collect(e, Geom::Transformation.new, segs, boxes, mats) }
         raise '선택한 가구에 출력할 선이 없습니다.' if segs.empty?
         raise '선택한 형상이 너무 복잡합니다. 가구만 선택해 주세요.' if segs.length > 30_000
-        points = segs.flatten(1)
+        points = segs.flatten(1).map(&to_local)
         lo = (0..2).map { |i| points.map { |p| p[i] }.min }
         hi = (0..2).map { |i| points.map { |p| p[i] }.max }
         size = hi.zip(lo).map { |a, b| a - b }
@@ -60,13 +139,13 @@ module Kabinet
           # Hide non-selected geometry only during ray tests; abort restores it.
           model.entities.each { |e| e.hidden = true if e.respond_to?(:hidden=) && !targets.include?(e) }
           visible = {}
-          %w[top front side elevation].each do |name|
-            visible[name] = classify_edges(model, segs, name)
+          %w[top side elevation].each do |name|
+            visible[name] = classify_edges(model, segs, name, right, back, to_local)
           end
           root = model.entities.add_group
           move = Geom::Transformation.translation(lo.zip(hi).map { |a, b| (-(a + b) / 2).mm })
           targets.each do |e|
-            copy = root.entities.add_instance(e.definition, move * e.transformation)
+            copy = root.entities.add_instance(e.definition, move * rotation * e.transformation)
             copy.material = e.material if e.material
           end
           snapshot_corners = (0..7).map { |i| root.definition.bounds.corner(i).to_a }
@@ -88,13 +167,24 @@ module Kabinet
           end
           { name: mat.display_name, color: mat.color, image: image }
         end
-        { tiers: width_tiers(parts, lo), size: size, lo: lo, views: visible, boxes: boxes, skp: skp, snapshot_corners: snapshot_corners, materials: swatches, internal: internal }
+        local_box = lambda do |a, b|
+          corners = (0..7).map { |i| to_local.call([(i & 1) != 0 ? b[0] : a[0], (i & 2) != 0 ? b[1] : a[1], (i & 4) != 0 ? b[2] : a[2]]) }
+          [(0..2).map { |i| corners.map { |p| p[i] }.min }, (0..2).map { |i| corners.map { |p| p[i] }.max }]
+        end
+        local_parts = parts.map do |part|
+          a, b = part[:lo], part[:hi]
+          local_lo, local_hi = local_box.call(a, b)
+          { role: part[:role], lo: local_lo, hi: local_hi }
+        end
+        local_boxes = boxes.map { |a, b| local_box.call(a, b) }
+        { tiers: width_tiers(local_parts, lo), size: size, lo: lo, views: visible, boxes: local_boxes, skp: skp, snapshot_corners: snapshot_corners, materials: swatches, internal: internal, front_axis: axis }
       end
 
       # Sample each edge, then refine visible/occluded transitions. A partially
       # covered edge must not become one solid line through the cabinet door.
-      def classify_edges(model, segments, name)
-        direction = Geom::Vector3d.new(*(name == 'elevation' ? [0.45, -1.0, 0.3] : GroupProjection::VIEW_DIRS.fetch(name)))
+      def classify_edges(model, segments, name, right, back, to_local)
+        local_direction = name == 'elevation' ? [0.45, -1.0, 0.3] : GroupProjection::VIEW_DIRS.fetch(name)
+        direction = Geom::Vector3d.new(right[0] * local_direction[0] + back[0] * local_direction[1], right[1] * local_direction[0] + back[1] * local_direction[1], local_direction[2])
         result = { visible: [], hidden: [] }
         segments.each do |p, q|
           delta = p.zip(q).map { |a, b| b - a }
@@ -115,11 +205,11 @@ module Kabinet
               visible.call(mid) == sa ? a = mid : b = mid
             end
             boundary = (a + b) / 2
-            result[state ? :visible : :hidden] << [at.call(start), at.call(boundary)]
+            result[state ? :visible : :hidden] << [to_local.call(at.call(start)), to_local.call(at.call(boundary))]
             start = boundary
             state = sb
           end
-          result[state ? :visible : :hidden] << [at.call(start), q]
+          result[state ? :visible : :hidden] << [to_local.call(at.call(start)), to_local.call(q)]
         end
         result
       end
@@ -235,9 +325,15 @@ module Kabinet
         # matches the geometry without making the views overflow their frames.
         scale = 1.0 / (1.0 / scale).ceil
         draw_view(doc, data, 'top', 0, 1, 20, 22, scale, 22 + d * scale + 12, 'TOP VIEW')
+        front_mark_x = 5
+        front_mark_y = 22 + d * scale / 2 - 2
+        line(doc, front_mark_x, front_mark_y, front_mark_x, front_mark_y + 5, color: '#a54b25', weight: 0.9)
+        line(doc, front_mark_x - 2, front_mark_y + 3, front_mark_x, front_mark_y + 5, color: '#a54b25', weight: 0.9)
+        line(doc, front_mark_x + 2, front_mark_y + 3, front_mark_x, front_mark_y + 5, color: '#a54b25', weight: 0.9)
+        text(doc, '정면', front_mark_x + 3, front_mark_y, 10, 6, size: 9, bold: true)
         draw_surface_marks(doc, options, 20, 22, w * scale, d * scale)
         draw_elevation(doc, data, 20, 275, scale)
-        draw_view(doc, data, 'side', 1, 2, 183, 120 + 155 - h * scale, scale, 287, 'SIDE VIEW')
+        draw_view(doc, data, 'side', 1, 2, 183, 120 + 155 - h * scale, scale, 287, 'RIGHT SIDE VIEW')
         iso = Layout::SketchUpModel.new(data[:skp], bounds(271, 22, 137, 194))
         iso.view = Layout::SketchUpModel::ISO_VIEW
         iso.perspective = false
@@ -247,7 +343,6 @@ module Kabinet
         iso.line_weight = 0.35
         add(doc, iso)
         fit_model(iso, data[:snapshot_corners])
-        iso.render
         text(doc, title, 271, 10, 130, 10, size: 14)
         draw_materials(doc, data[:materials])
         draw_notes(doc, title, options)

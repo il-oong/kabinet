@@ -124,6 +124,13 @@ UI.start_timer(2, false) do
     raise 'Library did not retain materials' unless has_material.call(definition.entities)
     raise 'Library changed original entities' unless before == model.entities.to_a.map(&:persistent_id).sort
     raise 'Library changed selection' unless selection == model.selection.to_a.map(&:persistent_id).sort
+    model.start_operation('보관함 방향 검사', true)
+    begin
+      placed = model.entities.add_instance(definition, Geom::Transformation.rotation(ORIGIN, Z_AXIS, 90.degrees))
+      raise 'Saved front did not rotate with placed furniture' unless Kabinet::Output::FurnitureSheet.front_axis([placed]) == '+X'
+    ensure
+      model.abort_operation
+    end
     begin
       Kabinet::FurnitureLibrary.definition('../escape', directory: library)
       raise 'Accepted traversal ID'
@@ -186,6 +193,28 @@ UI.start_timer(2, false) do
     Kabinet::Output::FurnitureSheet.run({'title'=>'외관선 검사', 'internal'=>false}, path:plain_path)
     plain = Layout::Document.open(plain_path)
     raise 'Hidden-line toggle ignored' if flatten.call(plain.pages.first.entities.to_a).grep(Layout::Path).any? { |line| line.style.stroke_pattern == Layout::Style::STROKE_PATTERN_DASH }
+    # Changing the saved front must rotate every view without rotating the furniture.
+    boards.each { |board| board.set_attribute('kabinet_ep', 'front_axis', '+X') }
+    raise 'Front status did not retain direction' unless Kabinet::Output::FurnitureSheet.front_status.include?('+X')
+    orientation_path = File.join(out, 'orientation.layout')
+    Kabinet::Output::FurnitureSheet.run({'title'=>'방향 검사', 'internal'=>false}, path:orientation_path)
+    oriented = Layout::Document.open(orientation_path)
+    oriented_labels = flatten.call(oriented.pages.first.entities.to_a).grep(Layout::FormattedText).map(&:plain_text)
+    File.write(File.join(out, 'orientation-labels.json'), JSON.pretty_generate(oriented_labels))
+    File.write(File.join(out, 'orientation-dims.json'), JSON.pretty_generate(flatten.call(oriented.pages.first.entities.to_a).grep(Layout::LinearDimension).map { |dim| dim.text.display_text }))
+    raise 'Front arrow or side label missing' unless oriented_labels.include?('정면') && oriented_labels.include?('RIGHT SIDE VIEW')
+    raise 'Rotated furniture width not shown' unless flatten.call(oriented.pages.first.entities.to_a).grep(Layout::LinearDimension).any? { |dim| %w[520 518].include?(dim.text.display_text.strip) }
+    raise 'Orientation export changed original furniture' unless before == model.entities.to_a.map(&:persistent_id).sort
+    Kabinet::Output::FurnitureSheet.reverse_front
+    raise 'Front reversal failed' unless Kabinet::Output::FurnitureSheet.front_axis(boards) == '-X'
+    current_camera = model.active_view.camera
+    center = original_box.center
+    model.active_view.camera = Sketchup::Camera.new(center.offset(Y_AXIS, 1000.mm), center, Z_AXIS, false)
+    Kabinet::Output::FurnitureSheet.set_front
+    raise 'Camera-side front assignment failed' unless Kabinet::Output::FurnitureSheet.front_axis(boards) == '+Y'
+    model.active_view.camera = current_camera
+    boards.each { |board| Kabinet::Output::FurnitureSheet.save_front(board, '-Y') }
+    results << 'Saved front, all-view orientation and reverse direction passed'
     document = Layout::Document.open(path)
     document.export(File.join(out,'sheet.png'), dpi:120)
     raise 'PDF missing' unless File.size(path.sub('.layout','.pdf')) > 1000
@@ -218,6 +247,8 @@ UI.start_timer(2, false) do
             throw new Error('UI callback timed out: ' + document.getElementById('status').textContent);
           };
           try {
+            document.querySelector('[data-front="status"]').click();
+            await wait(() => document.getElementById('status').textContent.includes('현재 정면: -Y'));
             document.getElementById('width').value = '350';
             document.getElementById('height').value = '700';
             document.getElementById('thickness').value = '9';
@@ -236,7 +267,7 @@ UI.start_timer(2, false) do
             document.getElementById('library-search').dispatchEvent(new Event('input'));
             document.querySelector('.library-item').click();
             await wait(() => document.getElementById('status').textContent.includes('클릭하세요'));
-            sketchup.ep_ui_test_result(JSON.stringify({ok:true,checks:['EP create callback','library save callback','escaped labels','search','native placement callback']}));
+            sketchup.ep_ui_test_result(JSON.stringify({ok:true,checks:['front direction callback','EP create callback','library save callback','escaped labels','search','native placement callback']}));
           } catch (e) { sketchup.ep_ui_test_result(JSON.stringify({ok:false,error:e.message})); }
         })();
       JS
