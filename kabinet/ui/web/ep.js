@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
 byId('export').addEventListener('click', () => {
   busy(byId('space-mode').checked ? '공간 도면을 작성하고 있습니다. 잠시 기다려 주세요…' : '선택 가구의 도면을 작성하고 있습니다. 잠시 기다려 주세요…');
   try {
-    window.sketchup.ep_export(JSON.stringify({title: byId('title').value.trim() || '가구 도면', internal: byId('internal').checked, furniture_name: byId('furniture-name').value.trim(), site: byId('site').value.trim(), drawing_date: byId('drawing-date').value, author: byId('author').value.trim(), memo: byId('memo').value.trim(), surface_left: byId('surface-left').value, surface_right: byId('surface-right').value, surface_back: byId('surface-back').value, space_mode: byId('space-mode').checked, space_name: byId('space-name').value.trim(), ceiling_height: byId('ceiling-height').value, survey_date: byId('survey-date').value, wall_views: byId('wall-views').checked}));
+    window.sketchup.ep_export(JSON.stringify({title: byId('title').value.trim() || '가구 도면', internal: byId('internal').checked, iso_direction: byId('iso-direction').value, furniture_name: byId('furniture-name').value.trim(), site: byId('site').value.trim(), drawing_date: byId('drawing-date').value, author: byId('author').value.trim(), memo: byId('memo').value.trim(), surface_left: byId('surface-left').value, surface_right: byId('surface-right').value, surface_back: byId('surface-back').value, space_mode: byId('space-mode').checked, space_name: byId('space-name').value.trim(), ceiling_height: byId('ceiling-height').value, survey_date: byId('survey-date').value, wall_views: byId('wall-views').checked}));
   } catch (error) { epResult('SketchUp의 Kabinet 창에서 실행하세요.', true); }
 });
 

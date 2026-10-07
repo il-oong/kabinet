@@ -152,10 +152,16 @@ UI.start_timer(2, false) do
     dims = all.grep(Layout::LinearDimension)
     raise 'No editable dimensions' if dims.length < 6
     dims.each do |dim|
-      raise 'Dimension uses fixed text' if dim.custom_text?
+      raise 'Unexpected fixed dimension text' if dim.custom_text? && !dim.text.display_text.include?(' EQ')
       raise 'Wrong dimension unit' unless dim.style.dimension_units.first == Layout::Style::DECIMAL_MILLIMETERS
       raise 'Wrong dimension font' unless dim.text.style.font_family == '맑은 고딕'
     end
+    raise 'Adjacent doors were not grouped' unless Kabinet::Output::FurnitureSheet.door_runs([[0,379],[381,760],[900,1200]]) == [[[0,379],[381,760]],[[900,1200]]]
+    raise 'Equal door label missing' unless dims.any? { |dim| dim.text.display_text.include?('/3 EQ') }
+    alternate_path = File.join(out, 'left_iso.layout')
+    Kabinet::Output::FurnitureSheet.run({'title'=>'좌측 입체도 검사', 'iso_direction'=>'front_left', 'internal'=>false}, path:alternate_path)
+    raise 'Alternate isometric output missing' unless File.size?(alternate_path) && File.size?(alternate_path.sub('.layout', '.pdf'))
+    raise 'Isometric setting changed original furniture' unless before == model.entities.to_a.map(&:persistent_id).sort && selection == model.selection.to_a.map(&:persistent_id).sort
     overall_width=original_dims[0].round.to_s
     rear_overall=dims.find do |dim|
       dim.text.display_text.strip==overall_width && dim.start_connection_point.y*25.4>80

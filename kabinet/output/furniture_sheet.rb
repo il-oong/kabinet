@@ -8,6 +8,7 @@ module Kabinet
       module_function
 
       FRONT_AXES = { '-Y' => [0.0, -1.0], '+Y' => [0.0, 1.0], '-X' => [-1.0, 0.0], '+X' => [1.0, 0.0] }.freeze
+      ISO_TURNS = { 'front_right' => 0, 'front_left' => 90, 'back_left' => 180, 'back_right' => -90 }.freeze
 
       def axis_from_vector(vector)
         vector.x.abs > vector.y.abs ? (vector.x > 0 ? '+X' : '-X') : (vector.y > 0 ? '+Y' : '-Y')
@@ -104,7 +105,7 @@ module Kabinet
         asset_dir = path.sub(/\.layout\z/i, '') + "_assets_#{Time.now.strftime('%Y%m%d_%H%M%S')}_#{Process.pid}"
         asset_dir += '_1' while File.exist?(asset_dir)
         FileUtils.mkdir_p(asset_dir)
-        data = capture(model, targets, asset_dir, options.fetch('internal', true))
+        data = capture(model, targets, asset_dir, options.fetch('internal', true), options.fetch('iso_direction', 'front_right'))
         doc = compose(data, title, options)
         doc.save(path)
         begin
@@ -115,7 +116,8 @@ module Kabinet
         path
       end
 
-      def capture(model, targets, dir, internal)
+      def capture(model, targets, dir, internal, iso_direction = 'front_right')
+        raise '아이소 방향을 다시 선택하세요.' unless ISO_TURNS.key?(iso_direction)
         axis = front_axis(targets)
         to_local, rotation, right, back = orientation(axis)
         parts = []
@@ -144,8 +146,9 @@ module Kabinet
           end
           root = model.entities.add_group
           move = Geom::Transformation.translation(lo.zip(hi).map { |a, b| (-(a + b) / 2).mm })
+          iso_turn = Geom::Transformation.rotation(ORIGIN, Z_AXIS, ISO_TURNS.fetch(iso_direction).degrees)
           targets.each do |e|
-            copy = root.entities.add_instance(e.definition, move * rotation * e.transformation)
+            copy = root.entities.add_instance(e.definition, iso_turn * move * rotation * e.transformation)
             copy.material = e.material if e.material
           end
           snapshot_corners = (0..7).map { |i| root.definition.bounds.corner(i).to_a }
@@ -311,6 +314,16 @@ module Kabinet
         { doors: normalize.call(doors), bodies: normalize.call(ep + bodies) }
       end
 
+      def door_runs(doors)
+        doors.sort_by(&:first).each_with_object([]) do |door, runs|
+          if runs.empty? || door[0] - runs.last.last[1] > 10
+            runs << [door]
+          else
+            runs.last << door
+          end
+        end
+      end
+
       def compose(data, title, options = {})
         # Keep LayOut's tool defaults in the document, so dimensions drawn
         # later by hand match the dimensions generated below.
@@ -403,8 +416,14 @@ module Kabinet
         # Anchor the overall width to the rear roof edge of the projected
         # cabinet, as the side-view height is anchored to its rear edge.
         horizontal_dimension(doc, x + dx, x + dx + w * scale, roof, roof - 20, w)
-        data[:tiers][:doors].each do |a, b|
-          horizontal_dimension(doc, x + a * scale, x + b * scale, front_top, roof - 6, b - a)
+        door_runs(data[:tiers][:doors]).each do |run|
+          a, b = run.first[0], run.last[1]
+          dim = horizontal_dimension(doc, x + a * scale, x + b * scale, front_top, roof - 6, b - a)
+          next if run.length == 1
+          label = dim.text
+          label.plain_text = "#{number(b - a)}/#{run.length} EQ"
+          dim.text = label
+          dim.custom_text = true
         end
         data[:tiers][:bodies].each_with_index do |(a, b), i|
           dim = horizontal_dimension(doc, x + a * scale, x + b * scale, front_top, roof - 13, b - a)

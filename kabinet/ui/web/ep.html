@@ -28,6 +28,8 @@
 <div id="furniture-options"><div class="sheet" aria-label="도면 배치 미리보기"><div class="top">평면도</div><div class="iso">컬러 입체도</div><div class="front">정면도</div><div class="side">측면도</div><div class="materials">마감재 견본</div></div>
 <p class="hint">가구 전체를 선택하고 사용자가 서는 쪽에서 바라본 뒤 정면을 저장하세요. 좌우는 정면에서 가구를 바라보는 기준입니다.</p>
 <div class="fields"><button type="button" data-front="set">현재 화면을 정면으로</button><button type="button" data-front="status">방향 확인</button><button type="button" data-front="reverse">앞뒤 반전</button></div>
+<label>컬러 입체도 보는 방향<select id="iso-direction"><option value="front_right">정면 + 우측 (기본)</option><option value="front_left">정면 + 좌측</option><option value="back_left">후면 + 좌측</option><option value="back_right">후면 + 우측</option></select></label>
+<p class="hint">입체도 방향만 바뀝니다. 평면도·정면도·측면도와 원본 가구 방향은 그대로입니다.</p>
 <p class="hint">가로 치수는 도어(이웃한 쪽 +1mm · 바깥쪽 +2mm) → EP·몸통장 → 전체 외경의 3단입니다. 앞쪽 얇은 판재는 도어로 추정합니다. 정확히 구분하려면 부품을 선택하고 아래 버튼을 누르세요. 몸통장은 한 통씩 그룹으로 묶어 지정합니다.</p>
 <div class="fields"><button type="button" data-role="door">선택 → 도어</button><button type="button" data-role="ep">선택 → EP</button><button type="button" data-role="body">선택 → 몸통장</button><button type="button" data-role="auto">자동 구분</button></div>
 <p class="hint">측면 기호: 노출면은 삼각형, 벽에 붙는 면은 사선으로 표시합니다. 기호와 범례는 LayOut에서 수정할 수 있습니다.</p>
