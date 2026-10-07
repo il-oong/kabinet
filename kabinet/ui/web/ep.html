@@ -18,6 +18,11 @@
 <section><h2>가구 도면 출력 <small>A3 가로</small></h2>
 <div class="sheet" aria-label="도면 배치 미리보기"><div class="top">평면도</div><div class="iso">컬러 입체도</div><div class="front">정면도</div><div class="side">측면도</div><div class="materials">마감재 견본</div></div>
 <label>도면 이름<input id="title" maxlength="60" value="가구 도면"></label>
+<label>가구명<input id="furniture-name" maxlength="50" placeholder="비우면 도면 이름 사용"></label>
+<label>현장정보<input id="site" maxlength="50" placeholder="현장명 · 동/호수 · 설치 위치"></label>
+<div class="fields"><label>도면 제작날짜<input id="drawing-date" type="date"></label><label>작성자<input id="author" maxlength="30"></label></div>
+<label>메모 · 시공 유의사항<textarea id="memo" rows="5" maxlength="180" placeholder="마감, 설치, 확인사항 등을 입력하세요."></textarea></label>
+<p class="hint">출력 후 LayOut에서 메모와 정보를 더블클릭해 수정할 수 있습니다. 추가 치수는 도면 끝점에 붙여 찍으세요. 입체 정면도의 사선 깊이는 탑뷰·측면도에서 치수를 추가하세요.</p>
 <label class="check"><input id="internal" type="checkbox" checked> 도어 뒤 선반·칸막이 등 가려진 선을 점선으로 표시</label>
 <p class="hint">출력할 판재 또는 조합한 가구 그룹을 선택하세요. 정면은 초록축의 음(-) 방향에서 봅니다. 적용한 재질을 견본으로 넣습니다.</p>
 <button id="export" type="button" class="secondary">도면 출력 · LayOut + PDF</button></section>

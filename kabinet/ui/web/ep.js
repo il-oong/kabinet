@@ -65,12 +65,14 @@ byId('library-form').addEventListener('submit', event => {
   catch (error) { epResult('SketchUp의 Kabinet 창에서 실행하세요.', true); }
 });
 document.addEventListener('DOMContentLoaded', () => {
+  const today = new Date();
+  byId('drawing-date').value = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
   if (window.sketchup) window.sketchup.ep_library_list();
   else epLibrary([]);
 });
 byId('export').addEventListener('click', () => {
   busy('선택 가구의 도면을 작성하고 있습니다. 잠시 기다려 주세요…');
   try {
-    window.sketchup.ep_export(JSON.stringify({title: byId('title').value.trim() || '가구 도면', internal: byId('internal').checked}));
+    window.sketchup.ep_export(JSON.stringify({title: byId('title').value.trim() || '가구 도면', internal: byId('internal').checked, furniture_name: byId('furniture-name').value.trim(), site: byId('site').value.trim(), drawing_date: byId('drawing-date').value, author: byId('author').value.trim(), memo: byId('memo').value.trim()}));
   } catch (error) { epResult('SketchUp의 Kabinet 창에서 실행하세요.', true); }
 });

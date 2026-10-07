@@ -14,6 +14,8 @@ module Kabinet
         unless !targets.empty? && targets.all? { |e| e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance) }
           raise '출력할 EP 판재 또는 가구 그룹/컴포넌트만 선택하세요.'
         end
+        memo = options.fetch('memo', '').to_s
+        raise '메모는 180자, 8줄 이내로 입력하세요.' if memo.length > 180 || memo.lines.count > 8
         title = options.fetch('title', '가구 도면').to_s.strip[0, 60]
         title = '가구 도면' if title.empty?
         safe = title.gsub(/[\\\/:*?"<>|]/, '_')
@@ -26,7 +28,7 @@ module Kabinet
         asset_dir += '_1' while File.exist?(asset_dir)
         FileUtils.mkdir_p(asset_dir)
         data = capture(model, targets, asset_dir, options.fetch('internal', true))
-        doc = compose(data, title)
+        doc = compose(data, title, options)
         doc.save(path)
         begin
           doc.export(path.sub(/\.layout\z/i, '.pdf'))
@@ -139,14 +141,16 @@ module Kabinet
         end
       end
 
-      def compose(data, title)
+      def compose(data, title, options = {})
         doc = Layout::Document.new
+        doc.units = Layout::Document::DECIMAL_MILLIMETERS
+        doc.precision = 0.1
         doc.page_info.width = 420.0 / 25.4
         doc.page_info.height = 297.0 / 25.4
         doc.pages.first.name = title
         w, d, h = data[:size]
         # One scale across all orthographic views, with fixed room for dimensions.
-        scale = [130.0 / (w + d * 0.45), 175.0 / (h + d * 0.3), 47.0 / d].min
+        scale = [130.0 / (w + d * 0.45), 175.0 / (h + d * 0.3), 47.0 / d, 1.0].min
         draw_view(doc, data, 'top', 0, 1, 20, 22, scale, 22 + d * scale + 12, 'TOP VIEW')
         draw_elevation(doc, data, 20, 275, scale)
         draw_view(doc, data, 'side', 1, 2, 183, 120 + 155 - h * scale, scale, 287, 'SIDE VIEW')
@@ -162,8 +166,9 @@ module Kabinet
         iso.render
         text(doc, title, 271, 10, 130, 10, size: 14)
         draw_materials(doc, data[:materials])
+        draw_notes(doc, title, options)
         text(doc, "단위 mm · 정면 축척 1:#{(1.0 / scale).round(2)} · 깊이는 사선 축약 · #{data[:internal] ? '점선: 가려진 선' : '실선: 보이는 선'}", 20, 291, 245, 6, size: 8)
-        text(doc, "모델 변경 후 다시 출력\n문 열림·철물·가공 표시는 별도 작성", 271, 283, 135, 12, size: 8)
+
         doc
       end
 
@@ -199,6 +204,7 @@ module Kabinet
           px, py, pz = point.zip(data[:lo]).map { |a, b| a - b }
           [x + (px + py * 0.45) * scale, bottom - (pz + py * 0.3) * scale]
         end
+        before_geometry = doc.pages.first.entities.to_a
         [:hidden, :visible].each do |kind|
           next if kind == :hidden && !data[:internal]
           seen = {}
@@ -210,6 +216,7 @@ module Kabinet
             line(doc, *p, *q, dashed: kind == :hidden, color: kind == :hidden ? '#92968c' : '#43483f', weight: kind == :hidden ? 0.3 : 0.5)
           end
         end
+        scaled_geometry(doc, before_geometry, scale, 'ELEVATION')
         horizontal_dimension(doc, x, x + w * scale, front_top, front_top - dy - 14, w)
         chain(data, 0, scale).each_cons(2) do |a, b|
           horizontal_dimension(doc, x + a * scale, x + b * scale, front_top, front_top - dy - 6, b - a)
@@ -225,6 +232,7 @@ module Kabinet
       def draw_view(doc, data, name, ai, bi, x, y, scale, caption_y, label)
         width = data[:size][ai] * scale
         height = data[:size][bi] * scale
+        before_geometry = doc.pages.first.entities.to_a
         [:hidden, :visible].each do |kind|
           next if kind == :hidden && !data[:internal]
           segments = GroupProjection.project(data[:views][name][kind], ai, bi, data[:lo][ai], data[:lo][bi])
@@ -234,6 +242,7 @@ module Kabinet
                  dashed: kind == :hidden, color: kind == :hidden ? '#92968c' : '#43483f', weight: kind == :hidden ? 0.3 : 0.5)
           end
         end
+        scaled_geometry(doc, before_geometry, scale, label)
         horizontal_dimension(doc, x, x + width, y, y - 12, data[:size][ai])
         vertical_dimension(doc, x + width, y, y + height, x + width + 12, data[:size][bi])
         if name == 'front'
@@ -267,36 +276,82 @@ module Kabinet
         keep.length > 2 ? keep : []
       end
 
+      def scaled_geometry(doc, before, scale, name)
+        paths = doc.pages.first.entities.to_a.reject { |entity| before.any? { |old| old == entity } }
+        group = Layout::Group.new(paths)
+        group.set_scale_factor(scale, Layout::Document::DECIMAL_MILLIMETERS, Layout::Group::RESIZE_BEHAVIOR_NONE)
+        group.scale_precision = 0.1
+        group
+      end
+
       def horizontal_dimension(doc, x1, x2, edge_y, y, value)
-        line(doc, x1, edge_y, x1, y - 2, color: '#858780', weight: 0.25)
-        line(doc, x2, edge_y, x2, y - 2, color: '#858780', weight: 0.25)
-        line(doc, x1, y, x2, y, weight: 0.3)
-        [x1, x2].each { |x| line(doc, x - 0.7, y + 0.7, x + 0.7, y - 0.7, weight: 0.6) }
-        text(doc, number(value), (x1 + x2) / 2 - 12, y - 5, 24, 5, size: 10, color: '#ad5868', center: true)
+        dimension(doc, [x1, edge_y], [x2, edge_y], [x1, y], [x2, y], (x2 - x1).abs / value)
       end
 
       def vertical_dimension(doc, edge_x, y1, y2, x, value)
-        line(doc, edge_x, y1, x + 2, y1, color: '#858780', weight: 0.25)
-        line(doc, edge_x, y2, x + 2, y2, color: '#858780', weight: 0.25)
-        line(doc, x, y1, x, y2, weight: 0.3)
-        [y1, y2].each { |y| line(doc, x - 0.7, y + 0.7, x + 0.7, y - 0.7, weight: 0.6) }
-        cx = x + 2.5
-        cy = (y1 + y2) / 2
-        label = text(doc, number(value), cx - 12, cy - 2.5, 24, 5, size: 10, color: '#ad5868', center: true)
-        label.transform!(Geom::Transformation2d.rotation(Geom::Point2d.new(cx / 25.4, cy / 25.4), -Math::PI / 2))
+        dimension(doc, [edge_x, y1], [edge_x, y2], [x, y1], [x, y2], (y2 - y1).abs / value)
+      end
+
+      def dimension(doc, a, b, ea, eb, scale)
+        point = ->(p) { Geom::Point2d.new(p[0] / 25.4, p[1] / 25.4) }
+        dim = Layout::LinearDimension.new(point.call(a), point.call(b), 5.0 / 25.4)
+        dim.start_extent_point = point.call(ea)
+        dim.end_extent_point = point.call(eb)
+        dim.start_offset_length = 1.0 / 25.4
+        dim.end_offset_length = 1.0 / 25.4
+        dim.auto_scale = false
+        dim.scale = scale
+        dim.custom_text = false
+        style = dim.style
+        style.set_dimension_units(Layout::Style::DECIMAL_MILLIMETERS, 0.1)
+        style.suppress_dimension_units = true
+        style.stroke_width = 0.35
+        style.stroke_color = Sketchup::Color.new('#555951')
+        label = style.get_sub_style(Layout::Style::DIMENSION_TEXT)
+        label.font_family = '맑은 고딕'
+        label.font_size = 10.0
+        label.text_bold = true
+        label.text_color = Sketchup::Color.new('#984857')
+        style.set_sub_style(Layout::Style::DIMENSION_TEXT, label)
+        dim.style = style
+        add(doc, dim)
+      end
+
+      def draw_notes(doc, title, options)
+        text(doc, '메모 / 시공 유의사항', 183, 20, 78, 8, size: 11, bold: true)
+        line(doc, 183, 29, 261, 29)
+        memo = options.fetch('memo', '').to_s.strip
+        memo = '메모를 입력하세요.' if memo.empty?
+        text(doc, memo, 183, 32, 78, 48, size: 11, color: '#222222', bold: true)
+        rows = [
+          ['가구명', options.fetch('furniture_name', '').to_s.strip],
+          ['현장정보', options.fetch('site', '').to_s.strip],
+          ['제작날짜', options.fetch('drawing_date', '').to_s.strip],
+          ['작성자', options.fetch('author', '').to_s.strip]
+        ]
+        rows[0][1] = title if rows[0][1].empty?
+        rows[2][1] = Time.now.strftime('%Y-%m-%d') if rows[2][1].empty?
+        rows.each_with_index do |(label, value), i|
+          y = 253 + i * 9
+          line(doc, 271, y, 408, y)
+          text(doc, label, 273, y + 1.5, 24, 7, size: 10, bold: true)
+          text(doc, value.empty? ? '입력하세요' : value, 299, y + 1.5, 107, 7, size: value.length > 28 ? 8 : 10, bold: true)
+        end
+        line(doc, 271, 289, 408, 289)
+        [271, 297, 408].each { |x| line(doc, x, 253, x, 289) }
       end
 
       def draw_materials(doc, materials)
         if materials.empty?
-          text(doc, '마감재 미지정', 285, 251, 112, 8, size: 10, color: '#96968e')
+          text(doc, '마감재 미지정', 285, 234, 112, 8, size: 10, color: '#96968e')
           return
         end
         materials.each_with_index do |mat, i|
           x = 280 + i * 42
           entity = if mat[:image]
-                     Layout::Image.new(mat[:image], bounds(x, 239, 37, 30))
+                     Layout::Image.new(mat[:image], bounds(x, 221, 37, 21))
                    else
-                     rect = Layout::Rectangle.new(bounds(x, 239, 37, 30))
+                     rect = Layout::Rectangle.new(bounds(x, 221, 37, 21))
                      style = rect.style
                      style.solid_filled = true
                      style.fill_color = mat[:color]
@@ -305,7 +360,7 @@ module Kabinet
                      rect
                    end
           add(doc, entity)
-          text(doc, mat[:name][0, 32], x, 271, 38, 12, size: 9, color: '#ad5868')
+          text(doc, mat[:name][0, 32], x, 243, 38, 9, size: 9, color: '#ad5868')
         end
       end
 

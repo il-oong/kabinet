@@ -97,16 +97,46 @@ UI.start_timer(2, false) do
     results << 'Library save/load, Korean name, duplicate name, materials, bounds and path validation passed'
     path = File.join(out, "EP_가구도면_#{Time.now.strftime('%H%M%S')}.layout")
     File.write(File.join(out, 'latest.txt'), path)
-    Kabinet::Output::FurnitureSheet.run({'title'=>'EP 조합 가구', 'internal'=>true}, path:path)
+    Kabinet::Output::FurnitureSheet.run({'title'=>'EP 조합 가구', 'internal'=>true, 'furniture_name'=>'서재 수납장', 'site'=>'예시 현장 / 서재', 'drawing_date'=>'2026-10-07', 'author'=>'작성자 예시', 'memo'=>"설치 전 현장 치수를 확인하세요.\n선반 위치와 마감 색상은 협의 후 확정."}, path:path)
     raise 'Changed original entities' unless before == model.entities.to_a.map(&:persistent_id).sort
     raise 'Changed selection' unless selection == model.selection.to_a.map(&:persistent_id).sort
     raise 'Unselected hidden state changed' if unselected.hidden?
     raise 'Changed camera' unless camera.eye == model.active_view.camera.eye && camera.target == model.active_view.camera.target
     document = Layout::Document.open(path)
-    labels = document.pages.first.entities.grep(Layout::FormattedText)
+    flatten = lambda { |entities| entities.flat_map { |e| e.is_a?(Layout::Group) ? [e] + flatten.call(e.entities.to_a) : [e] } }
+    all = flatten.call(document.pages.first.entities.to_a)
+    groups = all.map(&:group).compact.each_with_object([]) { |g, list| list << g unless list.any? { |old| old == g } }
+    raise "Missing scaled views: #{all.map { |e| e.class.name }.tally} / #{groups.map(&:scale_factor)}" unless groups.count { |g| g.scale_factor && g.scale_factor > 0 } == 3
+    dims = all.grep(Layout::LinearDimension)
+    raise 'No editable dimensions' if dims.length < 6
+    dims.each do |dim|
+      raise 'Dimension uses fixed text' if dim.custom_text?
+      raise 'Wrong dimension unit' unless dim.style.dimension_units.first == Layout::Style::DECIMAL_MILLIMETERS
+      raise 'Wrong dimension font' unless dim.text.style.font_family == '맑은 고딕'
+    end
+    probe = dims.first
+    old_point = probe.end_connection_point
+    old_text = probe.text.display_text
+    probe.end_connection_point = Geom::Point2d.new(old_point.x + 10.0 / 25.4, old_point.y)
+    raise 'Dimension cannot update' if probe.text.display_text == old_text
+    probe.end_connection_point = old_point
+    # A newly connected dimension must pick up the scale of a drawing group.
+    group = groups.last
+    edge = group.entities.grep(Layout::Path).max_by { |e| e.bounds.height }
+    a, b = edge.bounds.upper_left, edge.bounds.lower_right
+    extra = Layout::LinearDimension.new(a, b, 0.2)
+    document.add_entity(extra, document.layers.first, document.pages.first)
+    extra.connect(Layout::ConnectionPoint.new(edge, a), Layout::ConnectionPoint.new(edge, b))
+    extra.auto_scale = true
+    raise 'Added dimension scale mismatch' unless (extra.scale - group.scale_factor).abs < 0.000001
+    results << "Editable dimensions and newly connected automatic scale passed"
+    labels = all.grep(Layout::FormattedText)
     raise 'Font substitution remains' unless labels.all? { |label| label.style.font_family == '맑은 고딕' }
+    raise 'Missing project information' unless ['서재 수납장', '예시 현장 / 서재', '2026-10-07', '작성자 예시'].all? { |value| labels.any? { |label| label.plain_text == value } }
+    memo_label = labels.find { |label| label.plain_text.include?('설치 전 현장') }
+    raise 'Memo is not bold' unless memo_label && memo_label.style.text_bold
     raise 'Unreadably small type' unless labels.all? { |label| label.style.font_size >= 8 }
-    raise 'No hidden dashed lines' unless document.pages.first.entities.grep(Layout::Path).any? { |line| line.style.stroke_pattern == Layout::Style::STROKE_PATTERN_DASH }
+    raise 'No hidden dashed lines' unless all.grep(Layout::Path).any? { |line| line.style.stroke_pattern == Layout::Style::STROKE_PATTERN_DASH }
     iso = document.pages.first.entities.grep(Layout::SketchUpModel).first
     b = iso.bounds
     half = original_dims.map { |n| n.mm / 2 }
@@ -119,7 +149,8 @@ UI.start_timer(2, false) do
     plain_path = File.join(out, "외관선_#{Time.now.strftime('%H%M%S')}.layout")
     Kabinet::Output::FurnitureSheet.run({'title'=>'외관선 검사', 'internal'=>false}, path:plain_path)
     plain = Layout::Document.open(plain_path)
-    raise 'Hidden-line toggle ignored' if plain.pages.first.entities.grep(Layout::Path).any? { |line| line.style.stroke_pattern == Layout::Style::STROKE_PATTERN_DASH }
+    raise 'Hidden-line toggle ignored' if flatten.call(plain.pages.first.entities.to_a).grep(Layout::Path).any? { |line| line.style.stroke_pattern == Layout::Style::STROKE_PATTERN_DASH }
+    document = Layout::Document.open(path)
     document.export(File.join(out,'sheet.png'), dpi:120)
     raise 'PDF missing' unless File.size(path.sub('.layout','.pdf')) > 1000
     raise 'Incorrect page count' unless document.pages.count == 1
@@ -129,7 +160,7 @@ UI.start_timer(2, false) do
     delivery = File.join(out, 'deliver.txt')
     if File.file?(delivery)
       final_path = File.read(delivery, encoding: 'UTF-8').strip
-      Kabinet::Output::FurnitureSheet.run({'title'=>'EP 조합 가구', 'internal'=>true}, path:final_path)
+      Kabinet::Output::FurnitureSheet.run({'title'=>'EP 조합 가구', 'internal'=>true, 'furniture_name'=>'서재 수납장', 'site'=>'예시 현장 / 서재', 'drawing_date'=>'2026-10-07', 'author'=>'작성자 예시', 'memo'=>"설치 전 현장 치수를 확인하세요.\n선반 위치와 마감 색상은 협의 후 확정."}, path:final_path)
       Layout::Document.open(final_path).export(final_path.sub(/\.layout\z/, '.png'), dpi:150)
       File.delete(delivery)
     end
