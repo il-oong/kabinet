@@ -151,6 +151,9 @@ module Kabinet
         w, d, h = data[:size]
         # One scale across all orthographic views, with fixed room for dimensions.
         scale = [130.0 / (w + d * 0.45), 175.0 / (h + d * 0.3), 47.0 / d, 1.0].min
+        # Round the actual scale denominator upward, so its one-decimal label
+        # matches the geometry without making the views overflow their frames.
+        scale = 1.0 / ((1.0 / scale * 10).ceil / 10.0)
         draw_view(doc, data, 'top', 0, 1, 20, 22, scale, 22 + d * scale + 12, 'TOP VIEW')
         draw_elevation(doc, data, 20, 275, scale)
         draw_view(doc, data, 'side', 1, 2, 183, 120 + 155 - h * scale, scale, 287, 'SIDE VIEW')
@@ -167,7 +170,7 @@ module Kabinet
         text(doc, title, 271, 10, 130, 10, size: 14)
         draw_materials(doc, data[:materials])
         draw_notes(doc, title, options)
-        text(doc, "단위 mm · 정면 축척 1:#{(1.0 / scale).round(2)} · 깊이는 사선 축약 · #{data[:internal] ? '점선: 가려진 선' : '실선: 보이는 선'}", 20, 291, 245, 6, size: 8)
+        text(doc, "단위 mm · 정면 축척 1:#{number(1.0 / scale)} · 깊이는 사선 축약 · #{data[:internal] ? '점선: 가려진 선' : '실선: 보이는 선'}", 20, 291, 245, 6, size: 8)
 
         doc
       end
@@ -332,13 +335,13 @@ module Kabinet
         rows[0][1] = title if rows[0][1].empty?
         rows[2][1] = Time.now.strftime('%Y-%m-%d') if rows[2][1].empty?
         rows.each_with_index do |(label, value), i|
-          y = 253 + i * 9
-          line(doc, 271, y, 408, y)
-          text(doc, label, 273, y + 1.5, 24, 7, size: 10, bold: true)
-          text(doc, value.empty? ? '입력하세요' : value, 299, y + 1.5, 107, 7, size: value.length > 28 ? 8 : 10, bold: true)
+          x = 271 + (i % 2) * 68.5
+          y = 253 + (i / 2) * 18
+          text(doc, label, x + 2, y + 2, 19, 14, size: 9, bold: true)
+          text(doc, value.empty? ? '입력하세요' : value, x + 23, y + 2, 43.5, 14, size: value.length > 12 ? 8 : 10, bold: true)
         end
-        line(doc, 271, 289, 408, 289)
-        [271, 297, 408].each { |x| line(doc, x, 253, x, 289) }
+        [253, 271, 289].each { |y| line(doc, 271, y, 408, y) }
+        [271, 292, 339.5, 360.5, 408].each { |x| line(doc, x, 253, x, 289) }
       end
 
       def draw_materials(doc, materials)
@@ -365,7 +368,7 @@ module Kabinet
       end
 
       def number(value)
-        format('%.1f', value).sub(/\.0\z/, '')
+        format('%.1f', value)
       end
 
       def bounds(x, y, w, h)
