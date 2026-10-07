@@ -67,6 +67,13 @@ UI.start_timer(2, false) do
     raise 'Door clearance not merged' unless tiers[:doors] == [[18,398]]
     raise 'EP/body tiers incorrect' unless tiers[:bodies] == [[0,18],[18,778],[778,796]]
     results << 'Door 376+4=380 and EP/body tiers passed'
+    stacked = Kabinet::Output::FurnitureSheet.width_tiers([
+      {role:'door',lo:[2,-20,700],hi:[378,-2,2000]},
+      {role:'door',lo:[382,-20,700],hi:[758,-2,2000]},
+      {role:'door',lo:[2,-20,0],hi:[758,-2,696]}
+    ], [0,-20,0])
+    raise 'Stacked door widths overlap' unless stacked[:doors] == [[0,380],[380,760]]
+    results << 'Stacked lower door excluded from upper door chain passed'
     identity = Geom::Transformation.new
     # Rotate upright XY-thin panels into side boards: width becomes cabinet depth.
     rot = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 90.degrees)
@@ -78,6 +85,12 @@ UI.start_timer(2, false) do
     flat = Geom::Transformation.rotation(ORIGIN, X_AXIS, 90.degrees)
     [18, 600, 1200, 1800, 2400].each { |z| make.call(1482,18,500,Geom::Transformation.translation([18.mm,500.mm,(z-18).mm])*flat,wood) }
     [2, 508, 1014].each { |x| make.call(502,18,2398,Geom::Transformation.translation([x.mm,-20.mm,0]),material) }
+    doors_group = model.entities.add_group(boards.last(3))
+    doors_group.set_attribute('kabinet_ep', 'drawing_role', 'door')
+    parts = []
+    Kabinet::Output::FurnitureSheet.collect_parts(doors_group, identity, parts)
+    raise 'Door group collapsed into one panel' unless parts.length == 3
+    boards = boards[0...-3] + [doors_group]
     unselected = make.call(900,30,1000,Geom::Transformation.translation([5000.mm,0,0]),material)
     boards.delete(unselected)
     model.selection.clear

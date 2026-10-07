@@ -145,17 +145,30 @@ module Kabinet
 
       # Explicit roles win. Unmarked front-facing thin panels can be doors;
       # remaining unmarked geometry forms one body until the user marks modules.
-      def collect_parts(entity, parent, parts)
+      def collect_parts(entity, parent, parts, inherited_role = 'auto')
         return unless entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)
         return if entity.hidden? || !entity.layer.visible?
         transform = parent * entity.transformation
-        role = entity.get_attribute('kabinet_ep', 'drawing_role', 'auto')
+        role = entity.get_attribute('kabinet_ep', 'drawing_role', inherited_role)
         children = entity.definition.entities
-        if role != 'auto' || !children.grep(Sketchup::Face).empty?
-          corners = (0..7).map { |i| entity.definition.bounds.corner(i).transform(transform).to_a.map(&:to_mm) }
+        record = lambda do |points|
+          return if points.empty?
+          corners = points.map { |p| p.transform(transform).to_a.map(&:to_mm) }
           parts << { role: role, lo: (0..2).map { |i| corners.map { |p| p[i] }.min }, hi: (0..2).map { |i| corners.map { |p| p[i] }.max } }
-        else
-          children.each { |child| collect_parts(child, transform, parts) }
+        end
+        if %w[body ep].include?(role)
+          record.call((0..7).map { |i| entity.definition.bounds.corner(i) })
+          return
+        end
+        # A door container is not a single door: descend into each child and
+        # split loose geometry into connected shells (including imported groups).
+        children.each { |child| collect_parts(child, transform, parts, role) }
+        seen = {}
+        children.grep(Sketchup::Face).each do |face|
+          next if seen[face.entityID] || face.hidden? || !face.layer.visible?
+          faces = face.all_connected.grep(Sketchup::Face)
+          faces.each { |f| seen[f.entityID] = true }
+          record.call(faces.reject { |f| f.hidden? || !f.layer.visible? }.flat_map { |f| f.vertices.map(&:position) })
         end
       end
 
@@ -166,7 +179,7 @@ module Kabinet
           a, b = part[:lo], part[:hi]
           role = part[:role]
           if role == 'door' || (role == 'auto' && a[1] <= front + 2.1 && b[1] - a[1] <= 35 && b[0] - a[0] > 50 && b[2] - a[2] > 50)
-            doors << [a[0] - origin[0] - 2, b[0] - origin[0] + 2]
+            doors << part if b[0] - a[0] > 50 && b[2] - a[2] > 50
           elsif role == 'ep'
             ep << [a[0] - origin[0], b[0] - origin[0]]
           elsif role == 'body'
@@ -178,6 +191,15 @@ module Kabinet
         unless remaining.empty?
           bodies << [remaining.map { |p| p[:lo][0] }.min - origin[0], remaining.map { |p| p[:hi][0] }.max - origin[0]]
         end
+        # Stacked wide lower fronts must not overlap the upper door chain.
+        # Dimension one horizontal row: the highest row of actual door panels.
+        unless doors.empty?
+          top = doors.map { |p| p[:hi][2] }.max
+          top_doors = doors.select { |p| (p[:hi][2] - top).abs < 1 }
+          cut = top - top_doors.map { |p| p[:hi][2] - p[:lo][2] }.min / 2
+          doors = doors.select { |p| p[:lo][2] < cut && p[:hi][2] >= cut }
+        end
+        doors = doors.map { |p| [p[:lo][0] - origin[0] - 2, p[:hi][0] - origin[0] + 2] }
         normalize = ->(items) { items.map { |a,b| [a.round(3),b.round(3)] }.uniq.sort }
         { doors: normalize.call(doors), bodies: normalize.call(ep + bodies) }
       end
@@ -185,16 +207,16 @@ module Kabinet
       def compose(data, title, options = {})
         doc = Layout::Document.new
         doc.units = Layout::Document::DECIMAL_MILLIMETERS
-        doc.precision = 0.1
+        doc.precision = 1.0
         doc.page_info.width = 420.0 / 25.4
         doc.page_info.height = 297.0 / 25.4
         doc.pages.first.name = title
         w, d, h = data[:size]
         # One scale across all orthographic views, with fixed room for dimensions.
         scale = [130.0 / (w + d * 0.45), 165.0 / (h + d * 0.3), 47.0 / d, 1.0].min
-        # Round the actual scale denominator upward, so its one-decimal label
+        # Round the actual scale denominator upward, so its integer label
         # matches the geometry without making the views overflow their frames.
-        scale = 1.0 / ((1.0 / scale * 10).ceil / 10.0)
+        scale = 1.0 / (1.0 / scale).ceil
         draw_view(doc, data, 'top', 0, 1, 20, 22, scale, 22 + d * scale + 12, 'TOP VIEW')
         draw_elevation(doc, data, 20, 275, scale)
         draw_view(doc, data, 'side', 1, 2, 183, 120 + 155 - h * scale, scale, 287, 'SIDE VIEW')
@@ -263,12 +285,12 @@ module Kabinet
         scaled_geometry(doc, before_geometry, scale, 'ELEVATION')
         # Width dimensions: door including both 2mm clearances, EP/body, overall.
         roof = front_top - dy
-        horizontal_dimension(doc, x, x + w * scale, front_top, roof - 26, w)
+        horizontal_dimension(doc, x, x + w * scale, front_top, roof - 20, w)
         data[:tiers][:doors].each do |a, b|
           horizontal_dimension(doc, x + a * scale, x + b * scale, front_top, roof - 6, b - a)
         end
         data[:tiers][:bodies].each_with_index do |(a, b), i|
-          dim = horizontal_dimension(doc, x + a * scale, x + b * scale, front_top, roof - 16, b - a)
+          dim = horizontal_dimension(doc, x + a * scale, x + b * scale, front_top, roof - 13, b - a)
           # Narrow EPs retain their own dimension. Stagger the label above/below
           # the middle tier instead of silently dropping the panel thickness.
           if (b - a) * scale < 7
@@ -336,7 +358,7 @@ module Kabinet
         paths = doc.pages.first.entities.to_a.reject { |entity| before.any? { |old| old == entity } }
         group = Layout::Group.new(paths)
         group.set_scale_factor(scale, Layout::Document::DECIMAL_MILLIMETERS, Layout::Group::RESIZE_BEHAVIOR_NONE)
-        group.scale_precision = 0.1
+        group.scale_precision = 1.0
         group
       end
 
@@ -359,15 +381,24 @@ module Kabinet
         dim.scale = scale
         dim.custom_text = false
         style = dim.style
-        style.set_dimension_units(Layout::Style::DECIMAL_MILLIMETERS, 0.1)
+        style.set_dimension_units(Layout::Style::DECIMAL_MILLIMETERS, 1.0)
         style.suppress_dimension_units = true
-        style.stroke_width = 0.35
+        style.stroke_width = 0.2
+        [Layout::Style::DIMENSION_LINE, Layout::Style::DIMENSION_START_EXTENSION_LINE,
+         Layout::Style::DIMENSION_END_EXTENSION_LINE, Layout::Style::DIMENSION_LEADER_LINE].each do |type|
+          stroke = style.get_sub_style(type)
+          stroke.stroke_width = 0.2
+          stroke.stroke_color = Sketchup::Color.new('#70756d')
+          stroke.start_arrow_size = 0.6
+          stroke.end_arrow_size = 0.6
+          style.set_sub_style(type, stroke)
+        end
         style.stroke_color = Sketchup::Color.new('#555951')
         label = style.get_sub_style(Layout::Style::DIMENSION_TEXT)
         label.font_family = '맑은 고딕'
         label.font_size = 10.0
         label.text_bold = true
-        label.text_color = Sketchup::Color.new('#984857')
+        label.text_color = Sketchup::Color.new('#863c49')
         style.set_sub_style(Layout::Style::DIMENSION_TEXT, label)
         dim.style = style
         add(doc, dim)
@@ -389,12 +420,12 @@ module Kabinet
         rows[2][1] = Time.now.strftime('%Y-%m-%d') if rows[2][1].empty?
         rows.each_with_index do |(label, value), i|
           x = 271 + (i % 2) * 68.5
-          y = 253 + (i / 2) * 18
-          text(doc, label, x + 2, y + 2, 19, 14, size: 9, bold: true)
-          text(doc, value.empty? ? '입력하세요' : value, x + 23, y + 2, 43.5, 14, size: value.length > 12 ? 8 : 10, bold: true)
+          y = 271 + (i / 2) * 9
+          text(doc, label, x + 2, y + 1, 19, 7, size: 9, bold: true)
+          text(doc, value.empty? ? '입력하세요' : value, x + 23, y + 1, 43.5, 7, size: value.length > 12 ? 8 : 10, bold: true)
         end
-        [253, 271, 289].each { |y| line(doc, 271, y, 408, y) }
-        [271, 292, 339.5, 360.5, 408].each { |x| line(doc, x, 253, x, 289) }
+        [271, 280, 289].each { |y| line(doc, 271, y, 408, y) }
+        [271, 292, 339.5, 360.5, 408].each { |x| line(doc, x, 271, x, 289) }
       end
 
       def draw_materials(doc, materials)
@@ -421,7 +452,7 @@ module Kabinet
       end
 
       def number(value)
-        format('%.1f', value)
+        format('%.0f', value)
       end
 
       def bounds(x, y, w, h)
