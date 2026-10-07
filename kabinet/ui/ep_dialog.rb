@@ -41,9 +41,16 @@ module Kabinet
           "#{count}개 부품 구분 완료. 가구 전체를 다시 선택하고 출력하세요."
         end
       end
+      d.add_action_callback('ep_space_role') do |_context, role|
+        respond(d) do
+          count = Output::SpaceSheet.mark(role)
+          "#{count}개 공간 부품 지정 완료. 공간 전체를 선택하고 출력하세요."
+        end
+      end
       d.add_action_callback('ep_export') do |_context, raw|
         respond(d) do
-          result = Output::FurnitureSheet.run(JSON.parse(raw))
+          options = JSON.parse(raw)
+          result = options['space_mode'] ? Output::SpaceSheet.run(options) : Output::FurnitureSheet.run(options)
           result ? "저장 완료: #{result}" : '저장을 취소했습니다.'
         end
       end

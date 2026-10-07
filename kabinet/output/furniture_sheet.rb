@@ -235,6 +235,7 @@ module Kabinet
         # matches the geometry without making the views overflow their frames.
         scale = 1.0 / (1.0 / scale).ceil
         draw_view(doc, data, 'top', 0, 1, 20, 22, scale, 22 + d * scale + 12, 'TOP VIEW')
+        draw_surface_marks(doc, options, 20, 22, w * scale, d * scale)
         draw_elevation(doc, data, 20, 275, scale)
         draw_view(doc, data, 'side', 1, 2, 183, 120 + 155 - h * scale, scale, 287, 'SIDE VIEW')
         iso = Layout::SketchUpModel.new(data[:skp], bounds(271, 22, 137, 194))
@@ -443,6 +444,26 @@ module Kabinet
         end
         [271, 280, 289].each { |y| line(doc, 271, y, 408, y) }
         [271, 292, 339.5, 360.5, 408].each { |x| line(doc, x, 271, x, 289) }
+      end
+
+      # Project-specific legend; vector marks and text remain editable in LayOut.
+      def draw_surface_marks(doc, options, x, y, width, depth)
+        choices=[['left','좌측',x-3,y+depth/2],['right','우측',x+width+3,y+depth/2],['back','뒤쪽',x+width/2,y-3]]
+        legend=[]
+        choices.each do |key,name,px,py|
+          value=options.fetch("surface_#{key}",'none')
+          next unless %w[open wall].include?(value)
+          if value=='open'
+            line(doc,px-1.3,py-2,px+1.3,py,color:'#c67b12',weight:0.8)
+            line(doc,px+1.3,py,px-1.3,py+2,color:'#c67b12',weight:0.8)
+            line(doc,px-1.3,py+2,px-1.3,py-2,color:'#c67b12',weight:0.8)
+            legend << "#{name}: △ 노출"
+          else
+            [-1,1].each { |offset| line(doc,px+offset-0.8,py+2,px+offset+0.8,py-2,weight:0.6) }
+            legend << "#{name}: // 벽면"
+          end
+        end
+        text(doc,legend.join("\n"),183,83,78,18,size:10,bold:true) unless legend.empty?
       end
 
       def draw_materials(doc, materials)

@@ -132,7 +132,7 @@ UI.start_timer(2, false) do
     results << 'Library save/load, Korean name, duplicate name, materials, bounds and path validation passed'
     path = File.join(out, "EP_가구도면_#{Time.now.strftime('%H%M%S')}.layout")
     File.write(File.join(out, 'latest.txt'), path)
-    Kabinet::Output::FurnitureSheet.run({'title'=>'EP 조합 가구', 'internal'=>true, 'furniture_name'=>'서재 수납장', 'site'=>'예시 현장 / 서재', 'drawing_date'=>'2026-10-07', 'author'=>'작성자 예시', 'memo'=>"설치 전 현장 치수를 확인하세요.\n선반 위치와 마감 색상은 협의 후 확정."}, path:path)
+    Kabinet::Output::FurnitureSheet.run({'title'=>'EP 조합 가구', 'surface_left'=>'open', 'surface_right'=>'wall', 'internal'=>true, 'furniture_name'=>'서재 수납장', 'site'=>'예시 현장 / 서재', 'drawing_date'=>'2026-10-07', 'author'=>'작성자 예시', 'memo'=>"설치 전 현장 치수를 확인하세요.\n선반 위치와 마감 색상은 협의 후 확정."}, path:path)
     raise 'Changed original entities' unless before == model.entities.to_a.map(&:persistent_id).sort
     raise 'Changed selection' unless selection == model.selection.to_a.map(&:persistent_id).sort
     raise 'Unselected hidden state changed' if unselected.hidden?
@@ -170,6 +170,7 @@ UI.start_timer(2, false) do
     raise 'Missing project information' unless ['서재 수납장', '예시 현장 / 서재', '2026-10-07', '작성자 예시'].all? { |value| labels.any? { |label| label.plain_text == value } }
     memo_label = labels.find { |label| label.plain_text.include?('설치 전 현장') }
     raise 'Memo is not bold' unless memo_label && memo_label.style.text_bold
+    raise 'Missing surface legend' unless labels.any? { |label| label.plain_text.include?('좌측: △ 노출') && label.plain_text.include?('우측: // 벽면') }
     raise 'Unreadably small type' unless labels.all? { |label| label.style.font_size >= 8 }
     raise 'No hidden dashed lines' unless all.grep(Layout::Path).any? { |line| line.style.stroke_pattern == Layout::Style::STROKE_PATTERN_DASH }
     iso = document.pages.first.entities.grep(Layout::SketchUpModel).first
@@ -195,7 +196,7 @@ UI.start_timer(2, false) do
     delivery = File.join(out, 'deliver.txt')
     if File.file?(delivery)
       final_path = File.read(delivery, encoding: 'UTF-8').strip
-      Kabinet::Output::FurnitureSheet.run({'title'=>'EP 조합 가구', 'internal'=>true, 'furniture_name'=>'서재 수납장', 'site'=>'예시 현장 / 서재', 'drawing_date'=>'2026-10-07', 'author'=>'작성자 예시', 'memo'=>"설치 전 현장 치수를 확인하세요.\n선반 위치와 마감 색상은 협의 후 확정."}, path:final_path)
+      Kabinet::Output::FurnitureSheet.run({'title'=>'EP 조합 가구', 'surface_left'=>'open', 'surface_right'=>'wall', 'internal'=>true, 'furniture_name'=>'서재 수납장', 'site'=>'예시 현장 / 서재', 'drawing_date'=>'2026-10-07', 'author'=>'작성자 예시', 'memo'=>"설치 전 현장 치수를 확인하세요.\n선반 위치와 마감 색상은 협의 후 확정."}, path:final_path)
       Layout::Document.open(final_path).export(final_path.sub(/\.layout\z/, '.png'), dpi:150)
       File.delete(delivery)
     end

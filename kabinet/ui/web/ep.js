@@ -67,18 +67,31 @@ byId('library-form').addEventListener('submit', event => {
 document.addEventListener('DOMContentLoaded', () => {
   const today = new Date();
   byId('drawing-date').value = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  byId('survey-date').value = byId('drawing-date').value;
   if (window.sketchup) window.sketchup.ep_library_list();
   else epLibrary([]);
 });
 byId('export').addEventListener('click', () => {
-  busy('선택 가구의 도면을 작성하고 있습니다. 잠시 기다려 주세요…');
+  busy(byId('space-mode').checked ? '공간 도면을 작성하고 있습니다. 잠시 기다려 주세요…' : '선택 가구의 도면을 작성하고 있습니다. 잠시 기다려 주세요…');
   try {
-    window.sketchup.ep_export(JSON.stringify({title: byId('title').value.trim() || '가구 도면', internal: byId('internal').checked, furniture_name: byId('furniture-name').value.trim(), site: byId('site').value.trim(), drawing_date: byId('drawing-date').value, author: byId('author').value.trim(), memo: byId('memo').value.trim()}));
+    window.sketchup.ep_export(JSON.stringify({title: byId('title').value.trim() || '가구 도면', internal: byId('internal').checked, furniture_name: byId('furniture-name').value.trim(), site: byId('site').value.trim(), drawing_date: byId('drawing-date').value, author: byId('author').value.trim(), memo: byId('memo').value.trim(), surface_left: byId('surface-left').value, surface_right: byId('surface-right').value, surface_back: byId('surface-back').value, space_mode: byId('space-mode').checked, space_name: byId('space-name').value.trim(), ceiling_height: byId('ceiling-height').value, survey_date: byId('survey-date').value, wall_views: byId('wall-views').checked}));
   } catch (error) { epResult('SketchUp의 Kabinet 창에서 실행하세요.', true); }
 });
 
 document.querySelectorAll('[data-role]').forEach(button => button.addEventListener('click', () => {
   busy('선택 부품을 구분하고 있습니다…');
   try { window.sketchup.ep_role(button.dataset.role); }
+  catch (error) { epResult('SketchUp의 Kabinet 창에서 실행하세요.', true); }
+}));
+
+byId('space-mode').addEventListener('change', () => {
+  byId('space-options').hidden = !byId('space-mode').checked;
+  byId('furniture-options').hidden = byId('space-mode').checked;
+  document.querySelectorAll('[data-furniture-only]').forEach(element => { element.hidden = byId('space-mode').checked; });
+  byId('export').textContent = byId('space-mode').checked ? '공간 도면 출력 · LayOut + PDF' : '도면 출력 · LayOut + PDF';
+});
+document.querySelectorAll('[data-space-role]').forEach(button => button.addEventListener('click', () => {
+  busy('공간 부품을 지정하고 있습니다…');
+  try { window.sketchup.ep_space_role(button.dataset.spaceRole); }
   catch (error) { epResult('SketchUp의 Kabinet 창에서 실행하세요.', true); }
 }));
