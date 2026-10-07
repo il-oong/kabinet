@@ -56,7 +56,7 @@ module Kabinet
           # Hide non-selected geometry only during ray tests; abort restores it.
           model.entities.each { |e| e.hidden = true if e.respond_to?(:hidden=) && !targets.include?(e) }
           visible = {}
-          %w[top front side].each do |name|
+          %w[top front side elevation].each do |name|
             visible[name] = classify_edges(model, segs, name)
           end
           root = model.entities.add_group
@@ -65,7 +65,9 @@ module Kabinet
             copy = root.entities.add_instance(e.definition, move * e.transformation)
             copy.material = e.material if e.material
           end
-          model.active_view.camera = Sketchup::Camera.new([1, -1, 1], ORIGIN, Z_AXIS, false)
+          snapshot_corners = (0..7).map { |i| root.definition.bounds.corner(i).to_a }
+          center = root.bounds.center
+          model.active_view.camera = Sketchup::Camera.new(center.offset(Geom::Vector3d.new(1, -1, 1)), center, Z_AXIS, false)
           model.active_view.zoom(root)
           raise '도면용 모델 저장에 실패했습니다.' unless root.definition.save_as(skp)
         ensure
@@ -82,13 +84,13 @@ module Kabinet
           end
           { name: mat.display_name, color: mat.color, image: image }
         end
-        { size: size, lo: lo, views: visible, boxes: boxes, skp: skp, materials: swatches, internal: internal }
+        { size: size, lo: lo, views: visible, boxes: boxes, skp: skp, snapshot_corners: snapshot_corners, materials: swatches, internal: internal }
       end
 
       # Sample each edge, then refine visible/occluded transitions. A partially
       # covered edge must not become one solid line through the cabinet door.
       def classify_edges(model, segments, name)
-        direction = Geom::Vector3d.new(*GroupProjection::VIEW_DIRS.fetch(name))
+        direction = Geom::Vector3d.new(*(name == 'elevation' ? [0.45, -1.0, 0.3] : GroupProjection::VIEW_DIRS.fetch(name)))
         result = { visible: [], hidden: [] }
         segments.each do |p, q|
           delta = p.zip(q).map { |a, b| b - a }
@@ -144,9 +146,9 @@ module Kabinet
         doc.pages.first.name = title
         w, d, h = data[:size]
         # One scale across all orthographic views, with fixed room for dimensions.
-        scale = [125.0 / w, 62.0 / d, 155.0 / h, 47.0 / d].min
-        draw_view(doc, data, 'top', 0, 1, 20, 22 + 62 - d * scale, scale, 101, 'TOP VIEW')
-        draw_view(doc, data, 'front', 0, 2, 20, 120 + 155 - h * scale, scale, 287, 'ELEVATION')
+        scale = [130.0 / (w + d * 0.45), 175.0 / (h + d * 0.3), 47.0 / d].min
+        draw_view(doc, data, 'top', 0, 1, 20, 22, scale, 22 + d * scale + 12, 'TOP VIEW')
+        draw_elevation(doc, data, 20, 275, scale)
         draw_view(doc, data, 'side', 1, 2, 183, 120 + 155 - h * scale, scale, 287, 'SIDE VIEW')
         iso = Layout::SketchUpModel.new(data[:skp], bounds(271, 22, 137, 194))
         iso.view = Layout::SketchUpModel::ISO_VIEW
@@ -156,12 +158,68 @@ module Kabinet
         iso.display_background = false
         iso.line_weight = 0.35
         add(doc, iso)
+        fit_model(iso, data[:snapshot_corners])
         iso.render
         text(doc, title, 271, 10, 130, 10, size: 14)
         draw_materials(doc, data[:materials])
-        text(doc, "단위 mm · 정투상 축척 1:#{(1.0 / scale).round(2)} · #{data[:internal] ? '실선: 보이는 선 / 점선: 가려진 선' : '보이는 선만 표시'}", 20, 291, 245, 6, size: 8)
+        text(doc, "단위 mm · 정면 축척 1:#{(1.0 / scale).round(2)} · 깊이는 사선 축약 · #{data[:internal] ? '점선: 가려진 선' : '실선: 보이는 선'}", 20, 291, 245, 6, size: 8)
         text(doc, "모델 변경 후 다시 출력\n문 열림·철물·가공 표시는 별도 작성", 271, 283, 135, 12, size: 8)
         doc
+      end
+
+      # Measure the actual projected corners, rather than assuming an ideal
+      # isometric camera or a particular shape. Includes a 10mm paper margin.
+      def fit_model(viewport, corners)
+        box = viewport.bounds
+        cx = (box.upper_left.x + box.lower_right.x) / 2
+        cy = (box.upper_left.y + box.lower_right.y) / 2
+        rx = (box.lower_right.x - box.upper_left.x) / 2 - 10.0 / 25.4
+        ry = (box.lower_right.y - box.upper_left.y) / 2 - 10.0 / 25.4
+        5.times do
+          viewport.render
+          points = corners.map { |p| viewport.model_to_paper_point(Geom::Point3d.new(p)) }
+          dx = points.map { |p| (p.x - cx).abs }.max
+          dy = points.map { |p| (p.y - cy).abs }.max
+          return if dx <= rx && dy <= ry
+          factor = [rx / [dx, 0.0001].max, ry / [dy, 0.0001].max, 0.95].min
+          viewport.scale = viewport.scale * factor * 0.98
+        end
+        raise '입체도 영역을 맞추지 못했습니다. 선택한 가구의 형상을 확인하세요.'
+      end
+
+      # Cabinet projection: X/Z keep their true scale and depth recedes up/right.
+      # Thus elevation dimensions stay readable without pretending the depth
+      # diagonal is a true-scale orthographic measurement.
+      def draw_elevation(doc, data, x, bottom, scale)
+        w, d, h = data[:size]
+        front_top = bottom - h * scale
+        dx = d * 0.45 * scale
+        dy = d * 0.3 * scale
+        project = lambda do |point|
+          px, py, pz = point.zip(data[:lo]).map { |a, b| a - b }
+          [x + (px + py * 0.45) * scale, bottom - (pz + py * 0.3) * scale]
+        end
+        [:hidden, :visible].each do |kind|
+          next if kind == :hidden && !data[:internal]
+          seen = {}
+          data[:views]['elevation'][kind].each do |a, b|
+            p, q = project.call(a), project.call(b)
+            key = [p.map { |v| v.round(4) }, q.map { |v| v.round(4) }].sort
+            next if seen[key]
+            seen[key] = true
+            line(doc, *p, *q, dashed: kind == :hidden, color: kind == :hidden ? '#92968c' : '#43483f', weight: kind == :hidden ? 0.3 : 0.5)
+          end
+        end
+        horizontal_dimension(doc, x, x + w * scale, front_top, front_top - dy - 14, w)
+        chain(data, 0, scale).each_cons(2) do |a, b|
+          horizontal_dimension(doc, x + a * scale, x + b * scale, front_top, front_top - dy - 6, b - a)
+        end
+        vertical_dimension(doc, x + w * scale + dx, front_top - dy, bottom - dy, x + w * scale + dx + 14, h)
+        chain(data, 2, scale).each_cons(2) do |a, b|
+          vertical_dimension(doc, x + w * scale + dx, bottom - b * scale - dy, bottom - a * scale - dy, x + w * scale + dx + 6, b - a)
+        end
+        text(doc, "깊이 #{number(d)}", x + w * scale + 2, front_top - dy - 9, 36, 5, size: 9, color: '#ad5868')
+        caption(doc, x, 287, 'ELEVATION')
       end
 
       def draw_view(doc, data, name, ai, bi, x, y, scale, caption_y, label)
@@ -186,6 +244,10 @@ module Kabinet
             vertical_dimension(doc, x + width, y + height - b * scale, y + height - a * scale, x + width + 5, b - a)
           end
         end
+        caption(doc, x, caption_y, label)
+      end
+
+      def caption(doc, x, caption_y, label)
         line(doc, x, caption_y, x + 62, caption_y, color: '#8b8d87')
         line(doc, x, caption_y - 2, x + 2, caption_y)
         line(doc, x + 2, caption_y, x, caption_y + 2)

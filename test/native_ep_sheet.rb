@@ -110,9 +110,10 @@ UI.start_timer(2, false) do
     iso = document.pages.first.entities.grep(Layout::SketchUpModel).first
     b = iso.bounds
     half = original_dims.map { |n| n.mm / 2 }
+    margin = 9.9 / 25.4
     [-1,1].repeated_permutation(3).each do |sign|
       pt = iso.model_to_paper_point(Geom::Point3d.new(half.zip(sign).map { |n,s| n*s }))
-      raise 'Isometric model clipped' unless pt.x >= b.upper_left.x && pt.x <= b.lower_right.x && pt.y >= b.upper_left.y && pt.y <= b.lower_right.y
+      raise 'Isometric model lacks safe margin' unless pt.x >= b.upper_left.x + margin && pt.x <= b.lower_right.x - margin && pt.y >= b.upper_left.y + margin && pt.y <= b.lower_right.y - margin
     end
     # A second output without hidden lines must contain no dashed geometry.
     plain_path = File.join(out, "외관선_#{Time.now.strftime('%H%M%S')}.layout")
