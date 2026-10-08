@@ -112,6 +112,17 @@ UI.start_timer(2, false) do
     id = Kabinet::FurnitureLibrary.save('한글 가구 / 같은 이름', directory: library)
     second = Kabinet::FurnitureLibrary.save('한글 가구 / 같은 이름', directory: library)
     raise 'Overwrote duplicate name' if id == second || Kabinet::FurnitureLibrary.list(directory: library).length != 2
+    saved_file = File.join(Kabinet::FurnitureLibrary.entry_dir(id, library), 'furniture.skp')
+    saved_bytes = File.binread(saved_file)
+    Kabinet::FurnitureLibrary.update(id, name: '이름 변경', folder: '안방', directory: library)
+    renamed = Kabinet::FurnitureLibrary.list(directory: library).find { |entry| entry[:id] == id }
+    raise 'Library rename/folder failed' unless renamed[:name] == '이름 변경' && renamed[:folder] == '안방'
+    raise 'Library rename changed model file' unless File.binread(saved_file) == saved_bytes
+    old_info = File.join(Kabinet::FurnitureLibrary.entry_dir(second, library), 'info.json')
+    legacy_data = JSON.parse(File.read(old_info, encoding: 'UTF-8'))
+    legacy_data.delete('folder')
+    File.write(old_info, JSON.pretty_generate(legacy_data), encoding: 'UTF-8')
+    raise 'Legacy furniture folder missing' unless Kabinet::FurnitureLibrary.list(directory: library).find { |entry| entry[:id] == second }[:folder] == '미분류'
     definition = Kabinet::FurnitureLibrary.definition(id, directory: library)
     restored = [definition.bounds.width, definition.bounds.height, definition.bounds.depth].map { |v| v.to_mm.round(2) }
     original_box = Geom::BoundingBox.new
@@ -272,14 +283,25 @@ UI.start_timer(2, false) do
             const item = [...document.querySelectorAll('.library-item')].find(e => e.querySelector('strong').textContent === 'UI 가구 <b>문자</b>');
             assert(item, 'Saved furniture absent');
             assert(!item.querySelector('b'), 'Furniture name treated as HTML');
+            const row = item.closest('.library-row');
+            row.querySelector('.library-edit').click();
+            const fields = row.querySelectorAll('.library-edit-form input');
+            fields[0].value = '변경한 UI 가구';
+            fields[1].value = '서재';
+            row.querySelector('.library-edit-form').requestSubmit();
+            await wait(() => document.getElementById('status').textContent.includes('변경했습니다'));
+            assert(document.getElementById('library-filter').querySelector('option[value="서재"]'), 'Folder filter missing');
+            document.getElementById('library-filter').value = '서재';
+            document.getElementById('library-filter').dispatchEvent(new Event('change'));
+            assert(document.querySelectorAll('.library-item').length === 1, 'Folder filter failed');
             document.getElementById('library-search').value = '없는가구';
             document.getElementById('library-search').dispatchEvent(new Event('input'));
             assert(document.querySelectorAll('.library-item').length === 0, 'Search failed');
-            document.getElementById('library-search').value = 'UI 가구';
+            document.getElementById('library-search').value = '변경한 UI 가구';
             document.getElementById('library-search').dispatchEvent(new Event('input'));
             document.querySelector('.library-item').click();
             await wait(() => document.getElementById('status').textContent.includes('클릭하세요'));
-            sketchup.ep_ui_test_result(JSON.stringify({ok:true,checks:['front direction callback','EP create callback','library save callback','escaped labels','search','native placement callback']}));
+            sketchup.ep_ui_test_result(JSON.stringify({ok:true,checks:['front direction callback','EP create callback','library save callback','escaped labels','folder filter','rename and move','search','native placement callback']}));
           } catch (e) { sketchup.ep_ui_test_result(JSON.stringify({ok:false,error:e.message})); }
         })();
       JS

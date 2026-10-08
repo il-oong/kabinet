@@ -17,6 +17,19 @@ module Kabinet
       File.join(directory, id)
     end
 
+    def clean_name(value)
+      name = value.to_s.strip
+      raise ArgumentError, '가구 이름은 1~60자로 입력하세요.' if name.empty? || name.length > 60
+      name
+    end
+
+    def clean_folder(value)
+      folder = value.to_s.strip
+      folder = '미분류' if folder.empty?
+      raise ArgumentError, '폴더 이름은 40자 이내로 입력하세요.' if folder.length > 40 || folder.match?(/[\\\/\x00-\x1f]/)
+      folder
+    end
+
     def list(directory: root)
       return [] unless Dir.exist?(directory)
       Dir.children(directory).filter_map do |id|
@@ -26,17 +39,17 @@ module Kabinet
         begin
           data = JSON.parse(File.read(File.join(folder, 'info.json'), encoding: 'UTF-8'))
           next unless data['name'].is_a?(String) && data['saved_at'].is_a?(String)
-          { id: id, name: data['name'], saved_at: data['saved_at'], dimensions_mm: data['dimensions_mm'] }
-        rescue JSON::ParserError, SystemCallError
+          { id: id, name: data['name'], folder: clean_folder(data['folder']), saved_at: data['saved_at'], dimensions_mm: data['dimensions_mm'] }
+        rescue JSON::ParserError, SystemCallError, ArgumentError
           # A damaged entry must not prevent the remaining library from opening.
           next
         end
       end.sort_by { |entry| entry[:saved_at] }.reverse
     end
 
-    def save(name, model: Sketchup.active_model, directory: root)
-      name = name.to_s.strip
-      raise ArgumentError, '저장할 가구 이름을 입력하세요. (최대 60자)' if name.empty? || name.length > 60
+    def save(name, folder: '미분류', model: Sketchup.active_model, directory: root)
+      name = clean_name(name)
+      folder = clean_folder(folder)
       raise '그룹 편집을 닫고 저장할 가구를 선택하세요.' if model.active_path
       targets = model.selection.to_a
       unless !targets.empty? && targets.all? { |e| e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance) }
@@ -73,7 +86,7 @@ module Kabinet
           model.selection.clear
           targets.each { |e| model.selection.add(e) if e.valid? }
         end
-        data = { name: name, saved_at: Time.now.iso8601,
+        data = { name: name, folder: folder, saved_at: Time.now.iso8601,
                  dimensions_mm: [bounds.width, bounds.height, bounds.depth].map { |v| v.to_mm.round(2) } }
         File.write(File.join(staging, 'info.json'), JSON.pretty_generate(data), encoding: 'UTF-8')
         File.rename(staging, entry_dir(id, directory))
@@ -82,6 +95,16 @@ module Kabinet
         # Only this operation's generated staging directory may be removed.
         FileUtils.remove_entry(staging) if Dir.exist?(staging)
       end
+    end
+
+    def update(id, name:, folder:, directory: root)
+      path = File.join(entry_dir(id, directory), 'info.json')
+      raise ArgumentError, '저장 가구를 찾을 수 없습니다.' unless File.file?(path) && File.file?(File.join(entry_dir(id, directory), 'furniture.skp'))
+      data = JSON.parse(File.read(path, encoding: 'UTF-8'))
+      data['name'] = clean_name(name)
+      data['folder'] = clean_folder(folder)
+      File.write(path, JSON.pretty_generate(data), encoding: 'UTF-8')
+      true
     end
 
     def definition(id, model: Sketchup.active_model, directory: root)

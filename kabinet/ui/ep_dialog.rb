@@ -16,11 +16,20 @@ module Kabinet
           '판재를 만들거나, 보관함에서 가구를 선택하세요.'
         end
       end
-      d.add_action_callback('ep_library_save') do |_context, name|
+      d.add_action_callback('ep_library_save') do |_context, raw|
         respond(d) do
-          FurnitureLibrary.save(name)
+          options = JSON.parse(raw)
+          FurnitureLibrary.save(options.fetch('name'), folder: options.fetch('folder', '미분류'))
           send_library(d)
-          "‘#{name}’ 저장 완료. 다음 작업에서도 보관함에서 불러올 수 있습니다."
+          "‘#{options['name']}’ 저장 완료. 다음 작업에서도 보관함에서 불러올 수 있습니다."
+        end
+      end
+      d.add_action_callback('ep_library_update') do |_context, raw|
+        respond(d) do
+          options = JSON.parse(raw)
+          FurnitureLibrary.update(options.fetch('id'), name: options.fetch('name'), folder: options.fetch('folder'))
+          send_library(d)
+          '가구 이름과 폴더를 변경했습니다.'
         end
       end
       d.add_action_callback('ep_library_place') do |_context, id|
