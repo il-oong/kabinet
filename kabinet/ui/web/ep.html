@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kabinet — EP 판재</title><link rel="stylesheet" href="ep.css"></head>
+<body><header><span>KABINET / 02</span><h1>판재에서 가구까지</h1><p>EP를 한 장씩 만들고, 직접 조합하세요.</p></header>
+<main><section><h2>EP 한 장 만들기 <small>단위 mm</small></h2>
+<form id="board-form"><div class="fields"><label>가로<input id="width" type="number" min="0.1" max="10000" step="any" value="600" required></label>
+<label>깊이 · 두께<select id="thickness"><option>3</option><option>9</option><option>12</option><option selected>18</option><option>20</option><option>30</option></select></label>
+<label>높이<input id="height" type="number" min="0.1" max="10000" step="any" value="2400" required></label></div>
+<p class="hint">가로는 빨강축(X), 두께는 초록축(Y), 높이는 파랑축(Z). 현재 편집 공간의 원점에 한 장을 생성합니다.</p>
+<button type="submit">EP 한 장 생성</button></form></section>
+<section><h2>내 가구 보관함 <small>이 컴퓨터에 저장</small></h2>
+<form id="library-form"><label>가구 이름<input id="library-name" maxlength="60" placeholder="예: 침실 3단 서랍장" required></label>
+<label>보관 폴더<input id="library-folder" maxlength="40" list="library-folders" value="미분류" placeholder="예: 안방, 주방"></label><datalist id="library-folders"></datalist>
+<p class="hint">만든 가구의 판재·그룹을 모두 선택한 뒤 저장하세요. 같은 이름도 새 항목으로 보관합니다.</p>
+<button type="submit" class="secondary">선택한 가구 저장</button></form>
+<label class="library-search">폴더 선택<select id="library-filter"><option value="">전체 폴더</option></select></label>
+<label class="library-search">저장 가구 검색<input id="library-search" type="search" placeholder="가구 이름·폴더 검색"></label>
+<div id="library-list" aria-label="저장된 가구 목록"><p class="hint">보관함을 불러오고 있습니다…</p></div>
+<p class="hint">목록에서 누르고 모델 화면에 클릭하면 배치됩니다. 같은 가구는 컴포넌트로 연결됩니다. 하나만 수정하려면 우클릭 → 고유하게 만들기를 사용하세요.</p></section>
+<section><h2>가구 도면 출력 <small>A3 가로</small></h2>
+<label class="check"><input id="space-mode" type="checkbox"> 공간 도면으로 출력</label>
+<div id="space-options" hidden>
+<p class="hint">바닥 안쪽 경계를 두께 없는 면 한 장으로 만들고 그룹으로 묶어 지정하세요. ㄱ자 바닥도 가능합니다. 문·창문은 개구부 크기의 그룹, 가구는 한 개씩 그룹으로 지정합니다. 지정하지 않은 객체는 출력하지 않습니다.</p>
+<div class="fields"><button type="button" data-space-role="floor">바닥 경계</button><button type="button" data-space-role="door">문 개구부</button><button type="button" data-space-role="window">창 개구부</button><button type="button" data-space-role="furniture">가구</button><button type="button" data-space-role="clear">지정 해제</button></div>
+<label>공간명<input id="space-name" maxlength="50" placeholder="예: 안방"></label>
+<div class="fields"><label>천장 높이 · mm<input id="ceiling-height" type="number" min="100" max="10000" value="2400"></label><label>실측일<input id="survey-date" type="date"></label></div>
+<label class="check"><input id="wall-views" type="checkbox" checked> 벽면별 도면도 출력</label>
+<p class="hint">평면도·입체 배치도·치수표를 출력합니다. 가구는 외곽선만 표시합니다. 벽면도는 가까운 벽 기준이며, 문 열림 방향은 추측하지 않습니다. 치수는 모델 입력값 기준입니다. 공간 전체를 선택한 뒤 아래 출력 버튼을 누르세요.</p>
+</div>
+<div id="furniture-options"><div class="sheet" aria-label="도면 배치 미리보기"><div class="top">평면도</div><div class="iso">컬러 입체도</div><div class="front">정면도</div><div class="side">측면도</div><div class="materials">마감재 견본</div></div>
+<p class="hint">가구 전체를 선택하고 사용자가 서는 쪽에서 바라본 뒤 정면을 저장하세요. 좌우는 정면에서 가구를 바라보는 기준입니다.</p>
+<div class="fields"><button type="button" data-front="set">현재 화면을 정면으로</button><button type="button" data-front="status">방향 확인</button><button type="button" data-front="reverse">앞뒤 반전</button></div>
+<label>컬러 입체도 보는 방향<select id="iso-direction"><option value="front_right">정면 + 우측 (기본)</option><option value="front_left">정면 + 좌측</option><option value="back_left">후면 + 좌측</option><option value="back_right">후면 + 우측</option></select></label>
+<p class="hint">입체도 방향만 바뀝니다. 평면도·정면도·측면도와 원본 가구 방향은 그대로입니다.</p>
+<p class="hint">가로 치수는 도어(이웃한 쪽 +1mm · 바깥쪽 +2mm) → EP·몸통장 → 전체 외경의 3단입니다. 앞쪽 얇은 판재는 도어로 추정합니다. 정확히 구분하려면 부품을 선택하고 아래 버튼을 누르세요. 몸통장은 한 통씩 그룹으로 묶어 지정합니다.</p>
+<div class="fields"><button type="button" data-role="door">선택 → 도어</button><button type="button" data-role="ep">선택 → EP</button><button type="button" data-role="body">선택 → 몸통장</button><button type="button" data-role="auto">자동 구분</button></div>
+<p class="hint">측면 기호: 노출면은 삼각형, 벽에 붙는 면은 사선으로 표시합니다. 기호와 범례는 LayOut에서 수정할 수 있습니다.</p>
+<div class="fields"><label>좌측<select id="surface-left"><option value="none">표시 안 함</option><option value="open">노출면</option><option value="wall">벽면</option></select></label><label>우측<select id="surface-right"><option value="none">표시 안 함</option><option value="open">노출면</option><option value="wall">벽면</option></select></label><label>뒤쪽<select id="surface-back"><option value="none">표시 안 함</option><option value="open">노출면</option><option value="wall">벽면</option></select></label></div>
+</div><label data-furniture-only>도면 이름<input id="title" maxlength="60" value="가구 도면"></label>
+<label data-furniture-only>가구명<input id="furniture-name" maxlength="50" placeholder="비우면 도면 이름 사용"></label>
+<label>현장정보<input id="site" maxlength="50" placeholder="현장명 · 동/호수 · 설치 위치"></label>
+<div class="fields"><label>도면 제작날짜<input id="drawing-date" type="date"></label><label>작성자<input id="author" maxlength="30"></label></div>
+<label>메모 · 시공 유의사항<textarea id="memo" rows="5" maxlength="180" placeholder="마감, 설치, 확인사항 등을 입력하세요."></textarea></label>
+<p class="hint" data-furniture-only>출력 후 LayOut에서 메모와 정보를 더블클릭해 수정할 수 있습니다. 추가 치수는 도면 끝점에 붙여 찍으세요. 입체 정면도의 사선 깊이는 탑뷰·측면도에서 치수를 추가하세요.</p>
+<label class="check" data-furniture-only><input id="internal" type="checkbox" checked> 도어 뒤 선반·칸막이 등 가려진 선을 점선으로 표시</label>
+<p class="hint" data-furniture-only>출력할 판재 또는 조합한 가구 그룹을 선택하세요. 정면을 지정하지 않은 가구는 초록축 음(-) 방향으로 출력됩니다. 적용한 재질을 견본으로 넣습니다.</p>
+<button id="export" type="button" class="secondary">도면 출력 · LayOut + PDF</button></section>
+<p id="status" role="status" aria-live="polite">판재를 이동·회전·복사해서 원하는 가구로 조합하세요.</p></main>
+<script src="ep.js"></script></body></html>

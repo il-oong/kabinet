@@ -18,15 +18,11 @@ puts "Building kabinet.rbz from #{ROOT}..."
 File.delete(OUTPUT) if File.exist?(OUTPUT)
 
 Zip::File.open(OUTPUT, Zip::File::CREATE) do |zip|
-  # Top-level loader
-  loader = File.join(ROOT, 'kabinet_loader.rb')
-  zip.add('kabinet_loader.rb', loader)
-
-  # Everything in kabinet/
-  Dir[File.join(ROOT, 'kabinet', '**', '*')].each do |path|
-    next if File.directory?(path)
-    relative = path.sub(ROOT + File::SEPARATOR, '')
-    zip.add(relative.gsub('\\', '/'), path)
+  # Ship only the EP workflow. Legacy generators remain in source history,
+  # but are neither installed nor loaded by the v2 extension.
+  File.readlines(File.join(__dir__, 'ep_release_files.txt'), chomp: true).each do |relative|
+    next if relative.empty?
+    zip.add(relative, File.join(ROOT, relative))
   end
 end
 

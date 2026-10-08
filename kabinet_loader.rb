@@ -6,12 +6,11 @@ module Kabinet
   PLUGIN_DIR  = File.join(PLUGIN_ROOT, 'kabinet')
 
   unless file_loaded?(__FILE__)
-    ext = SketchupExtension.new('Kabinet — 카케이스 생성기', File.join('kabinet', 'main'))
+    ext = SketchupExtension.new('Kabinet — EP 판재 · 도면', File.join('kabinet', 'ep_main'))
     ext.creator     = 'Kabinet'
-    ext.version     = '0.1.0'
+    ext.version     = '2.0.0'
     ext.copyright   = '2026'
-    ext.description = '파라메트릭 카케이스 가구(붙박이장/주방가구/화장대) 생성기. ' \
-                      '판 두께를 보존하면서 모듈을 적층하고 도면을 PNG/PDF로 출력합니다.'
+    ext.description = 'EP 판재를 한 장씩 만들고, 직접 조합한 가구를 A3 LayOut/PDF 도면으로 출력합니다.'
     Sketchup.register_extension(ext, true)
     file_loaded(__FILE__)
   end
