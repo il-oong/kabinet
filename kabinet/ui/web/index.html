@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabinet</title>
-  <link rel="stylesheet" href="styles.css?v=1.14.0">
+  <link rel="stylesheet" href="styles.css?v=1.15.0">
 </head>
 <body>
 
@@ -12,7 +12,7 @@
 <aside class="preset-sidebar">
   <div class="preset-sidebar-head">
     <span class="preset-sidebar-title">Kabinet</span>
-    <span class="version-badge">v1.14.0</span>
+    <span class="version-badge">v1.15.0</span>
   </div>
   <input type="search" id="preset-search" class="preset-search" placeholder="프리셋·도구 검색…"
          oninput="kabinet.renderPresetSidebar()">
@@ -299,7 +299,7 @@
       <p class="ep-hint">① 가구 전체를 선택 → ② 사용자가 서는 쪽에서 바라본 뒤 <b>현재 화면을 정면으로</b> → ③ 아래 정보 입력 → ④ 출력.</p>
       <div class="ep-grid">
         <button type="button" class="btn-secondary" data-front="set">현재 화면을 정면으로</button>
-        <button type="button" class="btn-secondary" data-front="status">방향 확인</button>
+        <button type="button" class="btn-secondary" data-front="show">모델에서 방향 보기</button>
         <button type="button" class="btn-secondary" data-front="reverse">앞뒤 반전</button>
       </div>
       <label class="ep-field">컬러 입체도 보는 방향
@@ -335,6 +335,14 @@
 <!-- ══ 내 가구 보관함 (이 컴퓨터) ══════════════════════════════════════════ -->
 <div class="scroll-area view ep-view" id="view-library" hidden>
   <div class="card">
+    <div class="card-title">저장한 가구 — 누르면 모델에 배치</div>
+    <div class="ep-grid2">
+      <label class="ep-field">폴더<select id="ep-library-filter"><option value="">전체 폴더</option></select></label>
+      <label class="ep-field">검색<input id="ep-library-search" type="search" placeholder="이름·폴더"></label>
+    </div>
+    <div id="ep-library-list"><p class="ep-hint">보관함을 불러오고 있습니다…</p></div>
+  </div>
+  <div class="card">
     <div class="card-title">선택한 가구를 보관함에 저장</div>
     <form id="ep-library-form">
       <label class="ep-field">가구 이름<input id="ep-library-name" maxlength="60" placeholder="예: 침실 3단 서랍장" required></label>
@@ -343,14 +351,6 @@
       <p class="ep-hint">만든 가구의 판재·그룹을 모두 선택한 뒤 저장하세요. 저장한 가구는 왼쪽 "내 가구 보관함" 폴더에 나타납니다.</p>
       <button type="submit" class="btn-primary ep-big">선택한 가구 저장</button>
     </form>
-  </div>
-  <div class="card">
-    <div class="card-title">저장 가구 관리 — 이름·폴더 변경</div>
-    <div class="ep-grid2">
-      <label class="ep-field">폴더<select id="ep-library-filter"><option value="">전체 폴더</option></select></label>
-      <label class="ep-field">검색<input id="ep-library-search" type="search" placeholder="이름·폴더"></label>
-    </div>
-    <div id="ep-library-list"><p class="ep-hint">보관함을 불러오고 있습니다…</p></div>
   </div>
 </div>
 
@@ -372,6 +372,15 @@
       <label class="ep-field">몸통 소재<select id="cm-material"><option value="">가구별 유지</option><option value="LPM">LPM (저압 멜라민)</option><option value="PET">PET</option><option value="UV_gloss">UV 도장</option><option value="acrylic">아크릴</option><option value="high_gloss">하이그로시</option><option value="phenix">페닉스</option><option value="HPL">HPL (고압 멜라민)</option><option value="MDF_paint">MDF 도장</option><option value="plywood">합판</option><option value="solid_wood">집성목/원목</option></select></label>
       <label class="ep-field">도어 소재<select id="cm-door_material"><option value="">가구별 유지</option><option value="LPM">LPM (저압 멜라민)</option><option value="PET">PET</option><option value="UV_gloss">UV 도장</option><option value="acrylic">아크릴</option><option value="high_gloss">하이그로시</option><option value="phenix">페닉스</option><option value="HPL">HPL (고압 멜라민)</option><option value="MDF_paint">MDF 도장</option><option value="plywood">합판</option><option value="solid_wood">집성목/원목</option></select></label>
     </div>
+    <div class="card-sub">도어 간격 (mm)</div>
+    <div class="ep-grid">
+      <label class="ep-field">몸통 ↔ 도어 (띄움)<input id="cm-gap_front" type="number" min="0" max="50" step="0.5" placeholder="2"></label>
+      <label class="ep-field">도어 사이<input id="cm-gap_between" type="number" min="0" max="50" step="0.5" placeholder="3"></label>
+      <label class="ep-field">도어 바깥 (벽·측판 쪽)<input id="cm-gap_outside" type="number" min="0" max="50" step="0.5" placeholder="2"></label>
+      <label class="ep-field">도어 위<input id="cm-gap_top" type="number" min="0" max="50" step="0.5" placeholder="2"></label>
+      <label class="ep-field">도어 아래<input id="cm-gap_bottom" type="number" min="0" max="50" step="0.5" placeholder="2"></label>
+    </div>
+    <p class="ep-hint">도어 크기는 이 간격으로 자동 계산됩니다: 도어 폭 = (칸 폭 − 바깥 간격×2 − 도어 사이×(문 수−1)) ÷ 문 수, 도어 높이 = 칸 높이 − 위 − 아래. 빈 칸은 기본값(회색 숫자).</p>
     <button type="button" class="btn-primary ep-big" onclick="kabinet.applyCommonAll()">저장하고 모든 가구에 적용</button>
   </div>
 </div>
@@ -433,9 +442,9 @@
 
 </div><!-- /.main-col -->
 
-<script src="app.js?v=1.14.0"></script>
-<script src="modules.js?v=1.14.0"></script>
-<script src="live-preview.js?v=1.14.0"></script>
-<script src="drawing.js?v=1.14.0"></script>
+<script src="app.js?v=1.15.0"></script>
+<script src="modules.js?v=1.15.0"></script>
+<script src="live-preview.js?v=1.15.0"></script>
+<script src="drawing.js?v=1.15.0"></script>
 </body>
 </html>

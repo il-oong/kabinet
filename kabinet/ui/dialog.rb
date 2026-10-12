@@ -558,12 +558,16 @@ module Kabinet
         d.add_action_callback('ep_front') do |_ctx, action|
           ep_respond(d) do
             fs = Kabinet::Output::FurnitureSheet
-            case action
-            when 'set' then fs.set_front
-            when 'reverse' then fs.reverse_front
-            when 'status' then fs.front_status
-            else raise '알 수 없는 정면 설정입니다.'
-            end
+            msg = case action
+                  when 'set' then fs.set_front
+                  when 'reverse' then fs.reverse_front
+                  when 'status', 'show' then fs.front_status
+                  else raise '알 수 없는 정면 설정입니다.'
+                  end
+            # 모델 화면에 정면 방향(초록 면 + 화살표 + 좌/우) 표시
+            model = Sketchup.active_model
+            model.select_tool(Kabinet::UI::FrontViewTool.new(model.selection.to_a))
+            "#{msg}\n모델 화면: 초록 면이 도면 정면도, 화살표가 정면 방향입니다 (Esc로 닫기)."
           end
         end
         d.add_action_callback('ep_space_role') do |_ctx, role|

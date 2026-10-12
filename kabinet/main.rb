@@ -8,6 +8,7 @@ end
 # Foundation
 require File.join(Kabinet::PLUGIN_DIR, 'version')
 require File.join(Kabinet::PLUGIN_DIR, 'constants')
+require File.join(Kabinet::PLUGIN_DIR, 'core', 'gaps')
 
 # Persistence + geometry primitives
 require File.join(Kabinet::PLUGIN_DIR, 'persistence', 'attributes')
@@ -64,6 +65,7 @@ require File.join(Kabinet::PLUGIN_DIR, 'ui', 'live_preview')
 require File.join(Kabinet::PLUGIN_DIR, 'ui', 'dialog')
 require File.join(Kabinet::PLUGIN_DIR, 'ui', 'panel_tools')
 require File.join(Kabinet::PLUGIN_DIR, 'ui', 'place_tool')
+require File.join(Kabinet::PLUGIN_DIR, 'ui', 'front_view_tool')
 require File.join(Kabinet::PLUGIN_DIR, 'ui', 'menu')
 require File.join(Kabinet::PLUGIN_DIR, 'updater')
 
@@ -95,7 +97,7 @@ module Kabinet
     end
 
     all_files = %w[
-      main.rb version.rb constants.rb
+      main.rb version.rb constants.rb core/gaps.rb
       persistence/attributes.rb persistence/schema.rb
       geometry/transforms.rb geometry/builder.rb
       geometry/joinery.rb geometry/handle_builder.rb
@@ -112,7 +114,7 @@ module Kabinet
       output/drawing2d.rb output/dxf.rb output/order_sheet.rb
       output/group_projection.rb output/dimensions.rb output/views.rb
       output/png_export.rb output/pdf_bundler.rb
-      ui/dialog.rb ui/panel_tools.rb ui/place_tool.rb ui/menu.rb updater.rb
+      ui/dialog.rb ui/panel_tools.rb ui/place_tool.rb ui/front_view_tool.rb ui/menu.rb updater.rb
       ui/icons/face_panel.svg ui/icons/space_divide.svg ui/icons/kabinet.svg
       ui/web/index.html ui/web/app.js
       ui/web/modules.js ui/web/styles.css ui/web/drawing.js
@@ -151,7 +153,7 @@ module Kabinet
   # JS/HTML/CSS 변경분은 다이얼로그를 닫고 다시 열면 자동 반영됩니다.
   def self.reload!
     files = [
-      'version', 'constants',
+      'version', 'constants', 'core/gaps',
       'persistence/attributes', 'persistence/schema',
       'geometry/transforms', 'geometry/builder', 'geometry/joinery', 'geometry/handle_builder',
       'core/fitting', 'core/space_divider', 'core/countertop', 'core/common', 'core/panel', 'core/carcase', 'core/door_panel',
@@ -166,7 +168,7 @@ module Kabinet
       'output/png_export', 'output/pdf_bundler',
       'output/furniture_sheet', 'output/space_sheet',
       'geometry/preview_entities', 'ui/live_preview',
-      'ui/dialog', 'ui/panel_tools', 'ui/place_tool', 'ui/menu', 'updater'
+      'ui/dialog', 'ui/panel_tools', 'ui/place_tool', 'ui/front_view_tool', 'ui/menu', 'updater'
     ]
 
     errors = []

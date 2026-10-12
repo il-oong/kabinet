@@ -8,9 +8,9 @@ C = Kabinet::Core::Common
 def assert(v, m); raise m unless v; end
 
 common = { 'body_thickness' => '15', 'door_thickness' => 22, 'shelf_thickness' => 20, 'material' => 'PET',
-           'door_material' => 'acrylic', 'handle_type' => 'push_open', 'ep_thickness' => 18, 'back_thickness' => '',
+           'door_material' => 'acrylic', 'handle_type' => 'push_open', 'ep_thickness' => 18, 'back_thickness' => '', 'gap_between' => 4, 'gap_outside' => 0, 'gap_top' => '',
            'bogus' => 1 }
-assert C.clean(common).keys.sort == %w[body_thickness door_material door_thickness ep_thickness handle_type material shelf_thickness],
+assert C.clean(common).keys.sort == %w[body_thickness door_material door_thickness ep_thickness gap_between gap_outside handle_type material shelf_thickness],
        "clean #{C.clean(common)}"
 
 spec = { 'material' => 'LPM', 'ep' => { 'left' => true, 'thickness' => 20 },
@@ -46,3 +46,6 @@ pairs.each do |key, (preset, js_out)|
   raise "mismatch #{key}" unless num.(norm.(rb)) == num.(js_out)
 end
 puts "common_test: OK (#{pairs.size} presets match)"
+g = C.apply(spec, 'gap_between' => 4, 'gap_outside' => 0)
+assert g['door_gaps'] == { 'between' => 4.0, 'outside' => 0.0 } && g['modules'][0]['door_side_gap_mm'] == 0.0, "gaps #{g['door_gaps']}"
+puts 'common_test: gaps OK'

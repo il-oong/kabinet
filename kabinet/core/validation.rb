@@ -7,6 +7,10 @@ module Kabinet
       module_function
 
       def warnings(spec)
+        Kabinet::Core::Gaps.with(spec['door_gaps']) { warnings_inner(spec) }
+      end
+
+      def warnings_inner(spec)
         warns    = []
         run_mode = spec['run_mode'] ? true : false
         max_d    = spec['max_depth'].to_f
@@ -103,11 +107,11 @@ module Kabinet
         return warns if dc == 'none'
 
         door_type = m['door_type'] || 'swing'
-        gaps_w    = 2.0 * Kabinet::Constants::DOOR_GAP_OUTSIDE_MM
+        gaps_w    = 2.0 * Kabinet::Core::Gaps.outside
         door_w    = dc == 'pair' ?
-                    (mw - gaps_w - Kabinet::Constants::DOOR_REVEAL_BETWEEN_MM) / 2.0 :
+                    (mw - gaps_w - Kabinet::Core::Gaps.between) / 2.0 :
                     mw - gaps_w
-        door_h    = mh - Kabinet::Constants::DOOR_GAP_TOP_MM - Kabinet::Constants::DOOR_GAP_BOTTOM_MM
+        door_h    = mh - Kabinet::Core::Gaps.top - Kabinet::Core::Gaps.bottom
 
         if door_type == 'swing' || door_type == 'folding'
           if door_w > Kabinet::Constants::SWING_DOOR_MAX_W_MM

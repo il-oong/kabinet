@@ -1091,7 +1091,11 @@ const kabinet = (() => {
     }
 
     list.innerHTML = html || '<div class="preset-empty">검색 결과 없음</div>';
-    list.querySelectorAll('[data-folder]').forEach(b => b.addEventListener('click', () => toggleFolder(b.dataset.folder)));
+    list.querySelectorAll('[data-folder]').forEach(b => b.addEventListener('click', () => {
+      const id = b.dataset.folder;
+      if (id.indexOf('lib:') === 0) { openLibraryFolder(id.slice(4)); return; }
+      toggleFolder(id);
+    }));
     list.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', () => runSidebarAction(b.dataset.action)));
     list.querySelectorAll('[data-lib]').forEach(b => b.addEventListener('click', () => {
       if (window.kabinetDrawing) kabinetDrawing.place(b.dataset.lib);
@@ -1117,10 +1121,16 @@ const kabinet = (() => {
   // Ruby Kabinet::Core::Common.apply 와 같은 규칙 — 두 곳을 함께 고칠 것.
   let commonSettings = {};
   const COMMON_NUM = ['body_thickness', 'back_thickness', 'door_thickness', 'shelf_thickness', 'ep_thickness'];
+  const COMMON_GAP = { gap_top: 'top', gap_bottom: 'bottom', gap_outside: 'outside', gap_between: 'between', gap_front: 'front_offset' };
   const COMMON_TXT = ['material', 'door_material', 'handle_type'];
   function _cleanCommon(c) {
     const out = {};
     COMMON_NUM.forEach(k => { const v = parseFloat(c && c[k]); if (v > 0 && v <= 100) out[k] = v; });
+    Object.keys(COMMON_GAP).forEach(k => {
+      const raw = c && c[k] != null ? String(c[k]).trim() : '';
+      const v = parseFloat(raw);
+      if (raw !== '' && v >= 0 && v <= 50) out[k] = v;
+    });
     COMMON_TXT.forEach(k => { const v = c && c[k] != null ? String(c[k]).trim() : ''; if (v) out[k] = v; });
     return out;
   }
@@ -1130,6 +1140,9 @@ const kabinet = (() => {
     if (!Object.keys(c).length) return s;
     if (c.material) s.material = c.material;
     if (c.ep_thickness) s.ep = Object.assign({}, s.ep || {}, { thickness: c.ep_thickness });
+    const gaps = {};
+    Object.keys(COMMON_GAP).forEach(k => { if (k in c) gaps[COMMON_GAP[k]] = c[k]; });
+    if (Object.keys(gaps).length) s.door_gaps = Object.assign({}, s.door_gaps || {}, gaps);
     (s.modules || []).forEach(m => {
       const kind = m.kind;
       if (c.material && kind !== 'bed_gap' && kind !== 'v_gap') m.material = c.material;
@@ -1138,6 +1151,7 @@ const kabinet = (() => {
       if (c.body_thickness) m.body_thickness = c.body_thickness;
       if (c.back_thickness) m.back_thickness = c.back_thickness;
       if (c.handle_type) m.handle_type = c.handle_type;
+      if ('gap_outside' in c && kind === 'shelf_module') m.door_side_gap_mm = c.gap_outside;
       if (c.door_thickness) {
         if (kind === 'shelf_module') m.door_thickness = c.door_thickness;
         if (kind === 'drawer_module' || 'drawer_thickness' in m) m.drawer_thickness = c.door_thickness;
@@ -1165,14 +1179,14 @@ const kabinet = (() => {
   }
   function renderCommonForm() {
     const c = commonSettings;
-    COMMON_NUM.concat(COMMON_TXT).forEach(k => {
+    COMMON_NUM.concat(COMMON_TXT, Object.keys(COMMON_GAP)).forEach(k => {
       const el = document.getElementById('cm-' + k);
       if (el) el.value = c[k] != null ? c[k] : '';
     });
   }
   function applyCommonAll() {
     const read = {};
-    COMMON_NUM.concat(COMMON_TXT).forEach(k => { const el = document.getElementById('cm-' + k); if (el) read[k] = el.value; });
+    COMMON_NUM.concat(COMMON_TXT, Object.keys(COMMON_GAP)).forEach(k => { const el = document.getElementById('cm-' + k); if (el) read[k] = el.value; });
     commonSettings = _cleanCommon(read);
     // 지금 폼의 가구에도 바로 반영
     state = applyCommon(state);
@@ -1231,6 +1245,18 @@ const kabinet = (() => {
     const acts = document.getElementById('design-actions');
     if (acts) acts.hidden = target !== 'design';
   }
+  // 보관함 폴더(예: 미분류) 클릭 → 폴더를 펼치고 오른쪽에 그 폴더 가구 목록
+  function openLibraryFolder(name) {
+    const c = _loadCollapsed();
+    if (c['lib:' + name]) { c['lib:' + name] = false; try { localStorage.setItem(FOLDER_STORE, JSON.stringify(c)); } catch (e) {} }
+    showView('library');
+    const f = document.getElementById('ep-library-filter');
+    if (f) { f.value = name; f.dispatchEvent(new Event('change')); }
+    const t = document.getElementById('view-title');
+    if (t) t.textContent = '내 가구 보관함 — ' + name;
+    renderPresetSidebar();
+  }
+
   function setLibrary(items) {
     furnitureLibrary = Array.isArray(items) ? items : [];
     renderPresetSidebar();

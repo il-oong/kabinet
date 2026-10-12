@@ -1,7 +1,7 @@
 require 'json'
 require_relative 'support/geom'
 module Kabinet; end
-%w[constants persistence/attributes persistence/schema geometry/transforms geometry/builder
+%w[constants core/gaps persistence/attributes persistence/schema geometry/transforms geometry/builder
    geometry/joinery geometry/handle_builder core/fitting core/panel core/carcase
    core/door_panel core/ep_finish_panel core/accessory core/shelf_module core/drawer_module
    core/desk_module core/assembly geometry/preview_entities ui/live_preview].each do |file|

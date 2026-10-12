@@ -47,49 +47,56 @@ module Kabinet
           run_height:    h['run_height']    || 740,
           has_kickboard: h.fetch('has_kickboard', true) ? true : false,
           ep_top_flush:  h.fetch('ep_top_flush',  false) ? true : false
-        )
+        ).tap { |a| a.door_gaps = h['door_gaps'] }
       end
+
+      # 도어·서랍 간격 (스펙 'door_gaps') — build 동안 Core::Gaps에 적용
+      attr_accessor :door_gaps
 
       # Build at world origin (or specified transform). Returns the new root group.
       def build(parent_entities, origin_transform = Kabinet::Geometry::Transforms::IDENTITY,
                 spec_for_persistence: nil)
-        root = parent_entities.add_group
-        root.transformation = origin_transform
-        root.name = @name
+        Kabinet::Core::Gaps.with(door_gaps) do
+          root = parent_entities.add_group
+          root.transformation = origin_transform
+          root.name = @name
 
-        # Stamp assembly role + overall dimensions on the root group
-        top_t     = @top_panel ? @top_panel['thickness'].to_f : 0
-        if @run_mode
-          total_w_mm = @modules.sum { |m| m['width'].to_f }
-          total_h_mm = @base_height + @run_height.to_f + top_t
-        else
-          total_w_mm = @width.to_f
-          total_h_mm = @base_height + @modules.sum { |m| m['height'].to_f } + top_t
+          # Stamp assembly role + overall dimensions on the root group
+          top_t     = @top_panel ? @top_panel['thickness'].to_f : 0
+          if @run_mode
+            total_w_mm = @modules.sum { |m| m['width'].to_f }
+            total_h_mm = @base_height + @run_height.to_f + top_t
+          else
+            total_w_mm = @width.to_f
+            total_h_mm = @base_height + @modules.sum { |m| m['height'].to_f } + top_t
+          end
+          total_h_mm += ep_top_t_mm
+          Kabinet::Persistence::Attributes.set_role(root, 'assembly',
+            width_mm: total_w_mm, depth_mm: @max_depth.to_f, height_mm: total_h_mm)
+
+          if @run_mode
+            do_run(root.entities)
+          else
+            do_stack(root.entities)
+          end
+
+          Kabinet::Persistence::Attributes.write_assembly_spec(root, spec_for_persistence) if spec_for_persistence
+          root
         end
-        total_h_mm += ep_top_t_mm
-        Kabinet::Persistence::Attributes.set_role(root, 'assembly',
-          width_mm: total_w_mm, depth_mm: @max_depth.to_f, height_mm: total_h_mm)
-
-        if @run_mode
-          do_run(root.entities)
-        else
-          do_stack(root.entities)
-        end
-
-        Kabinet::Persistence::Attributes.write_assembly_spec(root, spec_for_persistence) if spec_for_persistence
-        root
       end
 
       # Replace contents of an existing root group (for Regenerate).
       def build_into(root_group, spec_for_persistence: nil)
-        root_group.entities.clear!
-        if @run_mode
-          do_run(root_group.entities)
-        else
-          do_stack(root_group.entities)
+        Kabinet::Core::Gaps.with(door_gaps) do
+          root_group.entities.clear!
+          if @run_mode
+            do_run(root_group.entities)
+          else
+            do_stack(root_group.entities)
+          end
+          Kabinet::Persistence::Attributes.write_assembly_spec(root_group, spec_for_persistence) if spec_for_persistence
+          root_group
         end
-        Kabinet::Persistence::Attributes.write_assembly_spec(root_group, spec_for_persistence) if spec_for_persistence
-        root_group
       end
 
       private

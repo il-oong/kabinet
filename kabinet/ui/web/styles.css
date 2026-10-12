@@ -762,3 +762,23 @@ body { flex-direction: row; }
 }
 .sb-common:hover { background: rgba(91, 155, 213, .28); }
 .sb-common span { display: block; margin-top: 2px; font-size: 10px; font-weight: 400; color: var(--text-dim); }
+
+.card-sub { margin: 12px 0 2px; font-size: 11px; font-weight: 600; color: var(--accent); }
+
+/* ── 모듈 카드: 2열 · 라벨 위 · 접힌 카드는 요약만 ── */
+.module-card-body .field-row {
+  display: inline-flex; flex-wrap: wrap; align-items: center; vertical-align: top;
+  width: calc(50% - 6px); margin: 0 4px 6px 0; gap: 2px 4px;
+}
+.module-card-body .field-row > label { width: 100%; font-size: 11px; margin: 0; }
+.module-card-body .field-row input[type=number],
+.module-card-body .field-row input[type=text],
+.module-card-body .field-row select { flex: 1; min-width: 0; padding: 4px 6px; }
+.module-card-body .field-row .unit { width: auto; }
+.module-card-body .toggle-row { padding: 4px 0; }
+.module-card-header { cursor: pointer; }
+.module-card-header .mod-summary { color: var(--accent); }
+@media (max-width: 560px) { .module-card-body .field-row { width: 100%; } }
+.add-module-row { display: grid !important; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 6px; }
+.add-module-row .btn-add { margin: 0; padding: 6px 2px; font-size: 11px; white-space: nowrap; }
+@media (max-width: 560px) { .add-module-row { grid-template-columns: repeat(3, 1fr); } }

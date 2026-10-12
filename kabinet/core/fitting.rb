@@ -196,7 +196,7 @@ module Kabinet
       # EP 마감판이 도어 전면까지 나와야 할 때 필요한 깊이 연장량.
       # modules: normalize된 모듈 해시 배열.
       def front_protrusion_mm(modules)
-        off  = Kabinet::Constants::DOOR_FRONT_OFFSET_MM.to_f
+        off  = Kabinet::Core::Gaps.front_offset.to_f
         prot = 0.0
         (modules || []).each do |m|
           p = case m['kind']

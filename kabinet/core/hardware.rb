@@ -86,8 +86,8 @@ module Kabinet
         return rows if dc == 'none'
 
         door_type = m['door_type'] || 'swing'
-        gap_t     = Kabinet::Constants::DOOR_GAP_TOP_MM.to_f
-        gap_b     = Kabinet::Constants::DOOR_GAP_BOTTOM_MM.to_f
+        gap_t     = Kabinet::Core::Gaps.top.to_f
+        gap_b     = Kabinet::Core::Gaps.bottom.to_f
         door_h    = mh - gap_t - gap_b
         n_doors   = dc == 'pair' ? 2 : 1
 

@@ -98,10 +98,10 @@ module Kabinet
               rect(v, bx, 0, bw, ph, 'OUTLINE')
               if (m['drawer_side'] || 'foot') == 'foot'
                 FIT.drawer_fronts(bw, ph, (m['drawer_count'] || 2).to_i,
-                                  side_gap:   C::DRAWER_FRONT_GAP_MM.to_f,
-                                  top_gap:    C::DOOR_GAP_TOP_MM.to_f,
-                                  bottom_gap: C::DOOR_GAP_BOTTOM_MM.to_f,
-                                  reveal:     C::DRAWER_REVEAL_BETWEEN_MM.to_f)
+                                  side_gap:   Kabinet::Core::Gaps.drawer_gap.to_f,
+                                  top_gap:    Kabinet::Core::Gaps.top.to_f,
+                                  bottom_gap: Kabinet::Core::Gaps.bottom.to_f,
+                                  reveal:     Kabinet::Core::Gaps.drawer_between.to_f)
                    .each { |f| rect(v, bx + f[:x], f[:z], f[:w], f[:h], 'FRONTS') }
               end
               # 리프트업 받침 플레이트 (플랫폼 위 18T)
@@ -200,10 +200,10 @@ module Kabinet
         case m['kind']
         when 'drawer_module'
           fronts = FIT.drawer_fronts(w, h, (m['drawer_count'] || 1).to_i,
-                                     side_gap:   C::DRAWER_FRONT_GAP_MM.to_f,
-                                     top_gap:    C::DOOR_GAP_TOP_MM.to_f,
-                                     bottom_gap: C::DOOR_GAP_BOTTOM_MM.to_f,
-                                     reveal:     C::DRAWER_REVEAL_BETWEEN_MM.to_f)
+                                     side_gap:   Kabinet::Core::Gaps.drawer_gap.to_f,
+                                     top_gap:    Kabinet::Core::Gaps.top.to_f,
+                                     bottom_gap: Kabinet::Core::Gaps.bottom.to_f,
+                                     reveal:     Kabinet::Core::Gaps.drawer_between.to_f)
           fronts.each { |f| rect(v, x + f[:x], z + f[:z], f[:w], f[:h], 'FRONTS') }
         when 'desk_module'
           front_desk(v, m, x, z, w, h)
@@ -249,7 +249,7 @@ module Kabinet
         dc = m['door_config'] || 'none'
         return if dc == 'none'
         mount    = m['door_mount'] || 'overlay'
-        side_gap = (m['door_side_gap_mm'] || C::DOOR_GAP_OUTSIDE_MM).to_f
+        side_gap = (m['door_side_gap_mm'] || Kabinet::Core::Gaps.outside).to_f
         bt       = m['body_thickness'].to_f
 
         doors =
@@ -264,9 +264,9 @@ module Kabinet
           when 'folding'
             FIT.folding_doors(w, h, dc,
                               side_gap: side_gap,
-                              top_gap: C::DOOR_GAP_TOP_MM.to_f,
-                              bottom_gap: C::DOOR_GAP_BOTTOM_MM.to_f,
-                              center_gap: C::DOOR_REVEAL_BETWEEN_MM.to_f)
+                              top_gap: Kabinet::Core::Gaps.top.to_f,
+                              bottom_gap: Kabinet::Core::Gaps.bottom.to_f,
+                              center_gap: Kabinet::Core::Gaps.between.to_f)
           when 'lift_up'
             base_w = mount == 'inset' ? w - 2 * bt : w
             base_h = mount == 'inset' ? h - 2 * bt : h
@@ -275,13 +275,13 @@ module Kabinet
             if mount == 'inset'
               FIT.inset_doors(w - 2 * bt, h - 2 * bt, dc,
                               gap: C::INSET_DOOR_GAP_MM.to_f,
-                              center_gap: C::DOOR_REVEAL_BETWEEN_MM.to_f)
+                              center_gap: Kabinet::Core::Gaps.between.to_f)
             else
               FIT.swing_doors(w, h, dc,
                               side_gap: side_gap,
-                              top_gap: C::DOOR_GAP_TOP_MM.to_f,
-                              bottom_gap: C::DOOR_GAP_BOTTOM_MM.to_f,
-                              center_gap: C::DOOR_REVEAL_BETWEEN_MM.to_f)
+                              top_gap: Kabinet::Core::Gaps.top.to_f,
+                              bottom_gap: Kabinet::Core::Gaps.bottom.to_f,
+                              center_gap: Kabinet::Core::Gaps.between.to_f)
             end
           end
 
@@ -323,10 +323,10 @@ module Kabinet
           rng = cell_edges[(cd['cell'] || 0).to_i]
           next unless rng
           fronts = FIT.drawer_fronts(rng[1] - rng[0], int_h, (cd['count'] || 2).to_i,
-                                     side_gap:   C::DOOR_GAP_OUTSIDE_MM.to_f,
-                                     top_gap:    C::DOOR_GAP_TOP_MM.to_f,
-                                     bottom_gap: C::DOOR_GAP_BOTTOM_MM.to_f,
-                                     reveal:     C::DRAWER_REVEAL_BETWEEN_MM.to_f)
+                                     side_gap:   Kabinet::Core::Gaps.outside.to_f,
+                                     top_gap:    Kabinet::Core::Gaps.top.to_f,
+                                     bottom_gap: Kabinet::Core::Gaps.bottom.to_f,
+                                     reveal:     Kabinet::Core::Gaps.drawer_between.to_f)
           fronts.each do |f|
             rect(v, x + bt + rng[0] + f[:x], z + bt + f[:z], f[:w], f[:h], 'FRONTS')
           end
@@ -352,10 +352,10 @@ module Kabinet
           px = ped_pos == 'left' ? x : x + w - pw
           rect(v, px, z, pw, leg_h, 'OUTLINE')
           fronts = FIT.drawer_fronts(pw, leg_h, (ped['drawer_count'] || 3).to_i,
-                                     side_gap:   C::DRAWER_FRONT_GAP_MM.to_f,
-                                     top_gap:    C::DOOR_GAP_TOP_MM.to_f,
-                                     bottom_gap: C::DOOR_GAP_BOTTOM_MM.to_f,
-                                     reveal:     C::DRAWER_REVEAL_BETWEEN_MM.to_f)
+                                     side_gap:   Kabinet::Core::Gaps.drawer_gap.to_f,
+                                     top_gap:    Kabinet::Core::Gaps.top.to_f,
+                                     bottom_gap: Kabinet::Core::Gaps.bottom.to_f,
+                                     reveal:     Kabinet::Core::Gaps.drawer_between.to_f)
           fronts.each { |f| rect(v, px + f[:x], z + f[:z], f[:w], f[:h], 'FRONTS') }
         end
       end
@@ -401,8 +401,8 @@ module Kabinet
           line(v, x0, z, x0 + g[:max_d], z, 'HIDDEN') if mz > 0
           t = front_thickness_of(m)
           if t > 0
-            rect(v, x0 - t - C::DOOR_FRONT_OFFSET_MM, z + C::DOOR_GAP_BOTTOM_MM,
-                 t, mh - C::DOOR_GAP_TOP_MM - C::DOOR_GAP_BOTTOM_MM, 'FRONTS')
+            rect(v, x0 - t - Kabinet::Core::Gaps.front_offset, z + Kabinet::Core::Gaps.bottom,
+                 t, mh - Kabinet::Core::Gaps.top - Kabinet::Core::Gaps.bottom, 'FRONTS')
           end
           bt = (m['body_thickness'] || 18).to_f
           (m['shelves'] || []).each do |s|
@@ -464,7 +464,7 @@ module Kabinet
         each_module_frame(spec, g) do |m, mx, _mz, mw, _mh|
           t = front_thickness_of(m)
           next unless t > 0
-          rect(v, x_car + mx, y0 - t - C::DOOR_FRONT_OFFSET_MM, mw, t, 'FRONTS')
+          rect(v, x_car + mx, y0 - t - Kabinet::Core::Gaps.front_offset, mw, t, 'FRONTS')
         end
 
         # run 모드: 섹션 경계 (은선) / stack: 측판 (은선)

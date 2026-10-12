@@ -11,6 +11,9 @@ function hingeCount(doorHeightMm) {
 }
 
 /* ── 모듈 리스트 렌더링 ──────────────────────────────────────────────── */
+// 펼친 모듈 카드 번호 (다시 그려도 유지). 모듈이 여러 개면 기본은 첫 카드만 펼침.
+const _openCards = new Set([0]);
+
 function renderModuleList() {
   const state = kabinet.getState();
   const el    = document.getElementById('module-list');
@@ -27,11 +30,14 @@ function renderModuleList() {
     .map((m, i) => moduleCardHtml(m, i, state.modules.length))
     .join('');
 
-  // Collapse toggles
-  el.querySelectorAll('.module-card-header').forEach(header => {
+  // Collapse toggles (모듈 1개면 항상 펼침)
+  el.querySelectorAll('.module-card-header').forEach((header, idx) => {
+    const body = header.nextElementSibling;
+    if (state.modules.length > 1 && !_openCards.has(idx)) body.classList.add('collapsed');
     header.addEventListener('click', e => {
       if (e.target.closest('button')) return;
-      header.nextElementSibling.classList.toggle('collapsed');
+      body.classList.toggle('collapsed');
+      if (body.classList.contains('collapsed')) _openCards.delete(idx); else _openCards.add(idx);
     });
   });
 

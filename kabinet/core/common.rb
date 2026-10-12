@@ -8,9 +8,12 @@ module Kabinet
     module Common
       module_function
 
-      KEYS = %w[material door_material body_thickness back_thickness door_thickness
-                shelf_thickness ep_thickness handle_type].freeze
-      NUMERIC = %w[body_thickness back_thickness door_thickness shelf_thickness ep_thickness].freeze
+      # 도어 간격 키 → 스펙 door_gaps 키
+      GAP_KEYS = { 'gap_top' => 'top', 'gap_bottom' => 'bottom', 'gap_outside' => 'outside',
+                   'gap_between' => 'between', 'gap_front' => 'front_offset' }.freeze
+      KEYS = (%w[material door_material body_thickness back_thickness door_thickness
+                 shelf_thickness ep_thickness handle_type] + GAP_KEYS.keys).freeze
+      NUMERIC = (%w[body_thickness back_thickness door_thickness shelf_thickness ep_thickness] + GAP_KEYS.keys).freeze
       CASE_KINDS = %w[shelf_module drawer_module].freeze
 
       # 사용자가 입력한 공통값 → 쓸 수 있는 값만 남긴 해시
@@ -19,7 +22,10 @@ module Kabinet
           k = k.to_s
           next unless KEYS.include?(k)
           next if v.nil? || v.to_s.strip.empty?
-          if NUMERIC.include?(k)
+          if GAP_KEYS.key?(k)
+            f = Float(v) rescue nil
+            out[k] = f if f && f >= 0 && f <= 50     # 간격은 0 허용
+          elsif NUMERIC.include?(k)
             f = Float(v) rescue nil
             out[k] = f if f && f > 0 && f <= 100
           else
@@ -38,6 +44,8 @@ module Kabinet
         if c['ep_thickness']
           s['ep'] = (s['ep'] || {}).merge('thickness' => c['ep_thickness'])
         end
+        gaps = GAP_KEYS.each_with_object({}) { |(ck, gk), h| h[gk] = c[ck] if c.key?(ck) }
+        s['door_gaps'] = (s['door_gaps'] || {}).merge(gaps) unless gaps.empty?
         (s['modules'] || []).each do |m|
           kind = m['kind'].to_s
           m['material'] = c['material'] if c['material'] && kind != 'bed_gap' && kind != 'v_gap'
@@ -47,6 +55,7 @@ module Kabinet
           m['body_thickness'] = c['body_thickness'] if c['body_thickness']
           m['back_thickness'] = c['back_thickness'] if c['back_thickness']
           m['handle_type'] = c['handle_type'] if c['handle_type']
+          m['door_side_gap_mm'] = c['gap_outside'] if c.key?('gap_outside') && kind == 'shelf_module'
           if c['door_thickness']
             m['door_thickness'] = c['door_thickness'] if kind == 'shelf_module'
             m['drawer_thickness'] = c['door_thickness'] if kind == 'drawer_module' || m.key?('drawer_thickness')

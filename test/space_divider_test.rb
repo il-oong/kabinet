@@ -1,7 +1,7 @@
 # 순수 루비 자가 검증 — SketchUp 불필요. 실행: ruby test/space_divider_test.rb
 require_relative 'support/geom'
 module Kabinet; end
-%w[constants core/fitting core/space_divider].each { |f| require_relative "../kabinet/#{f}" }
+%w[constants core/gaps core/fitting core/space_divider].each { |f| require_relative "../kabinet/#{f}" }
 
 SD = Kabinet::Core::SpaceDivider
 def assert(v, msg); raise msg unless v; end

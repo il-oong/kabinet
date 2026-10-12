@@ -3,7 +3,7 @@
 require 'json'
 require_relative 'support/geom'
 module Kabinet; end
-%w[constants persistence/attributes persistence/schema geometry/transforms geometry/builder
+%w[constants core/gaps persistence/attributes persistence/schema geometry/transforms geometry/builder
    geometry/joinery geometry/handle_builder core/fitting core/panel core/carcase
    core/door_panel core/ep_finish_panel core/accessory core/shelf_module core/drawer_module
    core/desk_module core/assembly geometry/preview_entities].each { |f| require_relative "../kabinet/#{f}" }
@@ -27,3 +27,13 @@ assert r[:segs].any? { |s| s[4] == 1 } && r[:segs].any? { |s| s[4] == 0 }, 'fron
 assert r[:segs].all? { |s| s.size == 5 }, 'segment shape'
 assert JSON.generate(r).size < 200_000, 'payload size'
 puts "front_projection_test: OK (#{r[:segs].size} segs)"
+
+# 도어 간격(door_gaps)이 실제 형상에 반영되는지: 바깥 간격 10 → 도어 왼쪽 끝 x=10, 위 간격 10 → 도어 윗끝 내려감
+fronts = ->(sp) { Kabinet::UI::Dialog.front_projection(sp)[:segs].select { |s| s[4] == 1 } }
+f0 = fronts.(spec)
+f1 = fronts.(spec.merge('door_gaps' => { 'outside' => 10, 'top' => 10 }))
+minx = ->(f) { f.flat_map { |s| [s[0], s[2]] }.min }
+maxz = ->(f) { f.flat_map { |s| [s[1], s[3]] }.max }
+assert (minx.(f1) - minx.(f0) - 8).abs < 0.6, "outside gap #{minx.(f0)} → #{minx.(f1)}"
+assert (maxz.(f0) - maxz.(f1) - 8).abs < 0.6, "top gap #{maxz.(f0)} → #{maxz.(f1)}"
+puts 'front_projection_test: door_gaps OK'
