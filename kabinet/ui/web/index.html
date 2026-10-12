@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabinet</title>
-  <link rel="stylesheet" href="styles.css?v=1.13.0">
+  <link rel="stylesheet" href="styles.css?v=1.14.0">
 </head>
 <body>
 
@@ -12,7 +12,7 @@
 <aside class="preset-sidebar">
   <div class="preset-sidebar-head">
     <span class="preset-sidebar-title">Kabinet</span>
-    <span class="version-badge">v1.13.0</span>
+    <span class="version-badge">v1.14.0</span>
   </div>
   <input type="search" id="preset-search" class="preset-search" placeholder="프리셋·도구 검색…"
          oninput="kabinet.renderPresetSidebar()">
@@ -354,6 +354,28 @@
   </div>
 </div>
 
+<!-- ══ 가구 공통사항 ═══════════════════════════════════════════════════ -->
+<div class="scroll-area view ep-view" id="view-common" hidden>
+  <div class="card">
+    <div class="card-title">가구 공통사항 — 이 모델의 모든 Kabinet 가구에 함께 적용</div>
+    <p class="ep-hint">값을 넣은 항목만 모든 가구에 똑같이 적용됩니다. 비워 두면 가구마다 각자 값을 유지합니다.
+      <b>적용</b>을 누르면 이미 만든 가구도 전부 다시 생성되고, 앞으로 불러오는 프리셋에도 자동으로 들어갑니다. 설정은 이 SketchUp 파일에 저장됩니다.</p>
+    <div class="ep-grid">
+      <label class="ep-field">몸통 두께 (T)<input id="cm-body_thickness" type="number" min="3" max="100" placeholder="가구별"></label>
+      <label class="ep-field">뒷판 두께 (T)<input id="cm-back_thickness" type="number" min="3" max="100" placeholder="가구별"></label>
+      <label class="ep-field">도어·서랍 전판 (T)<input id="cm-door_thickness" type="number" min="3" max="100" placeholder="가구별"></label>
+      <label class="ep-field">선반·칸막이 (T)<input id="cm-shelf_thickness" type="number" min="3" max="100" placeholder="가구별"></label>
+      <label class="ep-field">EP 두께 (T)<input id="cm-ep_thickness" type="number" min="3" max="100" placeholder="가구별"></label>
+      <label class="ep-field">손잡이<select id="cm-handle_type"><option value="">가구별 유지</option><option value="bar">바 손잡이</option><option value="knob">노브</option><option value="cup_pull">컵 풀</option><option value="channel">채널 (핸들리스)</option><option value="push_open">푸시 오픈</option><option value="none">없음</option></select></label>
+    </div>
+    <div class="ep-grid2">
+      <label class="ep-field">몸통 소재<select id="cm-material"><option value="">가구별 유지</option><option value="LPM">LPM (저압 멜라민)</option><option value="PET">PET</option><option value="UV_gloss">UV 도장</option><option value="acrylic">아크릴</option><option value="high_gloss">하이그로시</option><option value="phenix">페닉스</option><option value="HPL">HPL (고압 멜라민)</option><option value="MDF_paint">MDF 도장</option><option value="plywood">합판</option><option value="solid_wood">집성목/원목</option></select></label>
+      <label class="ep-field">도어 소재<select id="cm-door_material"><option value="">가구별 유지</option><option value="LPM">LPM (저압 멜라민)</option><option value="PET">PET</option><option value="UV_gloss">UV 도장</option><option value="acrylic">아크릴</option><option value="high_gloss">하이그로시</option><option value="phenix">페닉스</option><option value="HPL">HPL (고압 멜라민)</option><option value="MDF_paint">MDF 도장</option><option value="plywood">합판</option><option value="solid_wood">집성목/원목</option></select></label>
+    </div>
+    <button type="button" class="btn-primary ep-big" onclick="kabinet.applyCommonAll()">저장하고 모든 가구에 적용</button>
+  </div>
+</div>
+
 <!-- ══ 주방 상판 설치 ══════════════════════════════════════════════════ -->
 <div class="scroll-area view ep-view" id="view-countertop" hidden>
   <div class="card">
@@ -406,18 +428,14 @@
             onclick="kabinet.loadSelection()">선택 불러오기</button>
     <button class="btn-primary" id="btn-apply" title="생성 또는 재생성 (자동 판단)"
             onclick="kabinet.smartApply()">모델 반영</button>
-    <button class="btn-accent" title="선택한 가구를 SketchUp LayOut A3 도면 + PDF로"
-            onclick="kabinet.showView('drawing')">도면 (LayOut)</button>
-    <button class="btn-secondary" title="부재/하드웨어/경고 CSV"
-            onclick="kabinet.exportCutList()">커트리스트</button>
   </div>
 </div>
 
 </div><!-- /.main-col -->
 
-<script src="app.js?v=1.13.0"></script>
-<script src="modules.js?v=1.13.0"></script>
-<script src="live-preview.js?v=1.13.0"></script>
-<script src="drawing.js?v=1.13.0"></script>
+<script src="app.js?v=1.14.0"></script>
+<script src="modules.js?v=1.14.0"></script>
+<script src="live-preview.js?v=1.14.0"></script>
+<script src="drawing.js?v=1.14.0"></script>
 </body>
 </html>
