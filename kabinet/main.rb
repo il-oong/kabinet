@@ -97,9 +97,10 @@ module Kabinet
       commands/generate.rb commands/regenerate.rb commands/export.rb
       commands/face_panel.rb commands/space_divide.rb
       output/drawing2d.rb output/dxf.rb output/order_sheet.rb
-      output/dimensions.rb output/views.rb
+      output/group_projection.rb output/dimensions.rb output/views.rb
       output/png_export.rb output/pdf_bundler.rb
       ui/dialog.rb ui/panel_tools.rb ui/menu.rb
+      ui/icons/face_panel.svg ui/icons/space_divide.svg
       ui/web/index.html ui/web/app.js
       ui/web/modules.js ui/web/styles.css
     ]
@@ -147,7 +148,7 @@ module Kabinet
       'commands/generate', 'commands/regenerate', 'commands/export',
       'commands/face_panel', 'commands/space_divide',
       'output/drawing2d', 'output/dxf', 'output/order_sheet',
-      'output/dimensions', 'output/views',
+      'output/group_projection', 'output/dimensions', 'output/views',
       'output/png_export', 'output/pdf_bundler',
       'geometry/preview_entities', 'ui/live_preview',
       'ui/dialog', 'ui/panel_tools', 'ui/menu'
