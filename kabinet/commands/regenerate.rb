@@ -175,5 +175,40 @@ module Kabinet
         [v.to_i, MIN_MM].max
       end
     end
+
+    # 저장 후 다시 연 모델은 EntityObserver가 사라져 SketchUp 스케일이 판재 두께까지 늘린다.
+    # 어셈블리를 선택하는 순간(스케일하려면 반드시 선택) 옵저버를 다시 건다.
+    class AssemblySelectionObserver < Sketchup::SelectionObserver
+      def onSelectionBulkChange(selection)
+        attach(selection)
+      end
+
+      def onSelectionAdded(selection, _entity)
+        attach(selection)
+      end
+
+      def attach(selection)
+        selection.each do |e|
+          next unless (e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance))
+          Kabinet::Commands::Generate.install_observer(e) if Kabinet::Persistence::Attributes.assembly?(e)
+        end
+      rescue StandardError
+        # best-effort
+      end
+    end
+
+    class AssemblyAppObserver < Sketchup::AppObserver
+      def onNewModel(model)
+        hook(model)
+      end
+
+      def onOpenModel(model)
+        hook(model)
+      end
+
+      def hook(model)
+        model.selection.add_observer(AssemblySelectionObserver.new)
+      end
+    end
   end
 end

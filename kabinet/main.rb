@@ -73,6 +73,8 @@ require File.join(Kabinet::PLUGIN_DIR, 'updater')
 module Kabinet
   unless file_loaded?(__FILE__)
     Kabinet::UI::Menu.install
+    Sketchup.add_observer(Kabinet::Commands::AssemblyAppObserver.new)
+    Kabinet::Commands::AssemblyAppObserver.new.hook(Sketchup.active_model)
     file_loaded(__FILE__)
   end
 

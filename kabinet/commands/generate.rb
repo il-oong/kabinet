@@ -51,8 +51,12 @@ module Kabinet
 
       def install_observer(root)
         return unless defined?(Kabinet::Commands::ScaleAutoRegenObserver)
-        observer = Kabinet::Commands::ScaleAutoRegenObserver.new
-        root.add_observer(observer)
+        key = [root.model.guid, root.entityID]
+        # 재생성/재선택 때마다 달았다간 스케일이 중복 적용되므로 그룹당 하나만
+        @observed ||= {}
+        return if @observed[key]
+        root.add_observer(Kabinet::Commands::ScaleAutoRegenObserver.new)
+        @observed[key] = true
       rescue StandardError
         # observer is best-effort; never break generation if it fails
       end
