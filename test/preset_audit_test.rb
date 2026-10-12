@@ -14,10 +14,18 @@ Kabinet::UI::Dialog.module_eval(src[/      def front_projection.*?\n      end\n/
 Kabinet::UI::Dialog.send(:module_function, :front_projection)
 def assert(v, m); raise m unless v; end
 
-out, err, st = Open3.capture3('node', File.join(__dir__, 'export_furniture_presets.js'), '/dev/stdout')
+js = <<~JS
+  const fs=require('fs'),vm=require('vm');
+  const ctx=vm.createContext({document:{addEventListener(){}}});
+  vm.runInContext(fs.readFileSync(#{File.join(__dir__, '../kabinet/ui/web/app.js').to_json},'utf8'),ctx);
+  process.stdout.write(vm.runInContext('JSON.stringify(FURNITURE_PRESETS)',ctx));
+JS
+out, err, st = Open3.capture3('node', '-e', js)
 raise "node failed: #{err}" unless st.success?
 presets = JSON.parse(out)
+assert presets.size >= 12, "preset count #{presets.size}"
 expect = { 'wardrobe' => [900, 2300], 'kitchen_base' => [900, 880] }
+expect.each_key { |k| assert presets.key?(k), "missing preset #{k}" }
 presets.each do |k, spec|
   n = Kabinet::Persistence::Schema.normalize(spec)
   Kabinet::Persistence::Schema.validate!(n)
