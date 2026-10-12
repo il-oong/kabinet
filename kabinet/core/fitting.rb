@@ -95,6 +95,22 @@ module Kabinet
         [{ x: gap, z: gap, w: mod_w - 2 * gap, h: mod_h - 2 * gap, role: 'door_lift_up' }]
       end
 
+      # ── 균등 분할 도어 (칸 수만큼 동일 크기) ─────────────────────────────
+      # rect_w/rect_h = 도어가 덮는 사각형(공간 분할 도구용). 좌표는 사각형 좌하단 기준.
+      # axis 'x' → 좌우로 나란히 n장, 'z' → 위아래로 n장. 단위 불문.
+      def equal_doors(rect_w, rect_h, count, axis, side_gap:, top_gap:, bottom_gap:, center_gap:)
+        n = [count.to_i, 1].max
+        if axis.to_s == 'x'
+          w = (rect_w - 2 * side_gap - (n - 1) * center_gap) / n
+          h = rect_h - top_gap - bottom_gap
+          n.times.map { |i| { x: side_gap + i * (w + center_gap), z: bottom_gap, w: w, h: h, role: "door_free_#{i + 1}" } }
+        else
+          h = (rect_h - top_gap - bottom_gap - (n - 1) * center_gap) / n
+          w = rect_w - 2 * side_gap
+          n.times.map { |i| { x: side_gap, z: bottom_gap + i * (h + center_gap), w: w, h: h, role: "door_free_#{i + 1}" } }
+        end
+      end
+
       # ── 서랍 전판 스택 (풀 오버레이) ─────────────────────────────────────
       # 모듈 외곽 기준. 반환: [{ x:, z:, w:, h: }, ...] 아래→위 순.
       def drawer_fronts(mod_w, mod_h, count, side_gap:, top_gap:, bottom_gap:, reveal:)

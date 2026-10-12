@@ -10,6 +10,9 @@ module Kabinet
         kabinet_menu.add_item('새 어셈블리…') { Kabinet::UI::Dialog.show }
         kabinet_menu.add_item('선택 어셈블리 편집…') { Kabinet::UI::Dialog.show_with_selection }
         kabinet_menu.add_separator
+        kabinet_menu.add_item('면 → 18T 패널 (면 클릭)') { Sketchup.active_model.select_tool(Kabinet::UI::FacePanelTool.new) }
+        kabinet_menu.add_item('공간 분할 + 도어 균등 (공간 클릭)') { Sketchup.active_model.select_tool(Kabinet::UI::SpaceDivideTool.new) }
+        kabinet_menu.add_separator
         kabinet_menu.add_item('선택 어셈블리 재생성') { Kabinet::Commands::Regenerate.run }
         kabinet_menu.add_separator
         kabinet_menu.add_item('도면 출력 (PNG + PDF)…') { Kabinet::Commands::Export.run }
