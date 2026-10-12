@@ -711,3 +711,45 @@ body { flex-direction: row; }
 .combine-actions { display: flex; gap: 6px; margin-top: 8px; }
 .combine-actions button { flex: 1; padding: 7px 4px; border: none; border-radius: var(--radius); cursor: pointer; font: inherit; font-size: 12px; }
 .combine-error { color: var(--danger); }
+
+/* ── 화면 전환 (가구 설계 / 도면 / 보관함 / EP) ── */
+.view[hidden], .view-bar[hidden], .action-buttons[hidden], .ep-view [hidden] { display: none !important; }
+.view-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 10px; background: var(--surface); border-bottom: 1px solid var(--border);
+  flex-shrink: 0; font-weight: 600; color: var(--accent); font-size: 12px;
+}
+
+/* ── LayOut 도면 · 보관함 · EP 판재 ── */
+.ep-hint { font-size: 11px; color: var(--text-dim); line-height: 1.6; margin: 8px 0; }
+.ep-check { display: flex; align-items: center; gap: 6px; margin: 8px 0; font-size: 12px; }
+.ep-field { display: block; font-size: 11px; color: var(--text-dim); margin: 8px 0 0; }
+.ep-field input, .ep-field select, .ep-field textarea, .ep-lib-edit input {
+  display: block; width: 100%; margin-top: 4px; padding: 6px 8px;
+  background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--radius); font: inherit; font-size: 12px;
+}
+.ep-field textarea { resize: vertical; }
+.ep-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 6px 0; }
+.ep-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ep-grid button, .ep-lib-edit button { padding: 7px 4px; border-radius: var(--radius); cursor: pointer; font: inherit; font-size: 11px; }
+.ep-grid .ep-field { margin-top: 0; }
+.ep-big { width: 100%; padding: 10px; margin-top: 10px; border: none; border-radius: var(--radius); font: inherit; font-weight: 600; cursor: pointer; }
+.ep-view button:disabled { opacity: .5; cursor: wait; }
+.ep-sheet {
+  display: grid; grid-template-columns: 1.3fr .65fr 1.2fr; grid-template-rows: 28px 46px 20px; gap: 5px;
+  padding: 8px; border: 1px solid var(--border); border-radius: var(--radius); margin: 6px 0; font-size: 10px; color: var(--text-dim);
+}
+.ep-sheet div { background: var(--surface2); display: flex; align-items: center; justify-content: center; border-radius: 3px; }
+.ep-sheet .top { grid-area: 1/1/2/2; } .ep-sheet .front { grid-area: 2/1/4/2; } .ep-sheet .side { grid-area: 2/2/4/3; }
+.ep-sheet .iso { grid-area: 1/3/3/4; } .ep-sheet .materials { grid-area: 3/3/4/4; }
+.ep-lib-row { border-bottom: 1px solid var(--border); padding: 6px 0; }
+.ep-lib-item {
+  display: block; width: 100%; text-align: left; padding: 8px 10px; margin-bottom: 4px;
+  background: var(--surface2); color: var(--text); border: 1px solid transparent; border-radius: var(--radius); cursor: pointer; font: inherit;
+}
+.ep-lib-item:hover { border-color: var(--accent); }
+.ep-lib-item strong { display: block; font-size: 12px; }
+.ep-lib-item span { display: block; font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+.ep-lib-edit { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 6px 0; }
+.ep-lib-edit input { margin-top: 0; }

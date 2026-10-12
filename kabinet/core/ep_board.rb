@@ -1,0 +1,69 @@
+module Kabinet
+  module EPBoard
+    THICKNESSES = [3, 9, 12, 18, 20, 30].freeze
+    module_function
+
+    def dimensions(payload)
+      values = %w[width thickness height].map do |key|
+        begin
+          value = Float(payload.fetch(key))
+        rescue ArgumentError, TypeError, KeyError
+          raise ArgumentError, '가로·깊이(두께)·높이에 숫자를 입력하세요.'
+        end
+        raise ArgumentError, '치수는 0보다 크고 10,000mm 이하여야 합니다.' unless value.finite? && value > 0 && value <= 10_000
+        value
+      end
+      raise ArgumentError, '두께는 3·9·12·18·20·30T 중에서 선택하세요.' unless THICKNESSES.include?(values[1])
+      values
+    end
+
+    def mark_role(role, model: Sketchup.active_model)
+      raise ArgumentError, '올바른 부품 구분을 선택하세요.' unless %w[auto door ep body].include?(role)
+      selected = model.selection.to_a
+      raise '구분할 판재 또는 몸통장 그룹을 선택하세요.' if selected.empty? || selected.any? { |e| !e.is_a?(Sketchup::Group) && !e.is_a?(Sketchup::ComponentInstance) }
+      model.start_operation('도면 부품 구분', true)
+      begin
+        selected.each { |entity| entity.set_attribute('kabinet_ep', 'drawing_role', role) }
+        model.commit_operation
+      rescue StandardError
+        model.abort_operation
+        raise
+      end
+      selected.length
+    end
+
+    def create(payload, model: Sketchup.active_model)
+      w, t, h = dimensions(payload)
+      model.start_operation('EP 한 장 생성', true)
+      begin
+        board = model.active_entities.add_group
+        board.name = "EP #{w.round(2)} × #{t.to_i}T × #{h.round(2)}"
+        face = board.entities.add_face([0, 0, 0], [w.mm, 0, 0], [w.mm, t.mm, 0], [0, t.mm, 0])
+        face.reverse! if face.normal.z < 0
+        face.pushpull(h.mm)
+        board.set_attribute('kabinet_ep', 'dimensions_mm', [w, t, h])
+        model.commit_operation
+      rescue StandardError
+        model.abort_operation
+        raise
+      end
+      model.selection.clear
+      model.selection.add(board)
+      board
+    end
+
+    # 판재 형상을 컴포넌트 정의로 만든 뒤 SketchUp 배치 모드로 넘긴다.
+    # (원점 고정 생성 대신 커서를 따라다니다가 클릭한 곳에 놓임 · 스냅 · Esc 취소)
+    def place(payload, model: Sketchup.active_model)
+      w, t, h = dimensions(payload)
+      name = "EP #{w.round(2)} × #{t.to_i}T × #{h.round(2)}"
+      defn = model.definitions.add(name)
+      face = defn.entities.add_face([0, 0, 0], [w.mm, 0, 0], [w.mm, t.mm, 0], [0, t.mm, 0])
+      face.reverse! if face.normal.z < 0
+      face.pushpull(h.mm)
+      defn.set_attribute('kabinet_ep', 'dimensions_mm', [w, t, h])
+      model.place_component(defn, false)
+      defn
+    end
+  end
+end

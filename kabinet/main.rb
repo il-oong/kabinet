@@ -32,6 +32,8 @@ require File.join(Kabinet::PLUGIN_DIR, 'core', 'assembly')
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'hardware')
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'validation')
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'cut_list')
+require File.join(Kabinet::PLUGIN_DIR, 'core', 'ep_board')
+require File.join(Kabinet::PLUGIN_DIR, 'core', 'furniture_library')
 
 # Commands
 require File.join(Kabinet::PLUGIN_DIR, 'commands', 'generate')
@@ -49,6 +51,8 @@ require File.join(Kabinet::PLUGIN_DIR, 'output', 'dimensions')
 require File.join(Kabinet::PLUGIN_DIR, 'output', 'views')
 require File.join(Kabinet::PLUGIN_DIR, 'output', 'png_export')
 require File.join(Kabinet::PLUGIN_DIR, 'output', 'pdf_bundler')
+require File.join(Kabinet::PLUGIN_DIR, 'output', 'furniture_sheet')
+require File.join(Kabinet::PLUGIN_DIR, 'output', 'space_sheet')
 
 # UI (last — depends on everything)
 require File.join(Kabinet::PLUGIN_DIR, 'geometry', 'preview_entities')
@@ -97,6 +101,8 @@ module Kabinet
       core/shelf_module.rb core/drawer_module.rb
       core/desk_module.rb core/assembly.rb
       core/hardware.rb core/validation.rb core/cut_list.rb
+      core/ep_board.rb core/furniture_library.rb
+      output/furniture_sheet.rb output/space_sheet.rb output/drawing_template.layout
       commands/generate.rb commands/regenerate.rb commands/export.rb
       commands/face_panel.rb commands/space_divide.rb
       output/drawing2d.rb output/dxf.rb output/order_sheet.rb
@@ -105,7 +111,7 @@ module Kabinet
       ui/dialog.rb ui/panel_tools.rb ui/place_tool.rb ui/menu.rb updater.rb
       ui/icons/face_panel.svg ui/icons/space_divide.svg ui/icons/kabinet.svg
       ui/web/index.html ui/web/app.js
-      ui/web/modules.js ui/web/styles.css
+      ui/web/modules.js ui/web/styles.css ui/web/drawing.js
     ]
 
     puts "Kabinet.update! — #{src_root} → #{dst_root}"
@@ -148,11 +154,13 @@ module Kabinet
       'core/ep_finish_panel', 'core/accessory',
       'core/shelf_module', 'core/drawer_module', 'core/desk_module',
       'core/assembly', 'core/hardware', 'core/validation', 'core/cut_list',
+      'core/ep_board', 'core/furniture_library',
       'commands/generate', 'commands/regenerate', 'commands/export',
       'commands/face_panel', 'commands/space_divide',
       'output/drawing2d', 'output/dxf', 'output/order_sheet',
       'output/group_projection', 'output/dimensions', 'output/views',
       'output/png_export', 'output/pdf_bundler',
+      'output/furniture_sheet', 'output/space_sheet',
       'geometry/preview_entities', 'ui/live_preview',
       'ui/dialog', 'ui/panel_tools', 'ui/place_tool', 'ui/menu', 'updater'
     ]

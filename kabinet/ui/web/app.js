@@ -922,7 +922,8 @@ const kabinet = (() => {
   // 판재 · 분할 도구 — 모델 위에서 클릭해 쓰는 도구 (별도 폴더)
   const SIDEBAR_PANEL_TOOLS = [
     { id: 'face_panel',   label: '면 → 18T 패널', hint: '모델에서 면을 클릭하면 아래 두께로 판재를 만듭니다' },
-    { id: 'space_divide', label: '공간 균등 분할 (칸막이 + 도어)', hint: '캐비닛 안쪽을 클릭 → 칸 수 입력 창 → 균등 분할' }
+    { id: 'space_divide', label: '공간 균등 분할 (칸막이 + 도어)', hint: '캐비닛 안쪽을 클릭 → 칸 수 입력 창 → 균등 분할' },
+    { id: 'ep_board',     label: 'EP 판재 한 장 놓기', hint: '가로·두께·높이를 입력하고 원하는 곳에 판재 한 장 배치' }
   ];
   // 가구 도구 — Kabinet 가구 불러오기/재생성
   const SIDEBAR_TOOLS = [
@@ -930,12 +931,12 @@ const kabinet = (() => {
     { id: 'regenerate',   label: '선택 가구 재생성', hint: '선택한 Kabinet 가구를 저장된 스펙으로 다시 만들기' }
   ];
   const SIDEBAR_OUTPUTS = [
-    { id: 'dxf',          label: '발주도면 DXF', hint: '현재 폼의 가구 → 3면도 + 표제란' },
-    { id: 'cutlist',      label: '커트리스트 CSV', hint: '현재 폼의 가구 → 부재/하드웨어' },
-    { id: 'group_dxf',    label: '직접 모델링 → DXF', hint: '선택한 그룹/컴포넌트 → 3면도 DXF' },
-    { id: 'group_cut',    label: '직접 모델링 → 재단목록', hint: '선택한 그룹 안 판재별 두께×폭×길이 CSV' },
-    { id: 'scene',        label: '씬 도면 PNG/PDF', hint: '뷰포트 캡처 도면' }
+    { id: 'furniture_drawing', label: '가구 도면 (LayOut · PDF)', hint: '선택한 가구 → A3 평면·정면·측면·컬러 입체도' },
+    { id: 'space_drawing',     label: '공간 도면 (LayOut · PDF)', hint: '방 바닥·문·창·가구 배치도 + 치수표' },
+    { id: 'cutlist',           label: '커트리스트 CSV', hint: '현재 폼의 가구 → 부재/하드웨어' },
+    { id: 'group_cut',         label: '선택 가구 재단목록 CSV', hint: '선택한 그룹 안 판재별 두께×폭×길이' }
   ];
+
   const SIDEBAR_ADMIN = [
     { id: 'update',       label: 'GitHub에서 업데이트', hint: '최신 kabinet.rbz를 내려받아 설치' },
     { id: 'reload',       label: '플러그인 다시 로드', hint: '설치된 파일을 다시 불러오기 (개발용)' }
@@ -950,15 +951,16 @@ const kabinet = (() => {
       }
       case 'space_divide': callSketchup('kabinet:tool', JSON.stringify({ name: 'space_divide' })); break;
       case 'regenerate':   callSketchup('kabinet:tool', JSON.stringify({ name: 'regenerate' })); break;
-      case 'load_sel':     loadSelection(); break;
-      case 'dxf':          exportDXF(); break;
+      case 'load_sel':     showView('design'); loadSelection(); break;
+      case 'ep_board':     showView('ep'); break;
+      case 'furniture_drawing': showView('drawing'); window.kabinetDrawing && kabinetDrawing.setSpaceMode(false); break;
+      case 'space_drawing':     showView('drawing'); window.kabinetDrawing && kabinetDrawing.setSpaceMode(true); break;
+      case 'library_manage':    showView('library'); break;
       case 'cutlist':      exportCutList(); break;
-      case 'group_dxf':    exportGroupDXF(); break;
       case 'group_cut':
         setStatus('선택 그룹 재단 목록 생성 중…', '');
         callSketchup('kabinet:export_group_cutlist', '');
         break;
-      case 'scene':        exportDrawings(); break;
       case 'update':       setStatus('업데이트 확인 중…', ''); callSketchup('kabinet:admin', 'update'); break;
       case 'reload':       callSketchup('kabinet:admin', 'reload'); break;
     }
@@ -1044,6 +1046,25 @@ const kabinet = (() => {
         opts.map(o => presetBtn(o.value, o.textContent)).join(''), opts.length);
     });
 
+    // 내 가구 보관함 (SketchUp 모델로 저장한 가구 — 폴더별)
+    {
+      const byFolder = {};
+      furnitureLibrary.filter(it => match(it.name + ' ' + (it.folder || ''))).forEach(it => {
+        (byFolder[it.folder || '미분류'] = byFolder[it.folder || '미분류'] || []).push(it);
+      });
+      const fnames = Object.keys(byFolder).sort((a, b) => a.localeCompare(b, 'ko'));
+      let inner = actionBtn({ id: 'library_manage', label: '선택 가구 저장 · 관리', hint: '선택한 가구를 보관함에 저장, 이름·폴더 변경' });
+      let count = 0;
+      fnames.forEach(f => {
+        count += byFolder[f].length;
+        const rows = byFolder[f].map(it =>
+          `<button type="button" class="preset-entry" title="${escAttr(it.name)} — 클릭 후 모델에서 놓을 곳 클릭" ` +
+          `data-lib="${escAttr(it.id)}">${esc(it.name)}</button>`).join('');
+        inner += folder('lib:' + f, f, rows, byFolder[f].length, ' sb-sub');
+      });
+      if (count || !q) html += folder('library', '내 가구 보관함', inner, count);
+    }
+
     // 내 프리셋 (사용자 폴더)
     const uf = _userPresetFolders();
     const names = Object.keys(uf).sort((a, b) => (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b, 'ko')));
@@ -1075,7 +1096,11 @@ const kabinet = (() => {
     list.innerHTML = html || '<div class="preset-empty">검색 결과 없음</div>';
     list.querySelectorAll('[data-folder]').forEach(b => b.addEventListener('click', () => toggleFolder(b.dataset.folder)));
     list.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', () => runSidebarAction(b.dataset.action)));
+    list.querySelectorAll('[data-lib]').forEach(b => b.addEventListener('click', () => {
+      if (window.kabinetDrawing) kabinetDrawing.place(b.dataset.lib);
+    }));
     list.querySelectorAll('[data-value]').forEach(b => b.addEventListener('click', () => {
+      showView('design');
       const v = b.dataset.value;
       if (v.indexOf('user:') !== 0) sel.value = v;
       onPresetChange(v);
@@ -1089,6 +1114,24 @@ const kabinet = (() => {
     if (tt) tt.addEventListener('change', () => {
       try { localStorage.setItem('kabinet.toolThickness', tt.value); } catch (e) {}
     });
+  }
+
+  // ── 화면 전환: 가구 설계 / 도면 / 보관함 / EP 판재 ─────────────────────
+  let furnitureLibrary = [];
+  const VIEW_TITLES = { drawing: '도면 출력 (LayOut + PDF)', library: '내 가구 보관함', ep: 'EP 판재 한 장' };
+  function showView(name) {
+    const target = document.getElementById('view-' + name) ? name : 'design';
+    document.querySelectorAll('.view').forEach(v => { v.hidden = v.id !== 'view-' + target; });
+    const bar = document.getElementById('view-bar');
+    if (bar) bar.hidden = target === 'design';
+    const t = document.getElementById('view-title');
+    if (t) t.textContent = VIEW_TITLES[target] || '';
+    const acts = document.getElementById('design-actions');
+    if (acts) acts.hidden = target !== 'design';
+  }
+  function setLibrary(items) {
+    furnitureLibrary = Array.isArray(items) ? items : [];
+    renderPresetSidebar();
   }
 
   function _toolThickness() {
@@ -2102,7 +2145,8 @@ const kabinet = (() => {
     savePreset, listPresets, loadPresets, applyPreset, deletePreset,
     addModule, removeModule, moveModule,
     loadFurniturePreset, onPresetChange, renderPresetSidebar,
-    addToCombine, removeFromCombine, renderCombine, runSidebarAction, moveCombine, clearCombine, applyCombine, combinePresets,
+    addToCombine, removeFromCombine, renderCombine, runSidebarAction,
+    showView, setLibrary, setStatus, moveCombine, clearCombine, applyCombine, combinePresets,
     syncWidthToModules, distributeHeight,
     onTargetHeightLive,
     updateTotalHeight, updateHeightSummary, renderPreview,
