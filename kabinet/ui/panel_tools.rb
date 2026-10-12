@@ -1,5 +1,42 @@
 module Kabinet
   module UI
+    # ── 모델 위 반투명 하이라이트 (면/박스 채우기) ─────────────────────────
+    # 호버한 면은 연한 파랑, 마우스를 누르고 있는 면은 진한 파랑으로 채운다.
+    module Highlight
+      module_function
+
+      HOVER   = [30, 145, 235, 70].freeze
+      PRESSED = [20, 100, 230, 150].freeze
+      PART    = [235, 145, 25, 60].freeze
+      DOOR    = [40, 170, 90, 45].freeze
+      LIFT_MM = 0.3   # 원래 면과 겹쳐 깜빡이지 않도록 카메라 쪽으로 살짝 띄움
+
+      # box_corners 순서: (x,y,z) ∈ {0,1}³ → 인덱스 = 4x + 2y + z
+      BOX_QUADS = [[0, 1, 3, 2], [4, 5, 7, 6], [0, 1, 5, 4], [2, 3, 7, 6], [0, 2, 6, 4], [1, 3, 7, 5]].freeze
+
+      # 면을 삼각형으로 쪼갠 월드 좌표 목록(GL_TRIANGLES 용). 구멍 있는 면도 처리된다.
+      def face_triangles(face, tr)
+        mesh = face.mesh(0)
+        mesh.polygons.each_with_object([]) do |poly, tris|
+          pts = poly.map { |i| mesh.point_at(i.abs).transform(tr) }
+          (1...pts.size - 1).each { |k| tris.push(pts[0], pts[k], pts[k + 1]) }
+        end
+      end
+
+      def fill_face(view, tris, normal_w, rgba)
+        return if tris.nil? || tris.empty?
+        n = normal_w.dot(view.camera.direction) > 0 ? normal_w.reverse : normal_w
+        lift = LIFT_MM.mm
+        view.drawing_color = ::Sketchup::Color.new(*rgba)
+        view.draw(GL_TRIANGLES, tris.map { |p| p.offset(n, lift) })
+      end
+
+      def fill_box(view, corners, rgba)
+        view.drawing_color = ::Sketchup::Color.new(*rgba)
+        view.draw(GL_QUADS, BOX_QUADS.flat_map { |q| q.map { |i| corners[i] } })
+      end
+    end
+
     # ── 면 클릭 → 두께 인식 → 18T 패널 ────────────────────────────────────
     class FacePanelTool
       def initialize
@@ -7,6 +44,8 @@ module Kabinet
         @flip = false
         @info = nil
         @key = nil
+        @tris = nil
+        @pressed = false
         @message = nil
       end
 
@@ -58,7 +97,9 @@ module Kabinet
         key = path ? path.map(&:entityID) : nil
         if key != @key
           @key = key
+          @pressed = false
           @info = path && path.last.is_a?(::Sketchup::Face) ? Kabinet::Commands::FacePanel.analyze(path, view.model) : nil
+          @tris = @info ? Highlight.face_triangles(@info[:face], Kabinet::Commands::FacePanel.instance_transform(path[0...-1])) : nil
         end
         update_status
         view.invalidate
@@ -68,10 +109,19 @@ module Kabinet
         view.invalidate
       end
 
+      # 누르는 동안 면을 진한 파랑으로 잡아 보여주고, 놓을 때 생성한다.
       def onLButtonDown(_flags, _x, _y, view)
         return unless @info
+        @pressed = true
+        view.invalidate
+      end
+
+      def onLButtonUp(_flags, _x, _y, view)
+        return unless @pressed && @info
+        @pressed = false
         Kabinet::Commands::FacePanel.build(view.model, @info, @thickness, flip: @flip)
         @info = nil
+        @tris = nil
         @key = nil
         @message = nil
         view.invalidate
@@ -92,6 +142,7 @@ module Kabinet
         t = @thickness.mm
         outer = @info[:loops_w].first
         moved = outer.map { |p| p.offset(dir, t) }
+        Highlight.fill_face(view, @tris, @info[:normal_w], @pressed ? Highlight::PRESSED : Highlight::HOVER)
         view.line_width = 2
         view.line_stipple = ''
         view.drawing_color = ::Sketchup::Color.new(235, 145, 25)
@@ -145,6 +196,8 @@ module Kabinet
       def initialize
         @probe = nil
         @error = nil
+        @face_hl = nil
+        @pressed = false
         @axis = pref('space_axis', 'x')
         @axis = 'x' unless AXIS_LABELS.key?(@axis)
         @cells = pref('space_cells', 2).to_i.clamp(2, 20)
@@ -207,9 +260,13 @@ module Kabinet
       def onMouseMove(_flags, x, y, view)
         @probe = nil
         @error = nil
+        @face_hl = nil
         ray = view.pickray(x, y)
         r = view.model.raytest(ray, true)
-        @probe = Kabinet::Commands::SpaceDivide.probe(view.model, r[0], r[1], ray[1]) if r
+        if r
+          @probe = Kabinet::Commands::SpaceDivide.probe(view.model, r[0], r[1], ray[1])
+          @face_hl = face_highlight(r[1])
+        end
         update_status
         view.invalidate
       rescue Kabinet::Core::SpaceDivider::Error => e
@@ -222,8 +279,16 @@ module Kabinet
         view.invalidate
       end
 
+      # 누르는 동안 공간을 진한 파랑으로 잡아 보여주고, 놓을 때 생성한다.
       def onLButtonDown(_flags, _x, _y, view)
         return unless @probe
+        @pressed = true
+        view.invalidate
+      end
+
+      def onLButtonUp(_flags, _x, _y, view)
+        return unless @pressed && @probe
+        @pressed = false
         result = Kabinet::Commands::SpaceDivide.build(view.model, @probe, current_settings)
         plan = result[:plan]
         Sketchup.status_text = "칸막이 #{plan[:partitions].size}개 · 도어 #{plan[:doors].size}장 생성 · 칸 내폭 #{plan[:cell_mm].round(1)}mm"
@@ -245,9 +310,14 @@ module Kabinet
       def draw(view)
         return unless @probe
         view.line_stipple = ''
+        if @face_hl
+          Highlight.fill_face(view, @face_hl[:tris], @face_hl[:normal], @pressed ? Highlight::PRESSED : Highlight::HOVER)
+        end
         draw_box(view, Kabinet::Commands::SpaceDivide.box_corners(@probe), ::Sketchup::Color.new(30, 145, 235), 2)
         plan = preview_plan
         if plan
+          plan[:partitions].each { |p| Highlight.fill_box(view, Kabinet::Commands::SpaceDivide.item_corners(@probe, p), Highlight::PART) }
+          plan[:doors].each { |d| Highlight.fill_box(view, Kabinet::Commands::SpaceDivide.item_corners(@probe, d), Highlight::DOOR) }
           plan[:partitions].each { |p| draw_box(view, Kabinet::Commands::SpaceDivide.item_corners(@probe, p), ::Sketchup::Color.new(235, 145, 25), 2) }
           plan[:doors].each { |d| draw_box(view, Kabinet::Commands::SpaceDivide.item_corners(@probe, d), ::Sketchup::Color.new(40, 170, 90), 1) }
         end
@@ -261,6 +331,13 @@ module Kabinet
 
       # box_corners 순서: (x,y,z) ∈ {0,1}³ → 인덱스 = 4x + 2y + z
       BOX_EDGES = [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7]].freeze
+
+      def face_highlight(path)
+        face = path.last
+        return nil unless face.is_a?(::Sketchup::Face)
+        tr = Kabinet::Commands::FacePanel.instance_transform(path[0...-1])
+        { tris: Highlight.face_triangles(face, tr), normal: face.normal.transform(tr).normalize }
+      end
 
       def draw_box(view, c, color, width)
         view.line_width = width
