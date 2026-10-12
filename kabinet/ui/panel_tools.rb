@@ -95,10 +95,10 @@ module Kabinet
       # 우클릭: 자주 쓰는 두께 / 직접 입력 / 방향 반전
       def getMenu(menu, _flags, _x, _y, view)
         QUICK_THICKNESS.each do |t|
-          item = menu.add_item("#{t}T") { set_thickness(t, view) }
+          item = menu.add_item("#{t}T") { apply_thickness(t, view) }
           menu.set_validation_proc(item) { (@thickness - t).abs < 0.01 ? MF_CHECKED : MF_ENABLED }
         end
-        menu.add_item('두께 직접 입력…') { ask_thickness(view) }
+        menu.add_item('두께 직접 입력…') { ask_thickness(view, true) }
         menu.add_separator
         menu.add_item('돌출 방향 반전 (Tab)') { @flip = !@flip; update_status; view.invalidate }
         true
@@ -199,9 +199,24 @@ module Kabinet
         view.invalidate
       end
 
-      def ask_thickness(view)
+      def ask_thickness(view, apply = false)
         input = ::UI.inputbox(['패널 두께(mm)'], [@thickness.round(1)], '18T 패널 두께')
-        set_thickness(input[0], view) if input
+        return unless input
+        apply ? apply_thickness(input[0], view) : set_thickness(input[0], view)
+      end
+
+      # 우클릭 메뉴에서 두께를 고르면: 두께 설정 + 마우스 아래 면이 있으면 곧바로 적용
+      def apply_thickness(v, view)
+        set_thickness(v, view)
+        return unless @info && @message.nil?
+        Kabinet::Commands::FacePanel.build(view.model, @info, @thickness, flip: @flip)
+        @info = nil
+        @tris = nil
+        @key = nil
+        view.invalidate
+      rescue StandardError => e
+        @message = e.message
+        ::UI.messagebox("패널 생성 실패:\n#{e.message}")
       end
 
       def preview_direction(view)

@@ -34,7 +34,9 @@ module Kabinet
         in_assembly = path[0...-1].any? { |e| Kabinet::Persistence::Attributes.assembly?(e) }
         # 그룹 안에 들어가 판재 면을 직접 클릭한 경우(면이 지금 편집 중인 곳에 있음):
         # 새 패널을 만들지 않고 반대쪽 면을 밀고 당겨 그 자리에서 두께를 바꾼다.
-        resize = !opp.nil? && path[0...-1] == (model.active_path || []) && !opp[:face].nil?
+        # (다른 그룹 안의 판재도 API로 직접 밀 수 있으므로, 편집 중이 아니어도 단일 그룹/고유 컴포넌트면 허용)
+        resize = !opp.nil? && !opp[:face].nil? && !in_assembly_part_outside?(path, model) &&
+                 resizable_path?(path[0...-1], model)
         # Kabinet 가구 부재 면(가구 밖에서 클릭): 부재는 건드리지 않고 보이는 쪽(바깥)으로 새 패널을 붙인다.
         # (안쪽으로 만들면 기존 부재와 정확히 겹쳐 쓸모가 없음 — 재생성 시 부재 두께는 폼에서 수정)
         dir_w = nil if in_assembly && !resize
@@ -46,6 +48,23 @@ module Kabinet
                        same_context?(path[0...-2], model) &&
                        slab_container?(container, path, dir_w, found_mm)
         }
+      end
+
+      # 현재 편집 중인 곳이거나, 경로의 모든 인스턴스가 그룹/고유 컴포넌트(다른 인스턴스에 영향 없음)
+      def resizable_path?(elements, model)
+        return true if elements == (model.active_path || [])
+        return false if elements.empty?
+        elements.all? do |e|
+          e.is_a?(::Sketchup::Group) ||
+            (e.is_a?(::Sketchup::ComponentInstance) && e.definition.count_instances == 1)
+        end
+      end
+
+      # Kabinet 가구 부재는 가구 밖에서 클릭하면 새 패널 추가(기존 동작) — 편집 중이면 직접 변경
+      def in_assembly_part_outside?(path, model)
+        elements = path[0...-1]
+        elements.any? { |e| Kabinet::Persistence::Attributes.assembly?(e) } &&
+          elements != (model.active_path || [])
       end
 
       # 같은 컨텍스트에서 반대 방향 평행·겹침 면 중 가장 가까운 것 → 두께.
