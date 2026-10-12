@@ -58,6 +58,7 @@ module Kabinet
       end
 
       def register_callbacks(d)
+        register_drawing_callbacks(d)
         d.add_action_callback('kabinet:ready') do |_ctx, _params|
           @ready = true
           push_pending_selection
@@ -475,6 +476,78 @@ module Kabinet
         parts.group_by { |p| [p[:name], p[:t], p[:w], p[:l]] }
              .map { |(n, t, w, l), list| { name: n, t: fmt.(t), w: fmt.(w), l: fmt.(l), qty: list.size } }
              .sort_by { |r| [-r[:t].to_f, -r[:l].to_f, -r[:w].to_f] }
+      end
+
+      # ── LayOut 도면 · 내 가구 보관함 · EP 판재 (Kabinet 2.0 기능을 이 창에 통합) ──
+      def register_drawing_callbacks(d)
+        d.add_action_callback('ep_library_list') do |_ctx|
+          ep_respond(d) { ep_send_library(d); nil }
+        end
+        d.add_action_callback('ep_library_save') do |_ctx, raw|
+          ep_respond(d) do
+            o = JSON.parse(raw)
+            Kabinet::FurnitureLibrary.save(o.fetch('name'), folder: o.fetch('folder', '미분류'))
+            ep_send_library(d)
+            "‘#{o['name']}’ 보관함에 저장 완료. 왼쪽 '내 가구 보관함'에서 불러올 수 있습니다."
+          end
+        end
+        d.add_action_callback('ep_library_update') do |_ctx, raw|
+          ep_respond(d) do
+            o = JSON.parse(raw)
+            Kabinet::FurnitureLibrary.update(o.fetch('id'), name: o.fetch('name'), folder: o.fetch('folder'))
+            ep_send_library(d)
+            '가구 이름과 폴더를 변경했습니다.'
+          end
+        end
+        d.add_action_callback('ep_library_place') do |_ctx, id|
+          ep_respond(d) do
+            Kabinet::FurnitureLibrary.place(id)
+            '가구를 놓을 위치를 SketchUp 화면에서 클릭하세요. Esc로 취소합니다.'
+          end
+        end
+        d.add_action_callback('ep_create') do |_ctx, raw|
+          ep_respond(d) do
+            Kabinet::EPBoard.place(JSON.parse(raw))
+            'EP 판재를 놓을 위치를 클릭하세요 (스냅 가능 · Esc 취소).'
+          end
+        end
+        d.add_action_callback('ep_role') do |_ctx, role|
+          ep_respond(d) { "#{Kabinet::EPBoard.mark_role(role)}개 부품 구분 완료. 가구 전체를 다시 선택하고 출력하세요." }
+        end
+        d.add_action_callback('ep_front') do |_ctx, action|
+          ep_respond(d) do
+            fs = Kabinet::Output::FurnitureSheet
+            case action
+            when 'set' then fs.set_front
+            when 'reverse' then fs.reverse_front
+            when 'status' then fs.front_status
+            else raise '알 수 없는 정면 설정입니다.'
+            end
+          end
+        end
+        d.add_action_callback('ep_space_role') do |_ctx, role|
+          ep_respond(d) { "#{Kabinet::Output::SpaceSheet.mark(role)}개 공간 부품 지정 완료. 공간 전체를 선택하고 출력하세요." }
+        end
+        d.add_action_callback('ep_export') do |_ctx, raw|
+          ep_respond(d) do
+            stop_preview
+            o = JSON.parse(raw)
+            result = o['space_mode'] ? Kabinet::Output::SpaceSheet.run(o) : Kabinet::Output::FurnitureSheet.run(o)
+            result ? "도면 저장 완료 (LayOut + PDF): #{result}" : '저장을 취소했습니다.'
+          end
+        end
+      end
+
+      def ep_send_library(d)
+        d.execute_script("epLibrary(#{JSON.generate(Kabinet::FurnitureLibrary.list)})")
+      end
+
+      def ep_respond(d)
+        message = yield
+        d.execute_script("epResult(#{JSON.generate(message.to_s)}, false)") if message
+      rescue StandardError => e
+        puts "Kabinet: #{e.full_message}"
+        d.execute_script("epResult(#{JSON.generate(e.message)}, true)")
       end
 
       def load_presets
