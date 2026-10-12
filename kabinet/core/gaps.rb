@@ -46,6 +46,31 @@ module Kabinet
         (v.nil? ? defaults[key] : v).to_f
       end
 
+      # 모듈 해시 기준 간격 — 찬넬이면 전판 위·서랍 사이가 손 넣는 틈(전판 내림)이 된다.
+      # 지오메트리·재단 목록·도면·경고가 모두 이 두 메서드를 쓴다.
+      def channel?(m)
+        m && (m['handle_type'] || m[:handle_type]).to_s == 'channel'
+      end
+
+      def top_for(m)
+        channel?(m) ? Kabinet::Constants::CHANNEL_FRONT_DROP_MM.to_f : top
+      end
+
+      def drawer_between_for(m)
+        channel?(m) ? Kabinet::Constants::CHANNEL_FRONT_DROP_MM.to_f : drawer_between
+      end
+
+      # 서랍 전판 좌우 간격 — 도어와 끝선을 맞추려고 EP 덮는 양(door_over_ep_mm)을 뺀다
+      def drawer_side_for(m)
+        drawer_gap - (m ? (m['door_over_ep_mm'] || m[:door_over_ep_mm]).to_f : 0.0)
+      end
+
+      # 도어·전판 아래 간격 — 하부 내림(door_drop_mm)이 있으면 몸통 아랫선 밑으로 내려간다(음수)
+      def bottom_for(m)
+        drop = m ? (m['door_drop_mm'] || m[:door_drop_mm]).to_f : 0.0
+        drop > 0 ? -drop : bottom
+      end
+
       def top;            value('top'); end
       def bottom;         value('bottom'); end
       def outside;        value('outside'); end

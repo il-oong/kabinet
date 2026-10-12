@@ -86,8 +86,8 @@ module Kabinet
         return rows if dc == 'none'
 
         door_type = m['door_type'] || 'swing'
-        gap_t     = Kabinet::Core::Gaps.top.to_f
-        gap_b     = Kabinet::Core::Gaps.bottom.to_f
+        gap_t     = Kabinet::Core::Gaps.top_for(m)
+        gap_b     = Kabinet::Core::Gaps.bottom_for(m)
         door_h    = mh - gap_t - gap_b
         n_doors   = dc == 'pair' ? 2 : 1
 
@@ -150,7 +150,8 @@ module Kabinet
         label   = m['drawer_type'] == 'side_mount' ? '사이드 볼레일' : '언더마운트'
         len     = slide ? "L#{slide.round}" : '규격 미달(주문 확인)'
         _ = bt; _ = mh
-        [row("#{prefix}-서랍 레일", "#{label} #{len}", dc, '세트', '좌우 1세트/서랍')]
+        n = dc + (m['inner_drawer'] ? 1 : 0)   # 속서랍도 레일 1세트
+        [row("#{prefix}-서랍 레일", "#{label} #{len}", n, '세트', m['inner_drawer'] ? '좌우 1세트/서랍 (속서랍 포함)' : '좌우 1세트/서랍')]
       end
 
       def cell_drawer_hardware(m, prefix, _mh)
