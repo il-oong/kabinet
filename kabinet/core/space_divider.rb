@@ -132,15 +132,15 @@ module Kabinet
           rx, rz = -ext[:left], -ext[:bottom]
           rw = size[0] + ext[:left] + ext[:right]
           rh = size[2] + ext[:bottom] + ext[:top]
-          y = -(door_t + c::DOOR_FRONT_OFFSET_MM)
-          side = c::DOOR_GAP_OUTSIDE_MM.to_f
-          top = c::DOOR_GAP_TOP_MM.to_f
-          bottom = c::DOOR_GAP_BOTTOM_MM.to_f
+          y = -(door_t + Kabinet::Core::Gaps.front_offset)
+          side = Kabinet::Core::Gaps.outside.to_f
+          top = Kabinet::Core::Gaps.top.to_f
+          bottom = Kabinet::Core::Gaps.bottom.to_f
         end
         Kabinet::Core::Fitting.equal_doors(
           rw, rh, cells, ai == 0 ? 'x' : 'z',
           side_gap: side, top_gap: top, bottom_gap: bottom,
-          center_gap: c::DOOR_REVEAL_BETWEEN_MM.to_f
+          center_gap: Kabinet::Core::Gaps.between.to_f
         ).map do |d|
           { role: d[:role], pos: [rx + d[:x], y, rz + d[:z]], dims: [d[:w], door_t, d[:h]] }
         end

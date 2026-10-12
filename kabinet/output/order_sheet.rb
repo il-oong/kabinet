@@ -25,6 +25,10 @@ module Kabinet
 
       # DXF 객체 생성 (테스트에서 문자열 검증용으로 분리)
       def build(spec)
+        Kabinet::Core::Gaps.with(spec['door_gaps']) { build_inner(spec) }
+      end
+
+      def build_inner(spec)
         views = Kabinet::Output::Drawing2D.views(spec)
         g     = Kabinet::Output::Drawing2D.geometry_params(spec)
         compose(views,

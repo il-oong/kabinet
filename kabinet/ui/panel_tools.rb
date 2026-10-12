@@ -199,35 +199,6 @@ module Kabinet
         view.invalidate
       end
 
-      # 클릭 후 뜨는 설정 창. 확인하면 값을 저장하고 true.
-      def ask_settings
-        axis_names = AXIS_LABELS.values
-        door_names = DOOR_MODES.map { |m| DOOR_LABELS[m] }
-        input = ::UI.inputbox(
-          ['몇 칸으로 나눌까요? (2~20)', '방향', '도어', '칸막이 두께(mm)', '도어 두께(mm)'],
-          [@cells, AXIS_LABELS[@axis], DOOR_LABELS[@door_mode], @thickness, @door_thickness],
-          ['', axis_names.join('|'), door_names.join('|'), '', ''],
-          '공간 분할 설정'
-        )
-        return false unless input
-        cells = input[0].to_i
-        unless cells.between?(2, 20)
-          ::UI.messagebox('칸 수는 2~20 사이로 입력하세요.')
-          return false
-        end
-        self.cells = cells
-        @axis = AXIS_LABELS.key(input[1]) || @axis
-        save('space_axis', @axis)
-        @door_mode = DOOR_LABELS.key(input[2]) || @door_mode
-        save('space_door', @door_mode)
-        @thickness = input[3].to_f if input[3].to_f > 0
-        @door_thickness = input[4].to_f if input[4].to_f > 0
-        save('space_t', @thickness)
-        save('space_dt', @door_thickness)
-        update_status
-        true
-      end
-
       def ask_thickness(view)
         input = ::UI.inputbox(['패널 두께(mm)'], [@thickness.round(1)], '18T 패널 두께')
         set_thickness(input[0], view) if input
@@ -454,6 +425,35 @@ module Kabinet
       def cycle_door(step)
         @door_mode = DOOR_MODES[(DOOR_MODES.index(@door_mode) + step) % DOOR_MODES.size]
         save('space_door', @door_mode)
+      end
+
+      # 클릭 후 뜨는 설정 창. 확인하면 값을 저장하고 true.
+      def ask_settings
+        axis_names = AXIS_LABELS.values
+        door_names = DOOR_MODES.map { |m| DOOR_LABELS[m] }
+        input = ::UI.inputbox(
+          ['몇 칸으로 나눌까요? (2~20)', '방향', '도어', '칸막이 두께(mm)', '도어 두께(mm)'],
+          [@cells, AXIS_LABELS[@axis], DOOR_LABELS[@door_mode], @thickness, @door_thickness],
+          ['', axis_names.join('|'), door_names.join('|'), '', ''],
+          '공간 분할 설정'
+        )
+        return false unless input
+        cells = input[0].to_i
+        unless cells.between?(2, 20)
+          ::UI.messagebox('칸 수는 2~20 사이로 입력하세요.')
+          return false
+        end
+        self.cells = cells
+        @axis = AXIS_LABELS.key(input[1]) || @axis
+        save('space_axis', @axis)
+        @door_mode = DOOR_LABELS.key(input[2]) || @door_mode
+        save('space_door', @door_mode)
+        @thickness = input[3].to_f if input[3].to_f > 0
+        @door_thickness = input[4].to_f if input[4].to_f > 0
+        save('space_t', @thickness)
+        save('space_dt', @door_thickness)
+        update_status
+        true
       end
 
       def ask_thickness(view)

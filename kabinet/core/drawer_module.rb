@@ -78,17 +78,17 @@ module Kabinet
         drawers_grp = group.entities.add_group
         Kabinet::Persistence::Attributes.set_role(drawers_grp, 'drawers_group', label: '서랍')
 
-        reveal       = Kabinet::Constants::DRAWER_REVEAL_BETWEEN_MM.mm
-        front_offset = Kabinet::Constants::DOOR_FRONT_OFFSET_MM.mm
+        reveal       = Kabinet::Core::Gaps.drawer_between.mm
+        front_offset = Kabinet::Core::Gaps.front_offset.mm
         wall_t       = Kabinet::Constants::DRAWER_BOX_WALL_MM.mm
         bot_t        = Kabinet::Constants::DRAWER_BOX_BOTTOM_MM.mm
 
         # ── 전판 레이아웃: Fitting 공식 (커트리스트와 동일) ──────────────
         fronts = Kabinet::Core::Fitting.drawer_fronts(
           @width, @height, @drawer_count,
-          side_gap:   Kabinet::Constants::DRAWER_FRONT_GAP_MM.mm,
-          top_gap:    Kabinet::Constants::DOOR_GAP_TOP_MM.mm,
-          bottom_gap: Kabinet::Constants::DOOR_GAP_BOTTOM_MM.mm,
+          side_gap:   Kabinet::Core::Gaps.drawer_gap.mm,
+          top_gap:    Kabinet::Core::Gaps.top.mm,
+          bottom_gap: Kabinet::Core::Gaps.bottom.mm,
           reveal:     reveal)
 
         # ── 서랍통 치수: 슬라이드 규격 스냅 (mm 계산 후 SU Length 변환) ──

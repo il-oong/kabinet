@@ -30,7 +30,7 @@ module Kabinet
                      vertical_dividers: [], cell_shelves: [], cell_drawers: [],
                      handle_type: 'none', handle_hole_mm: 128,
                      door_mount: 'overlay',
-                     door_side_gap_mm: Kabinet::Constants::DOOR_GAP_OUTSIDE_MM,
+                     door_side_gap_mm: Kabinet::Core::Gaps.outside,
                      suppress_left_side: false, suppress_right_side: false,
                      has_back: true)
         @width             = width
@@ -134,7 +134,7 @@ module Kabinet
               gap_top:        inset_gap,
               gap_bottom:     inset_gap,
               gap_outside:    inset_gap,
-              reveal_between: Kabinet::Constants::DOOR_REVEAL_BETWEEN_MM.mm,
+              reveal_between: Kabinet::Core::Gaps.between.mm,
               mount_style:    'inset',
               x_origin:       @body_thickness,
               z_origin:       @body_thickness,
@@ -151,8 +151,8 @@ module Kabinet
               thickness:      @door_thickness,
               config:         @door_config,
               door_type:      @door_type,
-              gap_top:        Kabinet::Constants::DOOR_GAP_TOP_MM.mm,
-              gap_bottom:     Kabinet::Constants::DOOR_GAP_BOTTOM_MM.mm,
+              gap_top:        Kabinet::Core::Gaps.top.mm,
+              gap_bottom:     Kabinet::Core::Gaps.bottom.mm,
               gap_outside:    @door_side_gap_mm.mm,
               mount_style:    'overlay',
               handle_type:    @handle_type,
@@ -183,7 +183,7 @@ module Kabinet
             handle_type:       h['handle_type']    || 'none',
             handle_hole_mm:    (h['handle_hole_mm'] || 128).to_i,
             door_mount:        h['door_mount']     || 'overlay',
-            door_side_gap_mm:  (h['door_side_gap_mm'] || Kabinet::Constants::DOOR_GAP_OUTSIDE_MM).to_f,
+            door_side_gap_mm:  (h['door_side_gap_mm'] || Kabinet::Core::Gaps.outside).to_f,
             suppress_left_side:  h.fetch('suppress_left_side',  false) ? true : false,
             suppress_right_side: h.fetch('suppress_right_side', false) ? true : false,
             has_back:            h.fetch('has_back', true) ? true : false)
@@ -257,10 +257,10 @@ module Kabinet
       def build_cell_drawers(entities)
         return if @cell_drawers.empty?
         recess       = Kabinet::Constants::BACK_RECESS_MM.mm
-        gap_t        = Kabinet::Constants::DOOR_GAP_TOP_MM.mm
-        gap_b        = Kabinet::Constants::DOOR_GAP_BOTTOM_MM.mm
-        reveal       = Kabinet::Constants::DRAWER_REVEAL_BETWEEN_MM.mm
-        front_offset = Kabinet::Constants::DOOR_FRONT_OFFSET_MM.mm
+        gap_t        = Kabinet::Core::Gaps.top.mm
+        gap_b        = Kabinet::Core::Gaps.bottom.mm
+        reveal       = Kabinet::Core::Gaps.drawer_between.mm
+        front_offset = Kabinet::Core::Gaps.front_offset.mm
         wall_t       = Kabinet::Constants::DRAWER_BOX_WALL_MM.mm
         bot_t        = Kabinet::Constants::DRAWER_BOX_BOTTOM_MM.mm
         cells        = cell_ranges
@@ -286,7 +286,7 @@ module Kabinet
           # 전판 레이아웃 (셀 내부 기준 → cell_x / z_int_start 오프셋)
           fronts = Kabinet::Core::Fitting.drawer_fronts(
             cell_w, int_h, dc,
-            side_gap:   Kabinet::Constants::DOOR_GAP_OUTSIDE_MM.mm,
+            side_gap:   Kabinet::Core::Gaps.outside.mm,
             top_gap:    gap_t, bottom_gap: gap_b, reveal: reveal)
 
           compartment_h = (int_h - gap_t - gap_b - reveal * (dc - 1)) / dc.to_f

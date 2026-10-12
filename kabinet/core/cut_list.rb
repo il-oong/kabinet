@@ -22,6 +22,10 @@ module Kabinet
 
       # 부재 + 하드웨어 + 경고를 한 번에 생성.
       def generate_full(spec)
+        Kabinet::Core::Gaps.with(spec['door_gaps']) { generate_full_inner(spec) }
+      end
+
+      def generate_full_inner(spec)
         {
           rows:     generate(spec),
           hardware: Kabinet::Core::Hardware.generate(spec),
@@ -31,6 +35,10 @@ module Kabinet
 
       # Generate cut list rows from a normalized spec hash.
       def generate(spec)
+        Kabinet::Core::Gaps.with(spec['door_gaps']) { generate_inner(spec) }
+      end
+
+      def generate_inner(spec)
         rows     = []
         run_mode = spec['run_mode'] ? true : false
         ep_left  = spec.dig('ep', 'left')  ? true : false
@@ -237,7 +245,7 @@ module Kabinet
         dt        = (m['door_thickness'] || 18).to_f
         door_type = m['door_type'] || 'swing'
         mount     = m['door_mount'] || 'overlay'
-        side_gap  = (m['door_side_gap_mm'] || C::DOOR_GAP_OUTSIDE_MM).to_f
+        side_gap  = (m['door_side_gap_mm'] || Kabinet::Core::Gaps.outside).to_f
 
         doors =
           case door_type
@@ -256,13 +264,13 @@ module Kabinet
                                 side_gap:   C::INSET_DOOR_GAP_MM.to_f,
                                 top_gap:    C::INSET_DOOR_GAP_MM.to_f,
                                 bottom_gap: C::INSET_DOOR_GAP_MM.to_f,
-                                center_gap: C::DOOR_REVEAL_BETWEEN_MM.to_f)
+                                center_gap: Kabinet::Core::Gaps.between.to_f)
             else
               FIT.folding_doors(mw, mh, dc,
                                 side_gap:   side_gap,
-                                top_gap:    C::DOOR_GAP_TOP_MM.to_f,
-                                bottom_gap: C::DOOR_GAP_BOTTOM_MM.to_f,
-                                center_gap: C::DOOR_REVEAL_BETWEEN_MM.to_f)
+                                top_gap:    Kabinet::Core::Gaps.top.to_f,
+                                bottom_gap: Kabinet::Core::Gaps.bottom.to_f,
+                                center_gap: Kabinet::Core::Gaps.between.to_f)
             end
           when 'lift_up'
             base_w = mount == 'inset' ? mw - 2.0 * bt : mw
@@ -272,13 +280,13 @@ module Kabinet
             if mount == 'inset'
               FIT.inset_doors(mw - 2.0 * bt, mh - 2.0 * bt, dc,
                               gap:        C::INSET_DOOR_GAP_MM.to_f,
-                              center_gap: C::DOOR_REVEAL_BETWEEN_MM.to_f)
+                              center_gap: Kabinet::Core::Gaps.between.to_f)
             else
               FIT.swing_doors(mw, mh, dc,
                               side_gap:   side_gap,
-                              top_gap:    C::DOOR_GAP_TOP_MM.to_f,
-                              bottom_gap: C::DOOR_GAP_BOTTOM_MM.to_f,
-                              center_gap: C::DOOR_REVEAL_BETWEEN_MM.to_f)
+                              top_gap:    Kabinet::Core::Gaps.top.to_f,
+                              bottom_gap: Kabinet::Core::Gaps.bottom.to_f,
+                              center_gap: Kabinet::Core::Gaps.between.to_f)
             end
           end
 
@@ -346,16 +354,16 @@ module Kabinet
           dth = (cd['thickness'] || 18).to_f
 
           fronts = FIT.drawer_fronts(cw, int_h, dc,
-                                     side_gap:   C::DOOR_GAP_OUTSIDE_MM.to_f,
-                                     top_gap:    C::DOOR_GAP_TOP_MM.to_f,
-                                     bottom_gap: C::DOOR_GAP_BOTTOM_MM.to_f,
-                                     reveal:     C::DRAWER_REVEAL_BETWEEN_MM.to_f)
+                                     side_gap:   Kabinet::Core::Gaps.outside.to_f,
+                                     top_gap:    Kabinet::Core::Gaps.top.to_f,
+                                     bottom_gap: Kabinet::Core::Gaps.bottom.to_f,
+                                     reveal:     Kabinet::Core::Gaps.drawer_between.to_f)
           f = fronts.first
           rows << mkrow("#{prefix}-셀서랍전판(칸#{cell_idx + 1})", f[:w], f[:h], dth, dc,
                         mat_drw, '세로결', edge: '4면', note: "서랍 전판 ×#{dc}")
 
-          comp_h = (int_h - C::DOOR_GAP_TOP_MM - C::DOOR_GAP_BOTTOM_MM -
-                    C::DRAWER_REVEAL_BETWEEN_MM * (dc - 1)) / dc
+          comp_h = (int_h - Kabinet::Core::Gaps.top - Kabinet::Core::Gaps.bottom -
+                    Kabinet::Core::Gaps.drawer_between * (dc - 1)) / dc
           box = FIT.drawer_box_mm(open_w_mm: cw, comp_h_mm: comp_h,
                                   inner_depth_mm: inner_depth,
                                   type: cd['type'] || 'undermount')
@@ -410,10 +418,10 @@ module Kabinet
         df_t = (m['drawer_thickness'] || 18).to_f
 
         fronts = FIT.drawer_fronts(mw, mh, dc,
-                                   side_gap:   C::DRAWER_FRONT_GAP_MM.to_f,
-                                   top_gap:    C::DOOR_GAP_TOP_MM.to_f,
-                                   bottom_gap: C::DOOR_GAP_BOTTOM_MM.to_f,
-                                   reveal:     C::DRAWER_REVEAL_BETWEEN_MM.to_f)
+                                   side_gap:   Kabinet::Core::Gaps.drawer_gap.to_f,
+                                   top_gap:    Kabinet::Core::Gaps.top.to_f,
+                                   bottom_gap: Kabinet::Core::Gaps.bottom.to_f,
+                                   reveal:     Kabinet::Core::Gaps.drawer_between.to_f)
         f = fronts.first
         rows << mkrow("#{prefix}-전판", f[:w], f[:h], df_t, dc, mat_drw, '세로결',
                       edge: '4면', note: "서랍 전판 ×#{dc} (오버레이)")
@@ -423,7 +431,7 @@ module Kabinet
         inner_depth = md - bkt - C::BACK_RECESS_MM
         # 박스 깊이 상한 (수납침대 — 지오메트리와 동일)
         inner_depth = [inner_depth, m['box_depth_mm'].to_f].min if m['box_depth_mm']
-        comp_h      = (open_h - C::DRAWER_REVEAL_BETWEEN_MM * (dc - 1)) / dc
+        comp_h      = (open_h - Kabinet::Core::Gaps.drawer_between * (dc - 1)) / dc
         box = FIT.drawer_box_mm(open_w_mm: open_w, comp_h_mm: comp_h,
                                 inner_depth_mm: inner_depth,
                                 type: m['drawer_type'] || 'undermount')
