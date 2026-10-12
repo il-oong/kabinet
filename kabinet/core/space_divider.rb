@@ -25,7 +25,16 @@ module Kabinet
       def resolve_space(hits)
         lo = []
         hi = []
+        hits = hits.dup
         3.times do |i|
+          # 둘러싼 판(측판·상하판)이 끝나는 곳보다 훨씬 멀리 맞은 물체는 이 가구가 아니다.
+          # (뒤판 없는 장에서 뒷벽·창까지 깊이가 쭉 늘어나던 문제) → 그 방향은 열린 면으로 본다.
+          [-1, 1].each do |sign|
+            h = hits[[i, sign]]
+            next unless h
+            limit = frame_limit(hits, i, sign < 0 ? :lo : :hi)
+            hits.delete([i, sign]) if limit && h[:dist].to_f > limit.abs + MAX_OVERLAY_EXT_MM
+          end
           neg = hits[[i, -1]]
           pos = hits[[i, 1]]
           lo << (neg ? -neg[:dist].to_f : open_limit(hits, i, :lo))
@@ -44,11 +53,18 @@ module Kabinet
       end
 
       def open_limit(hits, axis, side)
+        limit = frame_limit(hits, axis, side)
+        raise Error, '공간이 열려 있어 범위를 인식할 수 없습니다. 판재로 둘러싸인 안쪽 면을 클릭하세요.' unless limit
+        limit
+      end
+
+      # 다른 축 방향 판들이 이 축(side 쪽)으로 끝나는 위치 중 원점에 가장 가까운 값. 없으면 nil.
+      def frame_limit(hits, axis, side)
         cands = hits.select { |(a, _), _| a != axis }.values.map do |h|
           side == :lo ? h[:bmin][axis].to_f : h[:bmax][axis].to_f
         end
         cands = side == :lo ? cands.select { |v| v < 0 } : cands.select { |v| v > 0 }
-        raise Error, '공간이 열려 있어 범위를 인식할 수 없습니다. 판재로 둘러싸인 안쪽 면을 클릭하세요.' if cands.empty?
+        return nil if cands.empty?
         side == :lo ? cands.max : cands.min
       end
 

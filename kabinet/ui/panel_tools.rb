@@ -195,6 +195,35 @@ module Kabinet
         view.invalidate
       end
 
+      # 클릭 후 뜨는 설정 창. 확인하면 값을 저장하고 true.
+      def ask_settings
+        axis_names = AXIS_LABELS.values
+        door_names = DOOR_MODES.map { |m| DOOR_LABELS[m] }
+        input = ::UI.inputbox(
+          ['몇 칸으로 나눌까요? (2~20)', '방향', '도어', '칸막이 두께(mm)', '도어 두께(mm)'],
+          [@cells, AXIS_LABELS[@axis], DOOR_LABELS[@door_mode], @thickness, @door_thickness],
+          ['', axis_names.join('|'), door_names.join('|'), '', ''],
+          '공간 분할 설정'
+        )
+        return false unless input
+        cells = input[0].to_i
+        unless cells.between?(2, 20)
+          ::UI.messagebox('칸 수는 2~20 사이로 입력하세요.')
+          return false
+        end
+        self.cells = cells
+        @axis = AXIS_LABELS.key(input[1]) || @axis
+        save('space_axis', @axis)
+        @door_mode = DOOR_LABELS.key(input[2]) || @door_mode
+        save('space_door', @door_mode)
+        @thickness = input[3].to_f if input[3].to_f > 0
+        @door_thickness = input[4].to_f if input[4].to_f > 0
+        save('space_t', @thickness)
+        save('space_dt', @door_thickness)
+        update_status
+        true
+      end
+
       def ask_thickness(view)
         input = ::UI.inputbox(['패널 두께(mm)'], [@thickness.round(1)], '18T 패널 두께')
         set_thickness(input[0], view) if input
@@ -342,7 +371,9 @@ module Kabinet
         pressed = @pressed
         @pressed = false
         return view.invalidate unless pressed && @probe
-        result = Kabinet::Commands::SpaceDivide.build(view.model, @probe, current_settings)
+        probe = @probe
+        return view.invalidate unless ask_settings   # 칸 수·방향·도어·두께 입력 창 (취소하면 생성 안 함)
+        result = Kabinet::Commands::SpaceDivide.build(view.model, probe, current_settings)
         plan = result[:plan]
         Sketchup.status_text = "칸막이 #{plan[:partitions].size}개 · 도어 #{plan[:doors].size}장 생성 · 칸 내폭 #{plan[:cell_mm].round(1)}mm"
         ::UI.messagebox("경고:\n" + plan[:warnings].join("\n")) unless plan[:warnings].empty?
@@ -448,7 +479,7 @@ module Kabinet
           if @error
             @error
           elsif @probe
-            "[#{head}] 클릭: 생성 · #{keys}"
+            "[#{head}] 클릭: 칸 수 입력 창 → 생성 · #{keys}"
           else
             "[#{head}] 캐비닛 안쪽 면을 가리키세요 · #{keys} · Esc: 종료"
           end
