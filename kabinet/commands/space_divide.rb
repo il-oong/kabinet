@@ -70,6 +70,18 @@ module Kabinet
         end
       end
 
+      # 계획 항목(pos/dims는 공간 최소 모서리 기준)의 월드 꼭짓점 8개 (미리보기용)
+      def item_corners(probe, item)
+        lo = probe[:space][:lo]
+        pos = item[:pos]
+        dims = item[:dims]
+        [0, 1].product([0, 1], [0, 1]).map do |ix, iy, iz|
+          world_point(probe, [lo[0] + pos[0] + ix * dims[0],
+                              lo[1] + pos[1] + iy * dims[1],
+                              lo[2] + pos[2] + iz * dims[2]])
+        end
+      end
+
       # 원점 기준 로컬 mm → 월드 좌표
       def world_point(probe, rel_mm)
         o = probe[:origin]

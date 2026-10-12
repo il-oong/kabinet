@@ -3,15 +3,38 @@ module Kabinet
     module Menu
       module_function
 
+      ICON_DIR = File.join(File.dirname(__FILE__), 'icons').freeze
+
+      def tool_command(title, tip, status, icon, &block)
+        cmd = ::UI::Command.new(title, &block)
+        cmd.tooltip = tip
+        cmd.status_bar_text = status
+        cmd.small_icon = cmd.large_icon = File.join(ICON_DIR, icon)
+        cmd
+      end
+
       def install
+        face_cmd = tool_command('면 → 18T 패널', '면 → 18T 패널',
+                                '면을 클릭하면 두께를 인식해 18T 패널로 만듭니다', 'face_panel.svg') do
+          Sketchup.active_model.select_tool(Kabinet::UI::FacePanelTool.new)
+        end
+        space_cmd = tool_command('공간 분할 + 도어', '공간 분할 + 도어 균등',
+                                 '캐비닛 안쪽을 클릭하면 칸막이와 도어를 균등 분할해 만듭니다', 'space_divide.svg') do
+          Sketchup.active_model.select_tool(Kabinet::UI::SpaceDivideTool.new)
+        end
+        toolbar = ::UI::Toolbar.new('Kabinet')
+        toolbar.add_item(face_cmd)
+        toolbar.add_item(space_cmd)
+        toolbar.restore
+
         plugins_menu = ::UI.menu('Extensions')
         kabinet_menu = plugins_menu.add_submenu('Kabinet — 카케이스 생성기')
 
         kabinet_menu.add_item('새 어셈블리…') { Kabinet::UI::Dialog.show }
         kabinet_menu.add_item('선택 어셈블리 편집…') { Kabinet::UI::Dialog.show_with_selection }
         kabinet_menu.add_separator
-        kabinet_menu.add_item('면 → 18T 패널 (면 클릭)') { Sketchup.active_model.select_tool(Kabinet::UI::FacePanelTool.new) }
-        kabinet_menu.add_item('공간 분할 + 도어 균등 (공간 클릭)') { Sketchup.active_model.select_tool(Kabinet::UI::SpaceDivideTool.new) }
+        kabinet_menu.add_item(face_cmd)
+        kabinet_menu.add_item(space_cmd)
         kabinet_menu.add_separator
         kabinet_menu.add_item('선택 어셈블리 재생성') { Kabinet::Commands::Regenerate.run }
         kabinet_menu.add_separator

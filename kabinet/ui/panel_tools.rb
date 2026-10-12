@@ -133,19 +133,25 @@ module Kabinet
     end
 
     # ── 공간 클릭 → 칸막이 균등 분할 + 도어 균등 생성 ─────────────────────
+    # 클릭 한 번으로 생성. 호버 중 미리보기를 보며 키로 설정을 바꾼다.
+    #   ↑/↓ 또는 숫자 입력(VCB): 칸 수   Tab: 세로/가로 전환
+    #   ←/→: 도어 방식 순환(오버레이/인셋/없음)   Enter: 두께 설정 창
     class SpaceDivideTool
-      AXIS_LABELS = { '세로 칸막이 (좌우로 분할)' => 'x', '가로 선반 (상하로 분할)' => 'z' }.freeze
-      DOOR_LABELS = { '오버레이 (전면 덮음)' => 'overlay', '인셋 (칸 안에)' => 'inset', '도어 없음' => 'none' }.freeze
+      DOOR_MODES  = %w[overlay inset none].freeze
+      DOOR_LABELS = { 'overlay' => '오버레이', 'inset' => '인셋', 'none' => '도어 없음' }.freeze
+      AXIS_LABELS = { 'x' => '세로 칸막이', 'z' => '가로 선반' }.freeze
+      PREF = 'Kabinet'.freeze
 
       def initialize
         @probe = nil
         @error = nil
-        @settings = {
-          axis_label: AXIS_LABELS.keys.first, cells: 2,
-          thickness: Kabinet::Constants::DEFAULT_BODY_THICKNESS_MM.to_f,
-          door_label: DOOR_LABELS.keys.first,
-          door_thickness: Kabinet::Constants::DEFAULT_DOOR_THICKNESS_MM.to_f
-        }
+        @axis = pref('space_axis', 'x')
+        @axis = 'x' unless AXIS_LABELS.key?(@axis)
+        @cells = pref('space_cells', 2).to_i.clamp(2, 20)
+        @door_mode = pref('space_door', 'overlay')
+        @door_mode = 'overlay' unless DOOR_MODES.include?(@door_mode)
+        @thickness = pref('space_t', Kabinet::Constants::DEFAULT_BODY_THICKNESS_MM).to_f
+        @door_thickness = pref('space_dt', Kabinet::Constants::DEFAULT_DOOR_THICKNESS_MM).to_f
       end
 
       def activate
@@ -164,6 +170,38 @@ module Kabinet
 
       def onCancel(_reason, _view)
         Sketchup.active_model.select_tool(nil)
+      end
+
+      def enableVCB?
+        true
+      end
+
+      def onUserText(text, view)
+        v = text.to_s[/\d+/].to_i
+        if v >= 2 && v <= 20
+          self.cells = v
+        else
+          Sketchup.status_text = '칸 수는 2~20 사이로 입력하세요.'
+          return
+        end
+        update_status
+        view.invalidate
+      end
+
+      def onKeyUp(key, _repeat, _flags, view)
+        case key
+        when 38 then self.cells = [@cells + 1, 20].min              # ↑
+        when 40 then self.cells = [@cells - 1, 2].max               # ↓
+        when 39 then cycle_door(1)                                  # →
+        when 37 then cycle_door(-1)                                 # ←
+        when 9
+          @axis = @axis == 'x' ? 'z' : 'x'                          # Tab
+          save('space_axis', @axis)
+        when 13 then return ask_thickness(view)                     # Enter
+        else return
+        end
+        update_status
+        view.invalidate
       end
 
       def onMouseMove(_flags, x, y, view)
@@ -186,7 +224,6 @@ module Kabinet
 
       def onLButtonDown(_flags, _x, _y, view)
         return unless @probe
-        return unless ask_settings(@probe[:space][:size])
         result = Kabinet::Commands::SpaceDivide.build(view.model, @probe, current_settings)
         plan = result[:plan]
         Sketchup.status_text = "칸막이 #{plan[:partitions].size}개 · 도어 #{plan[:doors].size}장 생성 · 칸 내폭 #{plan[:cell_mm].round(1)}mm"
@@ -207,47 +244,83 @@ module Kabinet
 
       def draw(view)
         return unless @probe
-        c = Kabinet::Commands::SpaceDivide.box_corners(@probe)
-        # box_corners 순서: (x,y,z) ∈ {0,1}³ → 인덱스 = 4x + 2y + z
-        edges = [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7]]
-        view.line_width = 2
         view.line_stipple = ''
-        view.drawing_color = ::Sketchup::Color.new(30, 145, 235)
-        edges.each { |a, b| view.draw(GL_LINES, [c[a], c[b]]) }
-        s = @probe[:space][:size].map { |v| v.round(1) }
-        view.draw_text(view.screen_coords(@probe[:origin]), "내부 #{s[0]} × #{s[1]} × #{s[2]} mm")
+        draw_box(view, Kabinet::Commands::SpaceDivide.box_corners(@probe), ::Sketchup::Color.new(30, 145, 235), 2)
+        plan = preview_plan
+        if plan
+          plan[:partitions].each { |p| draw_box(view, Kabinet::Commands::SpaceDivide.item_corners(@probe, p), ::Sketchup::Color.new(235, 145, 25), 2) }
+          plan[:doors].each { |d| draw_box(view, Kabinet::Commands::SpaceDivide.item_corners(@probe, d), ::Sketchup::Color.new(40, 170, 90), 1) }
+        end
+        s = @probe[:space][:size].map { |v| v.round }
+        label = "내부 #{s.join(' × ')} mm"
+        label += " · 칸 #{plan[:cell_mm].round(1)}mm" if plan
+        view.draw_text(view.screen_coords(@probe[:origin]), label)
       end
 
       private
 
-      def current_settings
-        s = @settings
-        { axis: AXIS_LABELS[s[:axis_label]], cells: s[:cells], thickness: s[:thickness],
-          door_mode: DOOR_LABELS[s[:door_label]], door_thickness: s[:door_thickness] }
+      # box_corners 순서: (x,y,z) ∈ {0,1}³ → 인덱스 = 4x + 2y + z
+      BOX_EDGES = [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7]].freeze
+
+      def draw_box(view, c, color, width)
+        view.line_width = width
+        view.drawing_color = color
+        BOX_EDGES.each { |a, b| view.draw(GL_LINES, [c[a], c[b]]) }
       end
 
-      def ask_settings(size)
-        s = @settings
-        prompts = ['분할 방향', '칸 수', '칸막이 두께(mm)', '도어', '도어 두께(mm)']
-        defaults = [s[:axis_label], s[:cells], s[:thickness], s[:door_label], s[:door_thickness]]
-        lists = [AXIS_LABELS.keys.join('|'), '', '', DOOR_LABELS.keys.join('|'), '']
-        title = "공간 분할 — 내부 #{size.map { |v| v.round }.join(' × ')} mm"
-        input = ::UI.inputbox(prompts, defaults, lists, title)
-        return false unless input
-        s[:axis_label], s[:cells], s[:thickness], s[:door_label], s[:door_thickness] = input
-        s[:cells] = s[:cells].to_i
-        true
+      def preview_plan
+        Kabinet::Core::SpaceDivider.plan(@probe[:space], axis: @axis, cells: @cells, thickness: @thickness,
+                                         door_mode: @door_mode, door_thickness: @door_thickness)
+      rescue Kabinet::Core::SpaceDivider::Error
+        nil
+      end
+
+      def current_settings
+        { axis: @axis, cells: @cells, thickness: @thickness,
+          door_mode: @door_mode, door_thickness: @door_thickness }
+      end
+
+      def cells=(v)
+        @cells = v
+        save('space_cells', v)
+      end
+
+      def cycle_door(step)
+        @door_mode = DOOR_MODES[(DOOR_MODES.index(@door_mode) + step) % DOOR_MODES.size]
+        save('space_door', @door_mode)
+      end
+
+      def ask_thickness(view)
+        input = ::UI.inputbox(['칸막이 두께(mm)', '도어 두께(mm)'], [@thickness, @door_thickness], '두께 설정')
+        return unless input
+        @thickness = input[0].to_f if input[0].to_f > 0
+        @door_thickness = input[1].to_f if input[1].to_f > 0
+        save('space_t', @thickness)
+        save('space_dt', @door_thickness)
+        update_status
+        view.invalidate
+      end
+
+      def pref(key, default)
+        Sketchup.read_default(PREF, key, default)
+      end
+
+      def save(key, value)
+        Sketchup.write_default(PREF, key, value)
       end
 
       def update_status
+        Sketchup.vcb_label = '칸 수'
+        Sketchup.vcb_value = @cells.to_s
+        head = "#{AXIS_LABELS[@axis]} #{@cells}칸 · #{@thickness.round(1)}T · #{DOOR_LABELS[@door_mode]}"
+        keys = '↑↓/숫자: 칸 수 · Tab: 방향 · ←→: 도어 · Enter: 두께'
         Sketchup.status_text =
           if @error
             @error
           elsif @probe
-            s = @probe[:space][:size].map { |v| v.round }
-            "인식된 공간 #{s.join(' × ')} mm · 클릭: 칸막이 + 도어 균등 생성"
+            "[#{head}] 클릭: 생성 · #{keys}"
           else
-            '캐비닛 안쪽 면(뒷판·측판 안쪽 등)을 클릭하세요 · Esc: 종료'
+            "[#{head}] 캐비닛 안쪽 면을 가리키세요 · #{keys} · Esc: 종료"
           end
       end
     end
