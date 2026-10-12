@@ -53,7 +53,7 @@
   calls.length = 0;
   change('f-width', '');
   await settle();
-  assert(previews().length === 0 && calls.some(c => c.name === 'kabinet:preview_stop'), 'Blank input hides stale geometry');
+  assert(previews().length === 0 && !calls.some(c => c.name === 'kabinet:preview_stop'), 'Blank input keeps last preview without stopping (no focus steal)');
   change('f-width', '1500');
   await settle();
   data = JSON.parse(previews().pop().value);

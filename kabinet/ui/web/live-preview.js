@@ -39,9 +39,9 @@ const kabinetLivePreview = (() => {
       const invalid = Array.from(document.querySelectorAll('input[type="number"]'))
         .some(el => el.offsetParent !== null && (el.value === '' || !el.validity.valid));
       if (invalid || !data.spec.modules.length) {
-        bridge('kabinet:preview_stop', '');
+        // 입력 중 칸이 잠깐 비어도 미리보기를 끄지 않는다 (껐다 켜면 포커스를 빼앗겨 깜빡임)
         last = '';
-        status(invalid ? '입력 범위에 맞는 숫자를 입력하세요. 미리보기를 잠시 숨겼습니다.' : '프리셋을 선택하거나 모듈을 추가하세요.', invalid);
+        status(invalid ? '입력 범위에 맞는 숫자를 입력하세요. 이전 미리보기를 유지합니다.' : '프리셋을 선택하거나 모듈을 추가하세요.', invalid);
         return;
       }
       last = fingerprint;

@@ -40,6 +40,7 @@ module Kabinet
         @model.select_tool(self) if first
         @model.active_view.zoom(@bounds) if first
         @model.active_view.invalidate
+        first
       end
 
       def activate

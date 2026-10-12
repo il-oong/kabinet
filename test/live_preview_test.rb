@@ -120,6 +120,8 @@ class TestDialog
   def add_action_callback(name, &callback); @callbacks[name] = callback; end
   def execute_script(script); @scripts << script; end
   def visible?; true; end
+  def bring_to_front; @fronted = (@fronted || 0) + 1; end
+  attr_reader :fronted
 end
 dialog = TestDialog.new
 controller = Kabinet::UI::Dialog
@@ -127,10 +129,14 @@ controller.instance_variable_set(:@dialog_model, model)
 controller.register_callbacks(dialog)
 dialog.callbacks['kabinet:preview'].call(nil, JSON.generate({spec: spec, revision: 1}))
 assert(controller.instance_variable_get(:@preview), 'Preview callback must activate tool')
+assert(dialog.scripts.last.include?('"ok":true'), 'First preview must succeed')
+assert(dialog.fronted == 1, 'Dialog must take focus back after the tool activates')
 dialog.callbacks['kabinet:preview'].call(nil, JSON.generate({spec: spec.merge('width'=>-1), revision: 2}))
-assert(controller.instance_variable_get(:@preview).nil?, 'Invalid spec must remove stale preview')
+kept = controller.instance_variable_get(:@preview)
+assert(kept, 'Invalid intermediate input keeps the last preview (no tool restart / focus steal)')
 assert(dialog.scripts.last.include?('"ok":false'), 'Validation error must reach UI')
 dialog.callbacks['kabinet:preview'].call(nil, JSON.generate({spec: spec, revision: 3}))
+assert(controller.instance_variable_get(:@preview).equal?(kept) && dialog.fronted == 1, 'Valid input updates the same preview without re-activating')
 controller.stop_preview
 assert(controller.instance_variable_get(:@preview).nil?, 'Apply/close cleanup')
 Sketchup.active_model = TestModel.new
