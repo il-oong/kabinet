@@ -8,8 +8,22 @@
 </head>
 <body>
 
-<!-- ══ 상단: 프리셋 한 줄 ═══════════════════════════════════════════════ -->
-<div class="topbar">
+<!-- ══ 좌측: 프리셋 사이드바 (목록 스크롤) ══════════════════════════════ -->
+<aside class="preset-sidebar">
+  <div class="preset-sidebar-head">
+    <span class="preset-sidebar-title">프리셋</span>
+    <span class="version-badge">v1.10.0</span>
+  </div>
+  <input type="search" id="preset-search" class="preset-search" placeholder="검색…"
+         oninput="kabinet.renderPresetSidebar()">
+  <div id="preset-sidebar-list" class="preset-sidebar-list"></div>
+</aside>
+
+<!-- ══ 우측: 본문 ═══════════════════════════════════════════════════════ -->
+<div class="main-col">
+
+<!-- 프리셋 데이터 원본 (숨김) — 사이드바는 이 목록으로 렌더링됨 -->
+<div class="topbar" hidden>
   <select id="f-furniture-type" onchange="kabinet.onPresetChange(this.value)" title="가구 유형/프리셋 선택">
     <option value="">프리셋 선택…</option>
     <optgroup label="── 수납장/옷장">
@@ -51,7 +65,6 @@
     </optgroup>
     <optgroup label="── 내 프리셋" id="user-preset-group"></optgroup>
   </select>
-  <span class="version-badge">v1.10.0</span>
 </div>
 
 <!-- ══ 본문 (단일 스크롤) ══════════════════════════════════════════════ -->
@@ -312,6 +325,8 @@
             onclick="kabinet.exportCutList()">커트리스트</button>
   </div>
 </div>
+
+</div><!-- /.main-col -->
 
 <script src="app.js?v=1.10.0"></script>
 <script src="modules.js?v=1.10.0"></script>

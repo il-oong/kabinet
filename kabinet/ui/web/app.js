@@ -900,6 +900,44 @@ const kabinet = (() => {
     }
   }
 
+  // ── 좌측 프리셋 사이드바 (숨김 select를 원본으로 렌더링) ───────────────
+  function renderPresetSidebar() {
+    const list = document.getElementById('preset-sidebar-list');
+    const sel  = document.getElementById('f-furniture-type');
+    if (!list || !sel) return;
+    const searchEl = document.getElementById('preset-search');
+    const q = (searchEl && searchEl.value || '').trim().toLowerCase();
+    const current = sel.value;
+    let html = '';
+    Array.from(sel.querySelectorAll('optgroup')).forEach(grp => {
+      const opts = Array.from(grp.querySelectorAll('option'))
+        .filter(o => !q || o.textContent.toLowerCase().indexOf(q) >= 0);
+      const isUser = grp.id === 'user-preset-group';
+      if (opts.length === 0 && (q || !isUser)) return;
+      const title = grp.label.replace(/^[─\s]+/, '');
+      html += `<div class="preset-group-title">${esc(title)}</div>`;
+      if (opts.length === 0) {
+        html += '<div class="preset-empty">저장된 프리셋 없음</div>';
+        return;
+      }
+      opts.forEach(o => {
+        const active = o.value === current ? ' active' : '';
+        html += `<button type="button" class="preset-entry${active}" title="${escAttr(o.textContent)}"` +
+                ` data-value="${escAttr(o.value)}">${esc(o.textContent)}</button>`;
+      });
+    });
+    list.innerHTML = html || '<div class="preset-empty">검색 결과 없음</div>';
+    list.querySelectorAll('.preset-entry').forEach(btn => {
+      btn.addEventListener('click', () => {
+        sel.value = btn.dataset.value;
+        onPresetChange(btn.dataset.value);
+        renderPresetSidebar();
+      });
+    });
+  }
+
+  function escAttr(s) { return esc(s).replace(/"/g, '&quot;'); }
+
   // ── Furniture type preset loader ─────────────────────────────────────
   function loadFurniturePreset(type) {
     const preset = FURNITURE_PRESETS[type];
@@ -928,6 +966,7 @@ const kabinet = (() => {
     // Keep dropdown in sync
     const sel = document.getElementById('f-furniture-type');
     if (sel) sel.value = type;
+    renderPresetSidebar();
 
     setStatus('프리셋 로드: ' + (preset.name || type), 'ok');
   }
@@ -1292,6 +1331,7 @@ const kabinet = (() => {
       grp.innerHTML = keys.map(name =>
         `<option value="user:${esc(name)}">${esc(name)}</option>`).join('');
     }
+    renderPresetSidebar();
 
     const el = document.getElementById('preset-list');
     if (!el) return;
@@ -1485,6 +1525,7 @@ const kabinet = (() => {
 
     const ftSel = document.getElementById('f-furniture-type');
     if (ftSel) ftSel.value = state.furniture_type || '';
+    renderPresetSidebar();
 
     const hasTop = !!state.top_panel;
     document.getElementById('f-top-use').checked = hasTop;
@@ -1763,6 +1804,7 @@ const kabinet = (() => {
     if (tgt) tgt.addEventListener('input', () => { tgt._userEdited = true; });
     updateTotalHeight();
     renderPreview();
+    renderPresetSidebar();
     // 저장 프리셋 → 통합 드롭다운 채우기 (SketchUp 콜백 가능할 때만)
     try { if (typeof sketchup !== 'undefined') sketchup['kabinet:list_presets'](''); } catch (e) {}
   });
@@ -1774,7 +1816,7 @@ const kabinet = (() => {
     exportDrawings, exportCutList, exportDXF, exportGroupDXF, loadSelectionForExport,
     savePreset, listPresets, loadPresets, applyPreset, deletePreset,
     addModule, removeModule, moveModule,
-    loadFurniturePreset, onPresetChange,
+    loadFurniturePreset, onPresetChange, renderPresetSidebar,
     syncWidthToModules, distributeHeight,
     onTargetHeightLive,
     updateTotalHeight, updateHeightSummary, renderPreview,

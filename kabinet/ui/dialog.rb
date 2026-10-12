@@ -28,8 +28,8 @@ module Kabinet
         @dialog_model = Sketchup.active_model
         opts = {
           dialog_title:    'Kabinet — 카케이스 생성기',
-          preferences_key: 'kabinet_dialog',
-          width:           500,
+          preferences_key: 'kabinet_dialog_v2',   # 2단 레이아웃: 이전 창 크기(500px) 무시
+          width:           720,
           height:          740,
           resizable:       true
         }
