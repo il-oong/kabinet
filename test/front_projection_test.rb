@@ -1,0 +1,29 @@
+# frozen_string_literal: false
+# 창 정면도 미리보기: 실제 생성 코드(Assembly)로 만든 형상을 정면 투영 — 전체 폭/높이가 실제 모델과 일치
+require 'json'
+require_relative 'support/geom'
+module Kabinet; end
+%w[constants persistence/attributes persistence/schema geometry/transforms geometry/builder
+   geometry/joinery geometry/handle_builder core/fitting core/panel core/carcase
+   core/door_panel core/ep_finish_panel core/accessory core/shelf_module core/drawer_module
+   core/desk_module core/assembly geometry/preview_entities].each { |f| require_relative "../kabinet/#{f}" }
+module Kabinet; module UI; module Dialog; module_function; end; end; end
+src = File.read(File.join(__dir__, '../kabinet/ui/dialog.rb'), encoding: 'UTF-8')
+Kabinet::UI::Dialog.module_eval(src[/      def front_projection.*?\n      end\n/m])
+Kabinet::UI::Dialog.send(:module_function, :front_projection)
+def assert(v, m); raise m unless v; end
+
+# 주방 하부장 900 · 받침 80 · 몸통 740 · 상판 20 (스크린샷과 같은 구성)
+spec = { 'width' => 900, 'max_depth' => 580, 'base_height' => 80, 'ep' => { 'left' => false, 'right' => false },
+         'top_panel' => { 'thickness' => 20 },
+         'modules' => [{ 'kind' => 'shelf_module', 'width' => 900, 'depth' => 580, 'height' => 740,
+                         'door_config' => 'pair', 'handle_type' => 'bar', 'shelves' => [{ 'height_from_bottom' => 300 }] }] }
+r = Kabinet::UI::Dialog.front_projection(spec)
+w = r[:max][0] - r[:min][0]
+h = r[:max][1] - r[:min][1]
+assert (w - 900).abs < 1, "width #{w}"
+assert (h - 840).abs < 1, "height #{h}"
+assert r[:segs].any? { |s| s[4] == 1 } && r[:segs].any? { |s| s[4] == 0 }, 'front + internal lines'
+assert r[:segs].all? { |s| s.size == 5 }, 'segment shape'
+assert JSON.generate(r).size < 200_000, 'payload size'
+puts "front_projection_test: OK (#{r[:segs].size} segs)"

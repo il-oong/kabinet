@@ -20,6 +20,7 @@ require File.join(Kabinet::PLUGIN_DIR, 'geometry', 'handle_builder')
 # Domain
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'fitting')
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'space_divider')
+require File.join(Kabinet::PLUGIN_DIR, 'core', 'countertop')
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'panel')
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'carcase')
 require File.join(Kabinet::PLUGIN_DIR, 'core', 'door_panel')
@@ -41,6 +42,7 @@ require File.join(Kabinet::PLUGIN_DIR, 'commands', 'regenerate')
 require File.join(Kabinet::PLUGIN_DIR, 'commands', 'export')
 require File.join(Kabinet::PLUGIN_DIR, 'commands', 'face_panel')
 require File.join(Kabinet::PLUGIN_DIR, 'commands', 'space_divide')
+require File.join(Kabinet::PLUGIN_DIR, 'commands', 'countertop')
 
 # Output (drawings)
 require File.join(Kabinet::PLUGIN_DIR, 'output', 'drawing2d')
@@ -96,7 +98,7 @@ module Kabinet
       geometry/transforms.rb geometry/builder.rb
       geometry/joinery.rb geometry/handle_builder.rb
       geometry/preview_entities.rb ui/live_preview.rb ui/web/live-preview.js
-      core/fitting.rb core/space_divider.rb core/panel.rb core/carcase.rb core/door_panel.rb
+      core/fitting.rb core/space_divider.rb core/countertop.rb commands/countertop.rb core/panel.rb core/carcase.rb core/door_panel.rb
       core/ep_finish_panel.rb core/accessory.rb
       core/shelf_module.rb core/drawer_module.rb
       core/desk_module.rb core/assembly.rb
@@ -150,13 +152,13 @@ module Kabinet
       'version', 'constants',
       'persistence/attributes', 'persistence/schema',
       'geometry/transforms', 'geometry/builder', 'geometry/joinery', 'geometry/handle_builder',
-      'core/fitting', 'core/space_divider', 'core/panel', 'core/carcase', 'core/door_panel',
+      'core/fitting', 'core/space_divider', 'core/countertop', 'core/panel', 'core/carcase', 'core/door_panel',
       'core/ep_finish_panel', 'core/accessory',
       'core/shelf_module', 'core/drawer_module', 'core/desk_module',
       'core/assembly', 'core/hardware', 'core/validation', 'core/cut_list',
       'core/ep_board', 'core/furniture_library',
       'commands/generate', 'commands/regenerate', 'commands/export',
-      'commands/face_panel', 'commands/space_divide',
+      'commands/face_panel', 'commands/space_divide', 'commands/countertop',
       'output/drawing2d', 'output/dxf', 'output/order_sheet',
       'output/group_projection', 'output/dimensions', 'output/views',
       'output/png_export', 'output/pdf_bundler',

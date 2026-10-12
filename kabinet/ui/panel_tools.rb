@@ -176,7 +176,11 @@ module Kabinet
         pt = ::Geom::Point3d.new(@mouse[0] + 18, @mouse[1] + 14, 0)
         lines = ["#{@thickness.round(1).to_s.sub(/\.0\z/, '')}T 패널#{@flip ? ' (반전)' : ''}",
                  '클릭: 생성 · 우클릭/Enter: 두께 · Tab: 방향']
-        lines << '가구 부재 면 → 바깥쪽에 새 패널 추가' if @info && @info[:in_assembly]
+        if @info && @info[:resize] && !@flip
+          lines << "현재 #{@info[:found_mm].to_f.round(1)}T → 클릭하면 이 판재 두께를 변경"
+        elsif @info && @info[:in_assembly]
+          lines << '가구 부재 면 → 바깥쪽에 새 패널 추가'
+        end
         view.draw_text(pt, lines.join("\n"), size: 11, color: ::Sketchup::Color.new(20, 60, 120))
       rescue ArgumentError
         view.draw_text(pt, lines.join("\n")) # SketchUp 2019 이하: 옵션 미지원
@@ -247,7 +251,8 @@ module Kabinet
           elsif @info
             found = @info[:found_mm]
             head = found ? "감지 두께 #{found.round(1)}mm → #{@thickness.round(1)}T" : "두께 없는 면 → #{@thickness.round(1)}T"
-            tail = if @info[:in_assembly] then ' · Kabinet 가구 부재 — 바깥쪽에 새 패널 추가'
+            tail = if @info[:resize] && !@flip then ' · 그룹 안 판재 — 이 자리에서 두께 변경'
+                   elsif @info[:in_assembly] then ' · Kabinet 가구 부재 — 바깥쪽에 새 패널 추가'
                    elsif @info[:replaceable] then ' · 원본 판재 교체'
                    else ''
                    end

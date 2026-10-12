@@ -22,21 +22,26 @@ module Kabinet
         opp = opposite(face)
         dir_w = nil
         found_mm = nil
+        scale = 1.0
         if opp
           dir_local = face.normal.clone
           dir_local.reverse! if opp[:offset] < 0   # 반대면이 있는 쪽(= 솔리드 안쪽)으로
           dir_w = dir_local.transform(tr).normalize
-          found_mm = Kabinet::Core::Fitting.len_mm(opp[:distance]) * (dir_local.transform(tr).length / dir_local.length)
+          scale = dir_local.transform(tr).length / dir_local.length
+          found_mm = Kabinet::Core::Fitting.len_mm(opp[:distance]) * scale
         end
         container = path.length >= 2 && instance?(path[-2]) ? path[-2] : nil
         in_assembly = path[0...-1].any? { |e| Kabinet::Persistence::Attributes.assembly?(e) }
-        # Kabinet 가구 부재 면: 부재는 건드리지 않고 보이는 쪽(바깥)으로 새 패널을 붙인다.
+        # 그룹 안에 들어가 판재 면을 직접 클릭한 경우(면이 지금 편집 중인 곳에 있음):
+        # 새 패널을 만들지 않고 반대쪽 면을 밀고 당겨 그 자리에서 두께를 바꾼다.
+        resize = !opp.nil? && path[0...-1] == (model.active_path || []) && !opp[:face].nil?
+        # Kabinet 가구 부재 면(가구 밖에서 클릭): 부재는 건드리지 않고 보이는 쪽(바깥)으로 새 패널을 붙인다.
         # (안쪽으로 만들면 기존 부재와 정확히 겹쳐 쓸모가 없음 — 재생성 시 부재 두께는 폼에서 수정)
-        dir_w = nil if in_assembly
+        dir_w = nil if in_assembly && !resize
         {
           face: face, path: path, loops_w: loops_w, normal_w: normal_w,
           dir_w: dir_w, found_mm: found_mm, container: container,
-          in_assembly: in_assembly,
+          in_assembly: in_assembly, resize: resize, opp_face: opp && opp[:face], scale: scale,
           replaceable: !in_assembly && container && !container.locked? &&
                        same_context?(path[0...-2], model) &&
                        slab_container?(container, path, dir_w, found_mm)
@@ -56,7 +61,7 @@ module Kabinet
           off = (other.vertices.first.position - base).dot(n)
           next if off.abs < 0.1.mm
           next unless overlaps?(face, other)
-          best = { distance: off.abs, offset: off } if best.nil? || off.abs < best[:distance]
+          best = { distance: off.abs, offset: off, face: other } if best.nil? || off.abs < best[:distance]
         end
         best
       end
@@ -107,6 +112,7 @@ module Kabinet
         raise '두께가 올바르지 않습니다.' unless t > 0 && t <= 100
         face = info[:face]
         raise '면이 더 이상 존재하지 않습니다.' unless face.valid?
+        return resize_in_place(model, info, t) if info[:resize] && !flip
 
         dir_w = info[:dir_w]
         unless dir_w
@@ -146,6 +152,28 @@ module Kabinet
           model.abort_operation
           raise
         end
+      end
+
+      # 그룹 안 판재: 클릭한 면은 그대로 두고 반대쪽 면을 밀어 두께를 t(mm)로 맞춘다.
+      def resize_in_place(model, info, t)
+        face = info[:face]
+        opp = info[:opp_face]
+        raise '반대쪽 면을 찾지 못했습니다. 다시 클릭하세요.' unless opp && opp.valid?
+        delta_mm = (t - info[:found_mm].to_f) / info[:scale].to_f
+        return face if delta_mm.abs < 0.01
+        # 반대면 법선이 판재 바깥(클릭한 면 반대쪽)을 향하면 +가 두꺼워짐
+        away = opp.vertices.first.position - face.vertices.first.position
+        sign = opp.normal.dot(away) >= 0 ? 1 : -1
+        t_label = t.round(1).to_s.sub(/\.0\z/, '')
+        model.start_operation("Kabinet — 판재 두께 #{t_label}T로 변경", true)
+        begin
+          opp.pushpull(sign * delta_mm.mm)
+          model.commit_operation
+        rescue StandardError
+          model.abort_operation
+          raise
+        end
+        face
       end
 
       # 원본 처리: 단순 판재 그룹은 교체(삭제), 고립된 두께 없는 면은 삭제. 그 외는 유지.

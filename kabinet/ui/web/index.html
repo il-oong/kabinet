@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabinet</title>
-  <link rel="stylesheet" href="styles.css?v=1.12.0">
+  <link rel="stylesheet" href="styles.css?v=1.13.0">
 </head>
 <body>
 
@@ -12,7 +12,7 @@
 <aside class="preset-sidebar">
   <div class="preset-sidebar-head">
     <span class="preset-sidebar-title">Kabinet</span>
-    <span class="version-badge">v1.12.0</span>
+    <span class="version-badge">v1.13.0</span>
   </div>
   <input type="search" id="preset-search" class="preset-search" placeholder="프리셋·도구 검색…"
          oninput="kabinet.renderPresetSidebar()">
@@ -354,6 +354,34 @@
   </div>
 </div>
 
+<!-- ══ 주방 상판 설치 ══════════════════════════════════════════════════ -->
+<div class="scroll-area view ep-view" id="view-countertop" hidden>
+  <div class="card">
+    <div class="card-title">주방 상판 설치 — 선택한 하부장 위에 한 장으로</div>
+    <p class="ep-hint">① SketchUp에서 상판을 올릴 하부장들을 <b>모두 선택</b>(Ctrl+클릭) → ② 규격 입력 → ③ 설치.
+      도어 앞면까지 포함한 외곽(손잡이 제외)과 윗면 높이를 자동 인식하고, 일자·ㄱ자·ㄷ자로 꺾인 배치도 하나로 잇습니다.</p>
+    <div class="ep-grid">
+      <label class="ep-field">두께(T)<input id="ct-thickness" type="number" min="3" max="100" step="1" value="12" list="ct-thickness-list"></label>
+      <label class="ep-field">앞 돌출 (도어 앞면 기준)<input id="ct-front" type="number" min="0" max="200" value="20"></label>
+      <label class="ep-field">노출 옆면 돌출<input id="ct-side" type="number" min="0" max="200" value="0"></label>
+    </div>
+    <datalist id="ct-thickness-list"><option value="12"><option value="20"><option value="30"></datalist>
+    <div class="ep-grid2">
+      <label class="ep-field">뒤 여유 (벽 쪽, +면 줄임)<input id="ct-back" type="number" min="-100" max="200" value="0"></label>
+      <label class="ep-field">재질<input id="ct-material" list="ct-material-list" value="인조대리석 (화이트)"></label>
+    </div>
+    <datalist id="ct-material-list"></datalist>
+    <div class="ep-grid2">
+      <label class="ep-field">높이<select id="ct-height-mode">
+        <option value="auto">자동 — 선택 가구 윗면 위에</option>
+        <option value="fixed">상판 윗면 높이 지정</option></select></label>
+      <label class="ep-field">상판 윗면 높이 (바닥 기준 mm)<input id="ct-top-height" type="number" min="100" max="3000" value="850" disabled></label>
+    </div>
+    <p class="ep-hint">노출 옆면 = 다른 하부장과 붙어 있지 않은 끝면. 끝이 벽에 닿으면 0으로 두세요. 정면은 Kabinet 가구 정면(또는 도면에서 지정한 정면), 없으면 모델 초록축 −방향입니다.</p>
+    <button type="button" class="btn-primary ep-big" onclick="kabinet.installCountertop()">선택한 하부장에 상판 설치</button>
+  </div>
+</div>
+
 <!-- ══ EP 판재 한 장 ══════════════════════════════════════════════════════ -->
 <div class="scroll-area view ep-view" id="view-ep" hidden>
   <div class="card">
@@ -387,9 +415,9 @@
 
 </div><!-- /.main-col -->
 
-<script src="app.js?v=1.12.0"></script>
-<script src="modules.js?v=1.12.0"></script>
-<script src="live-preview.js?v=1.12.0"></script>
-<script src="drawing.js?v=1.12.0"></script>
+<script src="app.js?v=1.13.0"></script>
+<script src="modules.js?v=1.13.0"></script>
+<script src="live-preview.js?v=1.13.0"></script>
+<script src="drawing.js?v=1.13.0"></script>
 </body>
 </html>
