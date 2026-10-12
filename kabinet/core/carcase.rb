@@ -5,14 +5,15 @@ module Kabinet
     class Carcase
       attr_reader :width, :depth, :height, :body_thickness, :back_thickness,
                   :has_back, :joinery_style, :suppress_bottom,
-                  :suppress_left_side, :suppress_right_side
+                  :suppress_left_side, :suppress_right_side, :channel_top, :open_top, :channel_tops
 
       def initialize(width:, depth:, height:,
                      body_thickness: Kabinet::Constants::DEFAULT_BODY_THICKNESS_MM.mm,
                      back_thickness: Kabinet::Constants::DEFAULT_BACK_THICKNESS_MM.mm,
                      has_back: true, joinery_style: :sides_full,
                      suppress_bottom: false,
-                     suppress_left_side: false, suppress_right_side: false)
+                     suppress_left_side: false, suppress_right_side: false,
+                     channel_top: false, open_top: false, channel_tops: [])
         @width = width
         @depth = depth
         @height = height
@@ -23,6 +24,9 @@ module Kabinet
         @suppress_bottom = suppress_bottom
         @suppress_left_side  = suppress_left_side
         @suppress_right_side = suppress_right_side
+        @channel_top = channel_top ? true : false
+        @open_top    = open_top ? true : false
+        @channel_tops = channel_tops || []   # 서랍 사이 찬넬 윗선 높이들 (측판 따냄용)
       end
 
       def panel_specs
@@ -32,7 +36,8 @@ module Kabinet
           has_back: @has_back, style: @joinery_style,
           suppress_bottom: @suppress_bottom,
           suppress_left_side: @suppress_left_side,
-          suppress_right_side: @suppress_right_side
+          suppress_right_side: @suppress_right_side,
+          channel_top: @channel_top, open_top: @open_top, channel_tops: @channel_tops
         )
       end
 

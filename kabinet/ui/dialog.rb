@@ -72,7 +72,8 @@ module Kabinet
             ensure_dialog_model!
             id = payload['entityID'].to_s
             target = id.empty? ? nil : find_entity_by_id(model, id)
-            raise '수정할 가구를 찾을 수 없습니다. 선택 불러오기를 다시 실행하세요.' if !id.empty? && !target
+            # 수정하던 가구가 모델에서 지워졌으면 새 가구로 취급 (미리보기는 원점 기준)
+            d.execute_script('kabinet.clearEntity()') if !id.empty? && !target
             stop_preview if @preview && @preview.model != model
             unless @preview
               preview = LivePreview.new(model) do
@@ -134,7 +135,11 @@ module Kabinet
             entity_id = payload['entityID']
             model   = Sketchup.active_model
             grp     = entity_id ? find_entity_by_id(model, entity_id) : nil
-            raise '수정할 가구를 찾을 수 없습니다. 선택 불러오기를 다시 실행하세요.' unless grp
+            unless grp
+              # 수정하던 가구가 지워졌다 → 같은 설정으로 새로 생성 (놓을 곳 클릭)
+              d.execute_script('kabinet.regenerateMissing()')
+              next
+            end
             raise 'Kabinet 가구 그룹을 선택하세요.' unless grp.is_a?(Sketchup::Group) && Kabinet::Persistence::Attributes.assembly?(grp)
             raise '잠긴 가구는 수정할 수 없습니다.' if grp.locked?
             result  = Kabinet::Commands::Regenerate.run(spec, group: grp)

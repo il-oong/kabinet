@@ -34,6 +34,32 @@ module Kabinet
       end
 
       # Build a rod (cylinder) along an axis. axis: :x | :y | :z
+      # 측판 — 앞면(Y=0)에서 notch_d 깊이로, 각 notch 의 [z0, z1] 구간을 따낸 판.
+      # YZ 단면을 그려 +X 로 width 만큼 밀어낸다. notches: [[z0, z1], ...] (SU Length, 오름차순·겹침 없음)
+      def self.notched_side(parent_entities, width, depth, height, notch_d, notches, transform,
+                            role: nil, label: nil, material_name: nil)
+        group = parent_entities.add_group
+        yz = [[0, 0]]
+        notches.sort_by(&:first).each do |z0, z1|
+          z1 = [z1, height].min
+          yz << [0, z0] << [notch_d, z0] << [notch_d, z1]
+          yz << [0, z1] if z1 < height
+        end
+        yz << [0, height] unless yz.last[1] >= height
+        yz << [depth, height] << [depth, 0]
+        face = group.entities.add_face(yz.map { |y, z| ::Geom::Point3d.new(0, y, z) })
+        face.reverse! if face.normal.x < 0
+        face.pushpull(width)
+        group.transformation = transform if transform
+        if role
+          Kabinet::Persistence::Attributes.set_role(group, role,
+                                                    width: width.to_f, depth: depth.to_f, thickness: height.to_f)
+        end
+        group.name = label if label
+        Kabinet::Persistence::Attributes.set(group, 'material_hint', material_name.to_s) if material_name
+        group
+      end
+
       def self.rod(parent_entities, length, diameter, transform, axis: :y, role: nil, label: nil)
         group = parent_entities.add_group
         ents  = group.entities

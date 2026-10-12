@@ -33,7 +33,7 @@ module Kabinet
     class DoorPanel
       attr_reader :opening_width, :opening_height, :thickness, :config, :door_type,
                   :gap_top, :gap_bottom, :gap_outside, :reveal_between, :front_offset,
-                  :handle_type, :handle_hole_mm, :mount_style,
+                  :handle_type, :handle_hole_mm, :handle_pos, :handle_rot, :hinge_side, :mount_style,
                   :x_origin, :z_origin, :inset_depth
 
       def initialize(opening_width:, opening_height:, thickness:,
@@ -45,6 +45,9 @@ module Kabinet
                      front_offset:   Kabinet::Core::Gaps.front_offset.mm,
                      handle_type:    'none',
                      handle_hole_mm: 128,
+                     handle_pos:     'auto',
+                     handle_rot:     'auto',
+                     hinge_side:     'left',
                      mount_style:    'overlay',
                      x_origin:       0.mm,
                      z_origin:       0.mm,
@@ -61,6 +64,9 @@ module Kabinet
         @front_offset   = front_offset
         @handle_type    = handle_type.to_s
         @handle_hole_mm = handle_hole_mm.to_i
+        @handle_pos     = handle_pos.to_s
+        @handle_rot     = handle_rot.to_s
+        @hinge_side     = hinge_side.to_s   # 단문 경첩 쪽 (양개는 role 로 자동)
         @mount_style    = mount_style.to_s
         @x_origin       = x_origin
         @z_origin       = z_origin
@@ -182,24 +188,17 @@ module Kabinet
         panel_grp.transformation = local_tx
         Kabinet::Persistence::Attributes.set_role(panel_grp, role, label: role)
 
-        if @handle_type == 'channel'
-          # 목찬넬: 패널 바디 자체가 상단 홈 포함 형태
-          Kabinet::Geometry::HandleBuilder.channel_panel(
-            panel_grp.entities, w, @thickness, h)
-        else
-          # 일반 패널 바디
-          Kabinet::Geometry::Builder.box(
-            panel_grp.entities, w, @thickness, h,
-            Kabinet::Geometry::Transforms::IDENTITY,
-            role: role, label: role, material_name: 'door')
+        # 패널 바디 — 찬넬도 전판은 평판 (포켓은 몸통 쪽, Joinery.channel_rail)
+        Kabinet::Geometry::Builder.box(
+          panel_grp.entities, w, @thickness, h,
+          Kabinet::Geometry::Transforms::IDENTITY,
+          role: role, label: role, material_name: 'door')
 
-          # 손잡이 geometry ('none' / 'push_open' 은 생략)
-          unless @handle_type == 'none' || @handle_type == 'push_open'
-            Kabinet::Geometry::HandleBuilder.build(
-              panel_grp.entities, w, @thickness, h,
-              @handle_type, hole_mm: @handle_hole_mm, panel_role: :door)
-          end
-        end
+        # 손잡이: 열리는 쪽(경첩 반대편) 가장자리에 둔다
+        Kabinet::Geometry::HandleBuilder.build(
+          panel_grp.entities, w, @thickness, h,
+          @handle_type, hole_mm: @handle_hole_mm, panel_role: :door, pos: @handle_pos, rot: @handle_rot,
+          edge: Kabinet::Geometry::HandleBuilder.open_edge(role, @hinge_side))
       rescue StandardError => e
         # 도어 1장 실패가 전체 생성을 막지 않도록 하되, 원인은 콘솔에 남긴다.
         puts "Kabinet DoorPanel.place_door 오류(#{role}): #{e.class}: #{e.message}"

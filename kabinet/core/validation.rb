@@ -49,7 +49,11 @@ module Kabinet
             warns.concat(shelf_warnings(m, prefix, mw))
             warns.concat(drawer_depth_warning(m, prefix, md, (m['cell_drawers'] || []).any?))
             warns.concat(rod_warnings(m, prefix, mw))
-            if (m['shelves'] || []).any? && (m['vertical_dividers'] || []).any?
+            # 하부만 나누는 분할판('top')은 그 높이 이상의 전폭 선반과 겹치지 않는다
+            crossing = (m['vertical_dividers'] || []).any? do |d|
+              (m['shelves'] || []).any? { |sh| d['top'].to_f <= 0 || sh['height_from_bottom'].to_f < d['top'].to_f }
+            end
+            if crossing
               warns << "#{prefix}: 전폭 선반과 세로 분할판을 함께 쓰면 선반이 분할판을 관통합니다. 셀 선반(cell_shelves)을 사용하세요."
             end
           when 'drawer_module'
@@ -111,7 +115,7 @@ module Kabinet
         door_w    = dc == 'pair' ?
                     (mw - gaps_w - Kabinet::Core::Gaps.between) / 2.0 :
                     mw - gaps_w
-        door_h    = mh - Kabinet::Core::Gaps.top - Kabinet::Core::Gaps.bottom
+        door_h    = mh - Kabinet::Core::Gaps.top_for(m) - Kabinet::Core::Gaps.bottom_for(m)
 
         if door_type == 'swing' || door_type == 'folding'
           if door_w > Kabinet::Constants::SWING_DOOR_MAX_W_MM

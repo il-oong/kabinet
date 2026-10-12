@@ -200,10 +200,11 @@ module Kabinet
         case m['kind']
         when 'drawer_module'
           fronts = FIT.drawer_fronts(w, h, (m['drawer_count'] || 1).to_i,
-                                     side_gap:   Kabinet::Core::Gaps.drawer_gap.to_f,
-                                     top_gap:    Kabinet::Core::Gaps.top.to_f,
-                                     bottom_gap: Kabinet::Core::Gaps.bottom.to_f,
-                                     reveal:     Kabinet::Core::Gaps.drawer_between.to_f)
+                                     side_gap:   Kabinet::Core::Gaps.drawer_side_for(m),
+                                     top_gap:    Kabinet::Core::Gaps.top_for(m),
+                                     bottom_gap: Kabinet::Core::Gaps.bottom_for(m),
+                                     reveal:     Kabinet::Core::Gaps.drawer_between_for(m),
+                                     ratios:     m['drawer_ratios'])
           fronts.each { |f| rect(v, x + f[:x], z + f[:z], f[:w], f[:h], 'FRONTS') }
         when 'desk_module'
           front_desk(v, m, x, z, w, h)
@@ -222,7 +223,7 @@ module Kabinet
             (m['vertical_dividers'] || []).each do |d|
               dx = x + bt + d['x'].to_f
               dt = (d['thickness'] || 18).to_f
-              rect(v, dx, z + bt, dt, h - 2 * bt, layer)
+              rect(v, dx, z + bt, dt, d['top'].to_f > 0 ? [d['top'].to_f - bt, h - 2 * bt].min : h - 2 * bt, layer)
             end
             (m['shelves'] || []).each do |s|
               sz = z + (s['height_from_bottom'] || 0).to_f
@@ -249,7 +250,7 @@ module Kabinet
         dc = m['door_config'] || 'none'
         return if dc == 'none'
         mount    = m['door_mount'] || 'overlay'
-        side_gap = (m['door_side_gap_mm'] || Kabinet::Core::Gaps.outside).to_f
+        side_gap = (m['door_side_gap_mm'] || Kabinet::Core::Gaps.outside).to_f - m['door_over_ep_mm'].to_f
         bt       = m['body_thickness'].to_f
 
         doors =
@@ -279,8 +280,8 @@ module Kabinet
             else
               FIT.swing_doors(w, h, dc,
                               side_gap: side_gap,
-                              top_gap: Kabinet::Core::Gaps.top.to_f,
-                              bottom_gap: Kabinet::Core::Gaps.bottom.to_f,
+                              top_gap: Kabinet::Core::Gaps.top_for(m),
+                              bottom_gap: Kabinet::Core::Gaps.bottom_for(m),
                               center_gap: Kabinet::Core::Gaps.between.to_f)
             end
           end

@@ -12,7 +12,7 @@ module Kabinet
       GAP_KEYS = { 'gap_top' => 'top', 'gap_bottom' => 'bottom', 'gap_outside' => 'outside',
                    'gap_between' => 'between', 'gap_front' => 'front_offset' }.freeze
       KEYS = (%w[material door_material body_thickness back_thickness door_thickness
-                 shelf_thickness ep_thickness handle_type] + GAP_KEYS.keys).freeze
+                 shelf_thickness ep_thickness handle_type handle_pos] + GAP_KEYS.keys).freeze
       NUMERIC = (%w[body_thickness back_thickness door_thickness shelf_thickness ep_thickness] + GAP_KEYS.keys).freeze
       CASE_KINDS = %w[shelf_module drawer_module].freeze
 
@@ -54,7 +54,8 @@ module Kabinet
           m['door_material'] = c['door_material'] if c['door_material']
           m['body_thickness'] = c['body_thickness'] if c['body_thickness']
           m['back_thickness'] = c['back_thickness'] if c['back_thickness']
-          m['handle_type'] = c['handle_type'] if c['handle_type']
+          m['handle_type'] = c['handle_type'] if c['handle_type'] && !(kind == 'drawer_module' && c['handle_type'] == 'push_open')
+          m['handle_pos'] = c['handle_pos'] if c['handle_pos']
           m['door_side_gap_mm'] = c['gap_outside'] if c.key?('gap_outside') && kind == 'shelf_module'
           if c['door_thickness']
             m['door_thickness'] = c['door_thickness'] if kind == 'shelf_module'

@@ -29,6 +29,12 @@
     <optgroup label="── 수납장/옷장">
       <option value="wardrobe">붙박이장 / 옷장</option>
       <option value="wardrobe_sliding">슬라이딩 붙박이장</option>
+      <option value="wardrobe_1door">붙박이장 1도어 (선반장)</option>
+      <option value="wardrobe_long_drawer">붙박이장 2도어 (긴옷 + 서랍 3단)</option>
+      <option value="wardrobe_hang_split">붙박이장 2도어 (행거 + 하부 분할)</option>
+      <option value="wardrobe_top_box">붙박이장 적층 상부장</option>
+      <option value="wardrobe_vanity_500">붙박이장 사이 화장대 500</option>
+      <option value="wardrobe_vanity_900">붙박이장 사이 화장대 900</option>
       <option value="shoe_cabinet">신발장</option>
       <option value="bookshelf">책장</option>
       <option value="tv_unit">TV장</option>
@@ -40,7 +46,14 @@
       <option value="corner_unit">코너 수납장</option>
     </optgroup>
     <optgroup label="── 주방/거실">
-      <option value="kitchen_base">주방 하부장</option>
+      <option value="kitchen_base">주방 하부장 (도어 수납)</option>
+      <option value="kitchen_sink">싱크장</option>
+      <option value="kitchen_cook">조리장 (2단 서랍장)</option>
+      <option value="kitchen_drawer2_inner">2단 서랍장 + 속서랍</option>
+      <option value="kitchen_drawer3">3단 서랍장</option>
+      <option value="kitchen_pullout">인출망장</option>
+      <option value="kitchen_filler">휠라장 (좁은 마감장)</option>
+      <option value="kitchen_island">아일랜드장 (서랍형 유닛)</option>
       <option value="kitchen_upper">주방 상부장</option>
       <option value="kitchen_run">주방 런 (수평 배열)</option>
       <option value="living_run">거실 수납 런</option>
@@ -58,6 +71,7 @@
     </optgroup>
     <optgroup label="── 자녀방">
       <option value="kids_wardrobe">자녀방 붙박이장</option>
+      <option value="kids_bed_front_shelf">침대 앞 오픈 책장 (D280)</option>
       <option value="kids_upper_open">오픈 상부장</option>
       <option value="kids_upper_door">도어 상부장</option>
       <option value="kids_desk_upper">자녀방 책상+상부장</option>
@@ -144,6 +158,9 @@
           <option value="double">이단옷장 — 행거 2단 (셔츠·바지)</option>
           <option value="drawer_hang">외부 서랍 + 행거 — 하부 서랍(도어 밖) + 상부 도어·행거</option>
           <option value="shelves">선반장 — 선반 여러 단 (개킨 옷·이불)</option>
+          <option value="long_drawer">긴옷 + 하부 서랍 — 상부 선반·행거 + 바닥 내부서랍 3단</option>
+          <option value="hang_shelf">행거 + 하부 선반칸 — 상부 행거, 중간 선반 아래는 선반 수납</option>
+          <option value="hang_split">행거 + 하부 분할 — 상부 행거, 아래는 좌 칸 + 우 선반 4단</option>
         </select>
       </div>
       <div class="ep-grid" id="wardrobe-opts"></div>
@@ -234,7 +251,7 @@
       <input type="checkbox" id="f-kickboard" checked
              onchange="kabinet.onField('has_kickboard', this.checked)">
     </div>
-    <div class="toggle-row">
+    <div class="toggle-row" id="run-mode-row" style="display:none">
       <label>수평 런 모드 <span class="dim-note">(주방/시스템장 — 가로 배열)</span></label>
       <input type="checkbox" id="f-run-mode" onchange="kabinet.onRunMode(this.checked)">
     </div>
@@ -371,7 +388,8 @@
       <label class="ep-field">도어·서랍 전판 (T)<input id="cm-door_thickness" type="number" min="3" max="100" placeholder="가구별"></label>
       <label class="ep-field">선반·칸막이 (T)<input id="cm-shelf_thickness" type="number" min="3" max="100" placeholder="가구별"></label>
       <label class="ep-field">EP 두께 (T)<input id="cm-ep_thickness" type="number" min="3" max="100" placeholder="가구별"></label>
-      <label class="ep-field">손잡이<select id="cm-handle_type"><option value="">가구별 유지</option><option value="bar">바 손잡이</option><option value="knob">노브</option><option value="cup_pull">컵 풀</option><option value="channel">채널 (핸들리스)</option><option value="push_open">푸시 오픈</option><option value="none">없음</option></select></label>
+      <label class="ep-field">손잡이<select id="cm-handle_type"><option value="">가구별 유지</option><option value="bar">바 손잡이</option><option value="knob">노브</option><option value="cup_pull">컵 풀</option><option value="channel">찬넬형 (목찬넬 · 몸통 상단 포켓)</option><option value="push_open">푸시형 (손잡이 없음)</option><option value="none">없음</option></select></label>
+      <label class="ep-field">손잡이 위치<select id="cm-handle_pos"><option value="">가구별 유지</option><option value="auto">자동</option><option value="top">상단</option><option value="center">중앙</option><option value="bottom">하단</option></select></label>
     </div>
     <div class="ep-grid2">
       <label class="ep-field">몸통 소재<select id="cm-material"><option value="">가구별 유지</option><option value="LPM">LPM (저압 멜라민)</option><option value="PET">PET</option><option value="UV_gloss">UV 도장</option><option value="acrylic">아크릴</option><option value="high_gloss">하이그로시</option><option value="phenix">페닉스</option><option value="HPL">HPL (고압 멜라민)</option><option value="MDF_paint">MDF 도장</option><option value="plywood">합판</option><option value="solid_wood">집성목/원목</option></select></label>

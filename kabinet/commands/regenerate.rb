@@ -68,13 +68,15 @@ module Kabinet
         @entity_ref = nil
       end
 
-      def onTransformationChange(entity)
+      # SketchUp 은 onTransformationChange 를 호출하지 않는다 — 이동·회전·스케일 모두 onChangeEntity.
+      def onChangeEntity(entity)
         return if @busy
 
-        t  = entity.transformation
-        sx = t.xaxis.length.to_f   # SU returns inches-per-inch, so unitless scale factor
-        sy = t.yaxis.length.to_f
-        sz = t.zaxis.length.to_f
+        # Transformation#xaxis 는 항상 단위벡터 — 배율은 행렬 열 길이로 읽는다.
+        a  = entity.transformation.to_a
+        sx = Math.sqrt(a[0]**2 + a[1]**2 + a[2]**2)
+        sy = Math.sqrt(a[4]**2 + a[5]**2 + a[6]**2)
+        sz = Math.sqrt(a[8]**2 + a[9]**2 + a[10]**2)
 
         # Ignore pure translation / rotation (scale stays 1.0)
         return if (sx - 1.0).abs < SCALE_TOL &&
