@@ -45,7 +45,7 @@ const FURNITURE_PRESETS = {
         door_config: 'pair', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'bar', material: 'LPM',
         edge_banding_mm: 1.0,
-        shelves: [{ height_from_bottom: 330, thickness: 25, depth_inset: 20 }],
+        shelves: [{ height_from_bottom: 330, thickness: 18, depth_inset: 20 }],
         accessories: []
       }
     ],
@@ -116,13 +116,13 @@ const FURNITURE_PRESETS = {
         door_material: 'LPM', handle_type: 'none', material: 'LPM',
         edge_banding_mm: 1.0,
         shelves: [
-          { height_from_bottom: 160, thickness: 25, depth_inset: 20 },
-          { height_from_bottom: 380, thickness: 25, depth_inset: 20 },
-          { height_from_bottom: 600, thickness: 25, depth_inset: 20 },
-          { height_from_bottom: 820, thickness: 25, depth_inset: 20 },
-          { height_from_bottom: 1040, thickness: 25, depth_inset: 20 },
-          { height_from_bottom: 1260, thickness: 25, depth_inset: 20 },
-          { height_from_bottom: 1480, thickness: 25, depth_inset: 20 }
+          { height_from_bottom: 160, thickness: 18, depth_inset: 20 },
+          { height_from_bottom: 380, thickness: 18, depth_inset: 20 },
+          { height_from_bottom: 600, thickness: 18, depth_inset: 20 },
+          { height_from_bottom: 820, thickness: 18, depth_inset: 20 },
+          { height_from_bottom: 1040, thickness: 18, depth_inset: 20 },
+          { height_from_bottom: 1260, thickness: 18, depth_inset: 20 },
+          { height_from_bottom: 1480, thickness: 18, depth_inset: 20 }
         ],
         accessories: []
       }
@@ -191,8 +191,8 @@ const FURNITURE_PRESETS = {
         shelves: [], accessories: [],
         vertical_dividers: [{ x: 573, thickness: 18 }],
         cell_shelves: [
-          { cell: 0, height_from_bottom: 240, thickness: 25, depth_inset: 0 },
-          { cell: 1, height_from_bottom: 240, thickness: 25, depth_inset: 0 }
+          { cell: 0, height_from_bottom: 240, thickness: 18, depth_inset: 0 },
+          { cell: 1, height_from_bottom: 240, thickness: 18, depth_inset: 0 }
         ],
         cell_drawers: []
       }
@@ -744,10 +744,10 @@ const FURNITURE_PRESETS = {
         suppress_left_side: false, suppress_right_side: false,
         material: 'LPM', edge_banding_mm: 1.0,
         shelves: [
-          { height_from_bottom: 250, thickness: 25, depth_inset: 0 },
-          { height_from_bottom: 500, thickness: 25, depth_inset: 0 },
-          { height_from_bottom: 750, thickness: 25, depth_inset: 0 },
-          { height_from_bottom: 1000, thickness: 25, depth_inset: 0 }
+          { height_from_bottom: 250, thickness: 18, depth_inset: 0 },
+          { height_from_bottom: 500, thickness: 18, depth_inset: 0 },
+          { height_from_bottom: 750, thickness: 18, depth_inset: 0 },
+          { height_from_bottom: 1000, thickness: 18, depth_inset: 0 }
         ],
         accessories: [], vertical_dividers: [], cell_shelves: [], cell_drawers: []
       }
@@ -913,34 +913,29 @@ const kabinet = (() => {
   }
   function toggleFolder(id) {
     const c = _loadCollapsed();
-    const cur = c[id] === undefined ? id === 'admin' : c[id];   // 설정 폴더는 기본 접힘
+    const cur = c[id] === undefined ? id === 'more' : c[id];   // 더보기 폴더는 기본 접힘
     c[id] = !cur;
     try { localStorage.setItem(FOLDER_STORE, JSON.stringify(c)); } catch (e) {}
     renderPresetSidebar();
   }
 
-  // 판재 · 분할 도구 — 모델 위에서 클릭해 쓰는 도구 (별도 폴더)
-  const SIDEBAR_PANEL_TOOLS = [
-    { id: 'face_panel',   label: '면 → 18T 패널', hint: '모델에서 면을 클릭하면 아래 두께로 판재를 만듭니다' },
-    { id: 'space_divide', label: '공간 균등 분할 (칸막이 + 도어)', hint: '캐비닛 안쪽을 클릭 → 칸 수 입력 창 → 균등 분할' },
-    { id: 'ep_board',     label: 'EP 판재 한 장 놓기', hint: '가로·두께·높이를 입력하고 원하는 곳에 판재 한 장 배치' }
-  ];
-  // 가구 도구 — Kabinet 가구 불러오기/재생성, 주방 상판
+  // 사이드바 구성 (중복 없이): 공통사항 → 프리셋 → 내 프리셋 → 보관함 → 도구 → 도면·출력 → 더보기
   const SIDEBAR_TOOLS = [
-    { id: 'countertop',   label: '주방 상판 설치', hint: '하부장들을 선택하고 규격·재질·높이를 넣으면 상판을 한 장으로 설치' },
-    { id: 'load_sel',     label: '선택 가구 불러오기', hint: 'SketchUp에서 선택한 Kabinet 가구를 폼으로' },
-    { id: 'regenerate',   label: '선택 가구 재생성', hint: '선택한 Kabinet 가구를 저장된 스펙으로 다시 만들기' }
+    { id: 'face_panel',   label: '면 → 18T 패널', hint: '면 클릭 → 판재 생성 / 그룹 안 판재는 그 자리에서 두께 변경' },
+    { id: 'space_divide', label: '공간 균등 분할', hint: '캐비닛 안쪽 클릭 → 칸 수 입력 → 칸막이·도어 균등 분할' },
+    { id: 'countertop',   label: '주방 상판 설치', hint: '하부장들을 선택 → 규격·재질·높이 입력 → 상판 한 장' }
   ];
   const SIDEBAR_OUTPUTS = [
-    { id: 'furniture_drawing', label: '가구 도면 (LayOut · PDF)', hint: '선택한 가구 → A3 평면·정면·측면·컬러 입체도' },
-    { id: 'space_drawing',     label: '공간 도면 (LayOut · PDF)', hint: '방 바닥·문·창·가구 배치도 + 치수표' },
-    { id: 'cutlist',           label: '커트리스트 CSV', hint: '현재 폼의 가구 → 부재/하드웨어' },
-    { id: 'group_cut',         label: '선택 가구 재단목록 CSV', hint: '선택한 그룹 안 판재별 두께×폭×길이' }
+    { id: 'furniture_drawing', label: '가구 도면 (LayOut)', hint: '선택한 가구 → A3 평면·정면·측면·컬러 입체도 + PDF' },
+    { id: 'space_drawing',     label: '공간 도면 (LayOut)', hint: '방 바닥·문·창·가구 배치도 + 치수표 + PDF' },
+    { id: 'cutlist',           label: '커트리스트 CSV', hint: '현재 폼의 가구 → 부재/하드웨어' }
   ];
-
-  const SIDEBAR_ADMIN = [
-    { id: 'update',       label: 'GitHub에서 업데이트', hint: '최신 kabinet.rbz를 내려받아 설치' },
-    { id: 'reload',       label: '플러그인 다시 로드', hint: '설치된 파일을 다시 불러오기 (개발용)' }
+  const SIDEBAR_MORE = [
+    { id: 'ep_board',       label: 'EP 판재 한 장 놓기', hint: '가로·두께·높이 입력 → 원하는 곳에 판재 한 장' },
+    { id: 'group_cut',      label: '선택 가구 재단목록 CSV', hint: '직접 모델링한 그룹 안 판재별 두께×폭×길이' },
+    { id: 'library_manage', label: '가구 보관함 저장 · 관리', hint: '선택한 가구를 보관함에 저장, 이름·폴더 변경' },
+    { id: 'update',         label: 'GitHub에서 업데이트', hint: '최신 kabinet.rbz를 내려받아 설치' },
+    { id: 'reload',         label: '플러그인 다시 로드', hint: '설치된 파일을 다시 불러오기 (개발용)' }
   ];
 
   function runSidebarAction(id) {
@@ -951,8 +946,7 @@ const kabinet = (() => {
         break;
       }
       case 'space_divide': callSketchup('kabinet:tool', JSON.stringify({ name: 'space_divide' })); break;
-      case 'regenerate':   callSketchup('kabinet:tool', JSON.stringify({ name: 'regenerate' })); break;
-      case 'load_sel':     showView('design'); loadSelection(); break;
+      case 'common':       showView('common'); renderCommonForm(); break;
       case 'ep_board':     showView('ep'); break;
       case 'countertop':   showView('countertop'); loadCountertopForm(); break;
       case 'furniture_drawing': showView('drawing'); window.kabinetDrawing && kabinetDrawing.setSpaceMode(false); break;
@@ -1018,25 +1012,11 @@ const kabinet = (() => {
         '</div>';
     };
 
-    // 판재 · 분할 도구
-    const ptools = SIDEBAR_PANEL_TOOLS.filter(t => match(t.label));
-    if (ptools.length) {
-      let inner = '';
-      ptools.forEach(t => {
-        inner += actionBtn(t);
-        if (t.id === 'face_panel') {
-          inner += '<label class="sb-inline">패널 두께 <input type="number" id="tool-thickness" min="3" max="100" step="1" ' +
-                   `value="${escAttr(_toolThickness())}"> T</label>`;
-        }
-      });
-      html += folder('panel_tools', '판재 · 분할 도구', inner, null, ' sb-tools');
+    // 가구 공통사항 (맨 위 — 모든 가구에 함께 적용)
+    if (match('가구 공통사항 두께 소재 손잡이')) {
+      html += '<button type="button" class="sb-common" data-action="common" title="몸통·도어·선반 두께, 소재, 손잡이, EP — 모든 가구에 함께 적용">' +
+              '가구 공통사항<span>' + esc(commonSummary()) + '</span></button>';
     }
-    // 가구 도구
-    const tools = SIDEBAR_TOOLS.filter(t => match(t.label));
-    if (tools.length) html += folder('tools', '가구 도구', tools.map(actionBtn).join(''), null, ' sb-tools');
-    // 도면 · 출력
-    const outs = SIDEBAR_OUTPUTS.filter(t => match(t.label));
-    if (outs.length) html += folder('outputs', '도면 · 출력', outs.map(actionBtn).join(''), null, ' sb-tools');
 
     // 기본 프리셋 (카테고리별 폴더)
     Array.from(sel.querySelectorAll('optgroup')).forEach((grp, gi) => {
@@ -1047,25 +1027,6 @@ const kabinet = (() => {
       html += folder('g' + gi + ':' + title, title,
         opts.map(o => presetBtn(o.value, o.textContent)).join(''), opts.length);
     });
-
-    // 내 가구 보관함 (SketchUp 모델로 저장한 가구 — 폴더별)
-    {
-      const byFolder = {};
-      furnitureLibrary.filter(it => match(it.name + ' ' + (it.folder || ''))).forEach(it => {
-        (byFolder[it.folder || '미분류'] = byFolder[it.folder || '미분류'] || []).push(it);
-      });
-      const fnames = Object.keys(byFolder).sort((a, b) => a.localeCompare(b, 'ko'));
-      let inner = actionBtn({ id: 'library_manage', label: '선택 가구 저장 · 관리', hint: '선택한 가구를 보관함에 저장, 이름·폴더 변경' });
-      let count = 0;
-      fnames.forEach(f => {
-        count += byFolder[f].length;
-        const rows = byFolder[f].map(it =>
-          `<button type="button" class="preset-entry" title="${escAttr(it.name)} — 클릭 후 모델에서 놓을 곳 클릭" ` +
-          `data-lib="${escAttr(it.id)}">${esc(it.name)}</button>`).join('');
-        inner += folder('lib:' + f, f, rows, byFolder[f].length, ' sb-sub');
-      });
-      if (count || !q) html += folder('library', '내 가구 보관함', inner, count);
-    }
 
     // 내 프리셋 (사용자 폴더)
     const uf = _userPresetFolders();
@@ -1085,14 +1046,48 @@ const kabinet = (() => {
         userCount);
     }
 
-    // 설정 (맨 아래, 기본 접힘)
-    const admin = SIDEBAR_ADMIN.filter(t => match(t.label));
-    if (admin.length) {
-      if (collapsed.admin === undefined) collapsed.admin = true;
-      const shut = !q && collapsed.admin;
-      html += `<div class="sb-folder sb-tools"><button type="button" class="sb-folder-head" data-folder="admin">` +
-        `<span class="sb-caret">${shut ? '▸' : '▾'}</span><span class="sb-folder-name">설정 · 업데이트</span></button>` +
-        (shut ? '' : `<div class="sb-folder-body">${admin.map(actionBtn).join('')}</div>`) + '</div>';
+    // 내 가구 보관함 (SketchUp 모델로 저장한 가구 — 폴더별)
+    {
+      const byFolder = {};
+      furnitureLibrary.filter(it => match(it.name + ' ' + (it.folder || ''))).forEach(it => {
+        (byFolder[it.folder || '미분류'] = byFolder[it.folder || '미분류'] || []).push(it);
+      });
+      const fnames = Object.keys(byFolder).sort((a, b) => a.localeCompare(b, 'ko'));
+      let inner = '';
+      let count = 0;
+      fnames.forEach(f => {
+        count += byFolder[f].length;
+        const rows = byFolder[f].map(it =>
+          `<button type="button" class="preset-entry" title="${escAttr(it.name)} — 클릭 후 모델에서 놓을 곳 클릭" ` +
+          `data-lib="${escAttr(it.id)}">${esc(it.name)}</button>`).join('');
+        inner += folder('lib:' + f, f, rows, byFolder[f].length, ' sb-sub');
+      });
+      if (count) html += folder('library', '내 가구 보관함', inner, count);
+    }
+
+    // 도구
+    const tools = SIDEBAR_TOOLS.filter(t => match(t.label));
+    if (tools.length) {
+      let inner = '';
+      tools.forEach(t => {
+        inner += actionBtn(t);
+        if (t.id === 'face_panel') {
+          inner += '<label class="sb-inline">패널 두께 <input type="number" id="tool-thickness" min="3" max="100" step="1" ' +
+                   `value="${escAttr(_toolThickness())}"> T</label>`;
+        }
+      });
+      html += folder('tools', '도구', inner, null, ' sb-tools');
+    }
+    // 도면 · 출력
+    const outs = SIDEBAR_OUTPUTS.filter(t => match(t.label));
+    if (outs.length) html += folder('outputs', '도면 · 출력', outs.map(actionBtn).join(''), null, ' sb-tools');
+    // 더보기 (기본 접힘)
+    const more = SIDEBAR_MORE.filter(t => match(t.label));
+    if (more.length) {
+      const shut = !q && (collapsed.more === undefined ? true : collapsed.more);
+      html += `<div class="sb-folder sb-tools"><button type="button" class="sb-folder-head" data-folder="more">` +
+        `<span class="sb-caret">${shut ? '▸' : '▾'}</span><span class="sb-folder-name">더보기</span></button>` +
+        (shut ? '' : `<div class="sb-folder-body">${more.map(actionBtn).join('')}</div>`) + '</div>';
     }
 
     list.innerHTML = html || '<div class="preset-empty">검색 결과 없음</div>';
@@ -1118,9 +1113,81 @@ const kabinet = (() => {
     });
   }
 
+  // ── 가구 공통사항 (모델에 저장 · 모든 가구에 함께 적용) ──────────────────
+  // Ruby Kabinet::Core::Common.apply 와 같은 규칙 — 두 곳을 함께 고칠 것.
+  let commonSettings = {};
+  const COMMON_NUM = ['body_thickness', 'back_thickness', 'door_thickness', 'shelf_thickness', 'ep_thickness'];
+  const COMMON_TXT = ['material', 'door_material', 'handle_type'];
+  function _cleanCommon(c) {
+    const out = {};
+    COMMON_NUM.forEach(k => { const v = parseFloat(c && c[k]); if (v > 0 && v <= 100) out[k] = v; });
+    COMMON_TXT.forEach(k => { const v = c && c[k] != null ? String(c[k]).trim() : ''; if (v) out[k] = v; });
+    return out;
+  }
+  function applyCommon(spec, common) {
+    const c = _cleanCommon(common || commonSettings);
+    const s = deepClone(spec);
+    if (!Object.keys(c).length) return s;
+    if (c.material) s.material = c.material;
+    if (c.ep_thickness) s.ep = Object.assign({}, s.ep || {}, { thickness: c.ep_thickness });
+    (s.modules || []).forEach(m => {
+      const kind = m.kind;
+      if (c.material && kind !== 'bed_gap' && kind !== 'v_gap') m.material = c.material;
+      if (kind !== 'shelf_module' && kind !== 'drawer_module') return;
+      if (c.door_material) m.door_material = c.door_material;
+      if (c.body_thickness) m.body_thickness = c.body_thickness;
+      if (c.back_thickness) m.back_thickness = c.back_thickness;
+      if (c.handle_type) m.handle_type = c.handle_type;
+      if (c.door_thickness) {
+        if (kind === 'shelf_module') m.door_thickness = c.door_thickness;
+        if (kind === 'drawer_module' || 'drawer_thickness' in m) m.drawer_thickness = c.door_thickness;
+      }
+      if (c.shelf_thickness) {
+        ['shelves', 'cell_shelves', 'vertical_dividers'].forEach(k =>
+          (m[k] || []).forEach(p => { if (p && typeof p === 'object') p.thickness = c.shelf_thickness; }));
+      }
+    });
+    return s;
+  }
+  function setCommon(c) {
+    commonSettings = _cleanCommon(c || {});
+    renderCommonForm();
+    renderPresetSidebar();
+  }
+  const MATERIAL_LABELS = { LPM: 'LPM', PET: 'PET', UV_gloss: 'UV', acrylic: '아크릴', high_gloss: '하이그로시',
+    phenix: '페닉스', HPL: 'HPL', MDF_paint: 'MDF도장', plywood: '합판', solid_wood: '원목' };
+  function commonSummary() {
+    const c = commonSettings, parts = [];
+    if (c.body_thickness) parts.push('몸통 ' + c.body_thickness + 'T');
+    if (c.door_thickness) parts.push('도어 ' + c.door_thickness + 'T');
+    if (c.material) parts.push(MATERIAL_LABELS[c.material] || c.material);
+    return parts.length ? parts.join(' · ') : '미설정 — 눌러서 지정';
+  }
+  function renderCommonForm() {
+    const c = commonSettings;
+    COMMON_NUM.concat(COMMON_TXT).forEach(k => {
+      const el = document.getElementById('cm-' + k);
+      if (el) el.value = c[k] != null ? c[k] : '';
+    });
+  }
+  function applyCommonAll() {
+    const read = {};
+    COMMON_NUM.concat(COMMON_TXT).forEach(k => { const el = document.getElementById('cm-' + k); if (el) read[k] = el.value; });
+    commonSettings = _cleanCommon(read);
+    // 지금 폼의 가구에도 바로 반영
+    state = applyCommon(state);
+    syncFormFromState();
+    renderModuleList();
+    updateTotalHeight();
+    updateHeightSummary();
+    renderPresetSidebar();
+    setStatus('공통사항을 모든 가구에 적용하는 중…', '');
+    callSketchup('kabinet:common_apply', JSON.stringify(commonSettings));
+  }
+
   // ── 화면 전환: 가구 설계 / 도면 / 보관함 / EP 판재 ─────────────────────
   let furnitureLibrary = [];
-  const VIEW_TITLES = { drawing: '도면 출력 (LayOut + PDF)', library: '내 가구 보관함', ep: 'EP 판재 한 장', countertop: '주방 상판 설치' };
+  const VIEW_TITLES = { drawing: '도면 출력 (LayOut + PDF)', library: '내 가구 보관함', ep: 'EP 판재 한 장', countertop: '주방 상판 설치', common: '가구 공통사항' };
 
   // ── 주방 상판 ────────────────────────────────────────────────────────
   const CT_FIELDS = ['thickness', 'front', 'side', 'back', 'material', 'height-mode', 'top-height'];
@@ -1280,7 +1347,7 @@ const kabinet = (() => {
     const h = document.getElementById('combine-height');
     const r = combinePresets(combineList.map(it => it.key), h ? +h.value : null);
     if (r.error) { setStatus(r.error, 'error'); return; }
-    state = r.spec;
+    state = applyCommon(r.spec);
     currentEntityID = null;
     activePresetKey = '';
     syncFormFromState();
@@ -1297,7 +1364,7 @@ const kabinet = (() => {
   function loadFurniturePreset(type) {
     const preset = FURNITURE_PRESETS[type];
     if (!preset) return;
-    state = deepClone(preset);
+    state = applyCommon(preset);
     delete state._info;
     currentEntityID = null;
     // 스택 모드: 모듈 폭을 카케이스 내부 폭으로 동기화
@@ -1712,7 +1779,7 @@ const kabinet = (() => {
 
   function applyPreset(specJson) {
     try {
-      state = JSON.parse(specJson);
+      state = applyCommon(JSON.parse(specJson));
       currentEntityID = null;
       syncFormFromState();
       renderModuleList();
@@ -2221,7 +2288,8 @@ const kabinet = (() => {
     addModule, removeModule, moveModule,
     loadFurniturePreset, onPresetChange, renderPresetSidebar,
     addToCombine, removeFromCombine, renderCombine, runSidebarAction,
-    showView, setLibrary, setStatus, onPreview2d, installCountertop, setCountertopMaterials, moveCombine, clearCombine, applyCombine, combinePresets,
+    showView, setLibrary, setStatus, onPreview2d, installCountertop, setCountertopMaterials,
+    setCommon, applyCommonAll, applyCommon, moveCombine, clearCombine, applyCombine, combinePresets,
     syncWidthToModules, distributeHeight,
     onTargetHeightLive,
     updateTotalHeight, updateHeightSummary, renderPreview,

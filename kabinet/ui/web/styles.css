@@ -753,3 +753,12 @@ body { flex-direction: row; }
 .ep-lib-item span { display: block; font-size: 10px; color: var(--text-dim); margin-top: 2px; }
 .ep-lib-edit { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 6px 0; }
 .ep-lib-edit input { margin-top: 0; }
+
+/* ── 가구 공통사항 버튼 (사이드바 맨 위) ── */
+.sb-common {
+  display: block; width: 100%; text-align: left; margin: 2px 0 8px; padding: 8px 10px;
+  background: rgba(91, 155, 213, .15); border: 1px solid var(--accent); border-radius: var(--radius);
+  color: #fff; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.sb-common:hover { background: rgba(91, 155, 213, .28); }
+.sb-common span { display: block; margin-top: 2px; font-size: 10px; font-weight: 400; color: var(--text-dim); }

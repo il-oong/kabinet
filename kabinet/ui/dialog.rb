@@ -61,6 +61,7 @@ module Kabinet
         register_drawing_callbacks(d)
         d.add_action_callback('kabinet:ready') do |_ctx, _params|
           @ready = true
+          d.execute_script("kabinet.setCommon(#{JSON.generate(Kabinet::Commands::Common.load)})") rescue nil
           push_pending_selection
         end
 
@@ -480,6 +481,19 @@ module Kabinet
 
       # ── LayOut 도면 · 내 가구 보관함 · EP 판재 (Kabinet 2.0 기능을 이 창에 통합) ──
       def register_drawing_callbacks(d)
+        # 가구 공통사항: 모델에 저장 + 모델 안 모든 Kabinet 가구 다시 생성
+        d.add_action_callback('kabinet:common_apply') do |_ctx, raw|
+          begin
+            stop_preview
+            common = JSON.parse(raw)
+            r = Kabinet::Commands::Common.apply_all(common)
+            d.execute_script("kabinet.setCommon(#{JSON.generate(Kabinet::Commands::Common.load)})")
+            d.execute_script("kabinet.onSuccess(#{JSON.generate(Kabinet::Commands::Common.message(r))})")
+          rescue StandardError => e
+            d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
+          end
+        end
+
         # 주방 상판: 선택한 하부장들 인식 → 상판 생성
         d.add_action_callback('kabinet:countertop') do |_ctx, raw|
           begin
