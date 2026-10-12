@@ -71,4 +71,17 @@ assert SD.plan(wide, axis: 'x', cells: 3, thickness: 18.0)[:warnings].empty?, 'n
 # 닫힌 6면(전면 포함)이면 front_open=false
 closed = hits.merge([1, -1] => { dist: 200.0, bmin: [0,0,0], bmax: [0,0,0], thick: 18.0 })
 assert !SD.resolve_space(closed)[:front_open], 'closed front'
+# 뒤판 없는 장: 뒤쪽 레이가 2960mm 뒤 벽에 맞아도 측판 끝(Y=+20)에서 깊이를 자른다
+open_back = { [0, -1] => side_l.merge(bmax: [-300.0, 20.0, 320.0]), [0, 1] => side_r.merge(bmax: [582.0, 20.0, 320.0]),
+              [2, -1] => bottom.merge(bmax: [582.0, 20.0, -400.0]), [2, 1] => top.merge(bmax: [582.0, 20.0, 302.0]),
+              [1, 1] => { dist: 2960.0, bmin: [-3000.0, 2960.0, -2000.0], bmax: [3000.0, 3100.0, 2000.0], thick: 140.0 } }
+ob = SD.resolve_space(open_back)
+assert near(ob[:hi][1], 20.0), "open back depth clamp #{ob[:hi][1]}"
+# 앞쪽 레이가 멀리 있는 물체에 맞아도 마찬가지로 전면 열림으로 처리
+far_front = open_back.merge([1, -1] => { dist: 2500.0, bmin: [-3000.0, -2600.0, -2000.0], bmax: [3000.0, -2500.0, 2000.0], thick: 100.0 })
+ff = SD.resolve_space(far_front)
+assert near(ff[:lo][1], -560.0) && ff[:front_open], "far front clamp #{ff[:lo][1]}"
+# 뒤판이 측판 끝에 붙어 있으면(측판 끝 + 두께 이내) 그대로 인식
+with_back = open_back.merge([1, 1] => { dist: 20.0, bmin: [-300.0, 20.0, -400.0], bmax: [564.0, 29.0, 284.0], thick: 9.0 })
+assert near(SD.resolve_space(with_back)[:hi][1], 20.0), 'back kept'
 puts 'space_divider_test OK'

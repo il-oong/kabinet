@@ -39,8 +39,14 @@ module Kabinet
 
     # ── 면 클릭 → 두께 인식 → 18T 패널 ────────────────────────────────────
     class FacePanelTool
-      def initialize
-        @thickness = Kabinet::Constants::DEFAULT_BODY_THICKNESS_MM.to_f
+      PREF = 'Kabinet'.freeze
+      QUICK_THICKNESS = [9, 12, 15, 18, 20, 25].freeze
+
+      def initialize(thickness = nil)
+        @thickness = (thickness || Sketchup.read_default(PREF, 'face_t',
+                                                        Kabinet::Constants::DEFAULT_BODY_THICKNESS_MM)).to_f
+        @thickness = Kabinet::Constants::DEFAULT_BODY_THICKNESS_MM.to_f unless @thickness >= 3 && @thickness <= 100
+        @mouse = nil
         @flip = false
         @info = nil
         @key = nil
@@ -73,25 +79,33 @@ module Kabinet
 
       # VCB에 숫자(mm)를 입력하면 다음 패널부터 그 두께로 만든다.
       def onUserText(text, view)
-        v = text.to_s.tr(',', '.')[/\d+(\.\d+)?/].to_f
-        if v >= 3 && v <= 100
-          @thickness = v
-          @message = nil
-        else
-          @message = '두께는 3~100mm 사이로 입력하세요.'
+        set_thickness(text.to_s.tr(',', '.')[/\d+(\.\d+)?/].to_f, view)
+      end
+
+      def onKeyUp(key, _repeat, _flags, view)
+        case key
+        when 9 then @flip = !@flip            # Tab: 돌출 방향 반전
+        when 13 then return ask_thickness(view) # Enter: 두께 입력 창
+        else return
         end
         update_status
         view.invalidate
       end
 
-      def onKeyUp(key, _repeat, _flags, view)
-        return unless key == 9 # Tab: 돌출 방향 반전
-        @flip = !@flip
-        update_status
-        view.invalidate
+      # 우클릭: 자주 쓰는 두께 / 직접 입력 / 방향 반전
+      def getMenu(menu, _flags, _x, _y, view)
+        QUICK_THICKNESS.each do |t|
+          item = menu.add_item("#{t}T") { set_thickness(t, view) }
+          menu.set_validation_proc(item) { (@thickness - t).abs < 0.01 ? MF_CHECKED : MF_ENABLED }
+        end
+        menu.add_item('두께 직접 입력…') { ask_thickness(view) }
+        menu.add_separator
+        menu.add_item('돌출 방향 반전 (Tab)') { @flip = !@flip; update_status; view.invalidate }
+        true
       end
 
       def onMouseMove(_flags, x, y, view)
+        @mouse = [x, y]
         r = view.model.raytest(view.pickray(x, y), true)
         path = r && r[1]
         key = path ? path.map(&:entityID) : nil
@@ -151,9 +165,69 @@ module Kabinet
         view.drawing_color = ::Sketchup::Color.new(30, 145, 235)
         view.draw(GL_LINE_LOOP, moved)
         outer.each_with_index { |p, i| view.draw(GL_LINES, [p, moved[i]]) }
+        draw_hint(view)
       end
 
       private
+
+      # 커서 옆 안내 — 상태표시줄을 안 봐도 쓰는 법이 보이게
+      def draw_hint(view)
+        return unless @mouse
+        pt = ::Geom::Point3d.new(@mouse[0] + 18, @mouse[1] + 14, 0)
+        lines = ["#{@thickness.round(1).to_s.sub(/\.0\z/, '')}T 패널#{@flip ? ' (반전)' : ''}",
+                 '클릭: 생성 · 우클릭/Enter: 두께 · Tab: 방향']
+        lines << '가구 부재 면 → 바깥쪽에 새 패널 추가' if @info && @info[:in_assembly]
+        view.draw_text(pt, lines.join("\n"), size: 11, color: ::Sketchup::Color.new(20, 60, 120))
+      rescue ArgumentError
+        view.draw_text(pt, lines.join("\n")) # SketchUp 2019 이하: 옵션 미지원
+      end
+
+      def set_thickness(v, view)
+        v = v.to_f
+        if v >= 3 && v <= 100
+          @thickness = v
+          @message = nil
+          Sketchup.write_default(PREF, 'face_t', v)
+        else
+          @message = '두께는 3~100mm 사이로 입력하세요.'
+        end
+        update_status
+        view.invalidate
+      end
+
+      # 클릭 후 뜨는 설정 창. 확인하면 값을 저장하고 true.
+      def ask_settings
+        axis_names = AXIS_LABELS.values
+        door_names = DOOR_MODES.map { |m| DOOR_LABELS[m] }
+        input = ::UI.inputbox(
+          ['몇 칸으로 나눌까요? (2~20)', '방향', '도어', '칸막이 두께(mm)', '도어 두께(mm)'],
+          [@cells, AXIS_LABELS[@axis], DOOR_LABELS[@door_mode], @thickness, @door_thickness],
+          ['', axis_names.join('|'), door_names.join('|'), '', ''],
+          '공간 분할 설정'
+        )
+        return false unless input
+        cells = input[0].to_i
+        unless cells.between?(2, 20)
+          ::UI.messagebox('칸 수는 2~20 사이로 입력하세요.')
+          return false
+        end
+        self.cells = cells
+        @axis = AXIS_LABELS.key(input[1]) || @axis
+        save('space_axis', @axis)
+        @door_mode = DOOR_LABELS.key(input[2]) || @door_mode
+        save('space_door', @door_mode)
+        @thickness = input[3].to_f if input[3].to_f > 0
+        @door_thickness = input[4].to_f if input[4].to_f > 0
+        save('space_t', @thickness)
+        save('space_dt', @door_thickness)
+        update_status
+        true
+      end
+
+      def ask_thickness(view)
+        input = ::UI.inputbox(['패널 두께(mm)'], [@thickness.round(1)], '18T 패널 두께')
+        set_thickness(input[0], view) if input
+      end
 
       def preview_direction(view)
         dir = @info[:dir_w]
@@ -173,13 +247,13 @@ module Kabinet
           elsif @info
             found = @info[:found_mm]
             head = found ? "감지 두께 #{found.round(1)}mm → #{@thickness.round(1)}T" : "두께 없는 면 → #{@thickness.round(1)}T"
-            tail = if @info[:in_assembly] then ' · Kabinet 어셈블리 부재(수정 불가)'
+            tail = if @info[:in_assembly] then ' · Kabinet 가구 부재 — 바깥쪽에 새 패널 추가'
                    elsif @info[:replaceable] then ' · 원본 판재 교체'
                    else ''
                    end
-            "#{head}#{tail} · 클릭: 생성 · Tab: 방향#{@flip ? '(반전됨)' : ''} · 숫자 입력: 두께 변경"
+            "#{head}#{tail} · 클릭: 생성 · Tab: 방향#{@flip ? '(반전됨)' : ''} · 우클릭/Enter/숫자: 두께 변경"
           else
-            "면을 클릭하면 #{@thickness.round(1)}T 패널로 만듭니다 · 숫자 입력: 두께 변경 · Esc: 종료"
+            "면을 클릭하면 #{@thickness.round(1)}T 패널로 만듭니다 · 우클릭/Enter/숫자: 두께 변경 · Esc: 종료"
           end
       end
     end
@@ -297,7 +371,9 @@ module Kabinet
         pressed = @pressed
         @pressed = false
         return view.invalidate unless pressed && @probe
-        result = Kabinet::Commands::SpaceDivide.build(view.model, @probe, current_settings)
+        probe = @probe
+        return view.invalidate unless ask_settings   # 칸 수·방향·도어·두께 입력 창 (취소하면 생성 안 함)
+        result = Kabinet::Commands::SpaceDivide.build(view.model, probe, current_settings)
         plan = result[:plan]
         Sketchup.status_text = "칸막이 #{plan[:partitions].size}개 · 도어 #{plan[:doors].size}장 생성 · 칸 내폭 #{plan[:cell_mm].round(1)}mm"
         ::UI.messagebox("경고:\n" + plan[:warnings].join("\n")) unless plan[:warnings].empty?
@@ -403,7 +479,7 @@ module Kabinet
           if @error
             @error
           elsif @probe
-            "[#{head}] 클릭: 생성 · #{keys}"
+            "[#{head}] 클릭: 칸 수 입력 창 → 생성 · #{keys}"
           else
             "[#{head}] 캐비닛 안쪽 면을 가리키세요 · #{keys} · Esc: 종료"
           end

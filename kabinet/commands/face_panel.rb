@@ -30,6 +30,9 @@ module Kabinet
         end
         container = path.length >= 2 && instance?(path[-2]) ? path[-2] : nil
         in_assembly = path[0...-1].any? { |e| Kabinet::Persistence::Attributes.assembly?(e) }
+        # Kabinet 가구 부재 면: 부재는 건드리지 않고 보이는 쪽(바깥)으로 새 패널을 붙인다.
+        # (안쪽으로 만들면 기존 부재와 정확히 겹쳐 쓸모가 없음 — 재생성 시 부재 두께는 폼에서 수정)
+        dir_w = nil if in_assembly
         {
           face: face, path: path, loops_w: loops_w, normal_w: normal_w,
           dir_w: dir_w, found_mm: found_mm, container: container,
@@ -102,9 +105,6 @@ module Kabinet
       def build(model, info, thickness_mm, flip: false)
         t = thickness_mm.to_f
         raise '두께가 올바르지 않습니다.' unless t > 0 && t <= 100
-        if info[:in_assembly]
-          raise 'Kabinet 어셈블리 부재입니다. "선택 어셈블리 편집"에서 두께를 수정하세요.'
-        end
         face = info[:face]
         raise '면이 더 이상 존재하지 않습니다.' unless face.valid?
 
