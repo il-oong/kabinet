@@ -919,9 +919,13 @@ const kabinet = (() => {
     renderPresetSidebar();
   }
 
+  // 판재 · 분할 도구 — 모델 위에서 클릭해 쓰는 도구 (별도 폴더)
+  const SIDEBAR_PANEL_TOOLS = [
+    { id: 'face_panel',   label: '면 → 18T 패널', hint: '모델에서 면을 클릭하면 아래 두께로 판재를 만듭니다' },
+    { id: 'space_divide', label: '공간 균등 분할 (칸막이 + 도어)', hint: '캐비닛 안쪽을 클릭 → 칸 수 입력 창 → 균등 분할' }
+  ];
+  // 가구 도구 — Kabinet 가구 불러오기/재생성
   const SIDEBAR_TOOLS = [
-    { id: 'face_panel',   label: '면 → 패널 만들기', hint: '모델에서 면을 클릭하면 아래 두께로 판재를 만듭니다' },
-    { id: 'space_divide', label: '공간 분할 + 도어', hint: '캐비닛 안쪽을 클릭해 칸막이·도어를 균등 분할' },
     { id: 'load_sel',     label: '선택 가구 불러오기', hint: 'SketchUp에서 선택한 Kabinet 가구를 폼으로' },
     { id: 'regenerate',   label: '선택 가구 재생성', hint: '선택한 Kabinet 가구를 저장된 스펙으로 다시 만들기' }
   ];
@@ -1010,16 +1014,22 @@ const kabinet = (() => {
         '</div>';
     };
 
-    // 도구
-    const tools = SIDEBAR_TOOLS.filter(t => match(t.label));
-    if (tools.length) {
-      let inner = tools.map(actionBtn).join('');
-      if (tools.some(t => t.id === 'face_panel')) {
-        inner += '<label class="sb-inline">패널 두께 <input type="number" id="tool-thickness" min="3" max="100" step="1" ' +
-                 `value="${escAttr(_toolThickness())}"> T</label>`;
-      }
-      html += folder('tools', '도구', inner, null, ' sb-tools');
+    // 판재 · 분할 도구
+    const ptools = SIDEBAR_PANEL_TOOLS.filter(t => match(t.label));
+    if (ptools.length) {
+      let inner = '';
+      ptools.forEach(t => {
+        inner += actionBtn(t);
+        if (t.id === 'face_panel') {
+          inner += '<label class="sb-inline">패널 두께 <input type="number" id="tool-thickness" min="3" max="100" step="1" ' +
+                   `value="${escAttr(_toolThickness())}"> T</label>`;
+        }
+      });
+      html += folder('panel_tools', '판재 · 분할 도구', inner, null, ' sb-tools');
     }
+    // 가구 도구
+    const tools = SIDEBAR_TOOLS.filter(t => match(t.label));
+    if (tools.length) html += folder('tools', '가구 도구', tools.map(actionBtn).join(''), null, ' sb-tools');
     // 도면 · 출력
     const outs = SIDEBAR_OUTPUTS.filter(t => match(t.label));
     if (outs.length) html += folder('outputs', '도면 · 출력', outs.map(actionBtn).join(''), null, ' sb-tools');

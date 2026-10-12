@@ -55,6 +55,7 @@ require File.join(Kabinet::PLUGIN_DIR, 'geometry', 'preview_entities')
 require File.join(Kabinet::PLUGIN_DIR, 'ui', 'live_preview')
 require File.join(Kabinet::PLUGIN_DIR, 'ui', 'dialog')
 require File.join(Kabinet::PLUGIN_DIR, 'ui', 'panel_tools')
+require File.join(Kabinet::PLUGIN_DIR, 'ui', 'place_tool')
 require File.join(Kabinet::PLUGIN_DIR, 'ui', 'menu')
 require File.join(Kabinet::PLUGIN_DIR, 'updater')
 
@@ -101,7 +102,7 @@ module Kabinet
       output/drawing2d.rb output/dxf.rb output/order_sheet.rb
       output/group_projection.rb output/dimensions.rb output/views.rb
       output/png_export.rb output/pdf_bundler.rb
-      ui/dialog.rb ui/panel_tools.rb ui/menu.rb updater.rb
+      ui/dialog.rb ui/panel_tools.rb ui/place_tool.rb ui/menu.rb updater.rb
       ui/icons/face_panel.svg ui/icons/space_divide.svg ui/icons/kabinet.svg
       ui/web/index.html ui/web/app.js
       ui/web/modules.js ui/web/styles.css
@@ -153,7 +154,7 @@ module Kabinet
       'output/group_projection', 'output/dimensions', 'output/views',
       'output/png_export', 'output/pdf_bundler',
       'geometry/preview_entities', 'ui/live_preview',
-      'ui/dialog', 'ui/panel_tools', 'ui/menu', 'updater'
+      'ui/dialog', 'ui/panel_tools', 'ui/place_tool', 'ui/menu', 'updater'
     ]
 
     errors = []

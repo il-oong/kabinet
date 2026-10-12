@@ -3,16 +3,18 @@ module Kabinet
     module Generate
       module_function
 
-      # Build a fresh assembly at world origin from a normalized spec hash (mm units).
+      # Build a fresh assembly from a spec hash (mm units).
+      # transform/entities: 배치 위치(PlaceTool). 생략하면 월드 원점.
       # Returns the root assembly group.
-      def run_assembly(spec, model: Sketchup.active_model)
+      def run_assembly(spec, model: Sketchup.active_model,
+                       transform: Kabinet::Geometry::Transforms::IDENTITY, entities: nil)
         spec = Kabinet::Persistence::Schema.normalize(spec)
         Kabinet::Persistence::Schema.validate!(spec)
         root = nil
         model.start_operation('Kabinet — 어셈블리 생성', true)
         begin
           asm = Kabinet::Core::Assembly.from_hash(spec)
-          root = asm.build(model.entities, Kabinet::Geometry::Transforms::IDENTITY,
+          root = asm.build(entities || model.entities, transform,
                            spec_for_persistence: spec)
           install_observer(root)
           model.commit_operation

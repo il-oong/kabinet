@@ -93,24 +93,25 @@ module Kabinet
         d.add_action_callback('kabinet:preview_stop') { |_ctx, _params| stop_preview }
         d.add_action_callback('kabinet:preview_view') { |_ctx, name| @preview&.set_view(name.to_s) }
 
-        # ── Generate (fresh assembly at world origin) ──────────────────
+        # ── Generate: 배치 도구 → 클릭한 자리에 새 가구 ─────────────────
         d.add_action_callback('kabinet:generate') do |_ctx, json_str|
           begin
             stop_preview
             ensure_dialog_model!
             spec = JSON.parse(json_str)
-            grp  = Kabinet::Commands::Generate.run_assembly(spec)
-            if grp
-              norm  = Kabinet::Persistence::Schema.normalize(spec)
-              warns = Kabinet::Core::Validation.warnings(norm)
-              msg   = if warns.empty?
-                        '어셈블리가 생성되었습니다.'
-                      else
-                        "어셈블리 생성 완료 — 경고 #{warns.size}건:\n" + warns.join("\n")
-                      end
-              d.execute_script("kabinet.onSuccess(#{JSON.generate(msg)})")
-              send_applied(d, grp)
+            tool = Kabinet::UI::PlaceTool.new(spec) do |grp|
+              if grp
+                norm  = Kabinet::Persistence::Schema.normalize(spec)
+                warns = Kabinet::Core::Validation.warnings(norm)
+                msg   = warns.empty? ? '가구가 생성되었습니다.' : "가구 생성 완료 — 경고 #{warns.size}건:\n" + warns.join("\n")
+                d.execute_script("kabinet.onSuccess(#{JSON.generate(msg)})")
+                send_applied(d, grp)
+              else
+                d.execute_script("kabinet.onError('가구 배치를 취소했습니다.')")
+              end
             end
+            Sketchup.active_model.select_tool(tool)
+            d.execute_script("kabinet.onSuccess('모델에서 가구를 놓을 곳을 클릭하세요 (벽을 가리키면 벽에 붙음 · Tab 회전 · Enter 원점 · Esc 취소)')")
           rescue Kabinet::Persistence::Schema::ValidationError => e
             d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
           rescue StandardError => e
