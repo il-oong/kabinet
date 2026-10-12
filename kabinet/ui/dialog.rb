@@ -184,6 +184,9 @@ module Kabinet
               d.execute_script("kabinet.onSuccess('공간 분할 도구 실행: 캐비닛 안쪽을 클릭하세요 (Esc: 종료)')")
             when 'regenerate'
               Kabinet::Commands::Regenerate.run
+            when 'slab_thickness'
+              msg = Kabinet::Commands::SlabThickness.run(opts['thickness'])
+              d.execute_script("kabinet.onSuccess(#{JSON.generate(msg)})")
             else
               d.execute_script("kabinet.onError('알 수 없는 도구입니다.')")
             end
@@ -543,6 +546,28 @@ module Kabinet
             '가구 이름과 폴더를 변경했습니다.'
           end
         end
+        d.add_action_callback('ep_library_move') do |_ctx, raw|
+          ep_respond(d) do
+            o = JSON.parse(raw)
+            n = Kabinet::FurnitureLibrary.move(o.fetch('ids'), o.fetch('folder'))
+            ep_send_library(d)
+            "#{n}개를 ‘#{o['folder']}’ 폴더로 옮겼습니다."
+          end
+        end
+        d.add_action_callback('ep_library_delete') do |_ctx, raw|
+          ep_respond(d) do
+            n = Kabinet::FurnitureLibrary.delete(JSON.parse(raw))
+            ep_send_library(d)
+            "#{n}개를 삭제했습니다 (보관함의 .trash 폴더에서 되살릴 수 있음)."
+          end
+        end
+        d.add_action_callback('ep_library_thumbs') do |_ctx|
+          ep_respond(d) do
+            n = Kabinet::FurnitureLibrary.build_missing_thumbnails
+            ep_send_library(d)
+            "미리보기 이미지 #{n}개를 만들었습니다."
+          end
+        end
         d.add_action_callback('ep_library_place') do |_ctx, id|
           ep_respond(d) do
             Kabinet::FurnitureLibrary.place(id)
@@ -594,7 +619,7 @@ module Kabinet
         seen = {}
         segs = []
         root.entities.collect.each do |b|
-          front = b[:front] ? 1 : 0
+          front = b[:front] ? 1 : (b[:outer] ? 2 : 0)   # 1 앞판 · 2 바깥 부재(걸레받이·EP·상판) · 0 내부
           b[:points].each_slice(2) do |p, q|
             next unless q
             a = [(p.x.to_f * 25.4).round(1), (p.z.to_f * 25.4).round(1)]
@@ -602,7 +627,8 @@ module Kabinet
             next if a == c
             key = [a, c].sort.flatten
             prev = seen[key]
-            next if prev && prev >= front
+            rank = { 0 => 0, 2 => 1, 1 => 2 }   # 겹친 선은 앞판 > 바깥 부재 > 내부 순으로 표시
+            next if prev && rank[prev] >= rank[front]
             seen[key] = front
             segs << [*a, *c, front]
           end

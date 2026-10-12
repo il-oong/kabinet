@@ -46,6 +46,7 @@ require File.join(Kabinet::PLUGIN_DIR, 'commands', 'face_panel')
 require File.join(Kabinet::PLUGIN_DIR, 'commands', 'space_divide')
 require File.join(Kabinet::PLUGIN_DIR, 'commands', 'countertop')
 require File.join(Kabinet::PLUGIN_DIR, 'commands', 'common')
+require File.join(Kabinet::PLUGIN_DIR, 'commands', 'slab_thickness')
 
 # Output (drawings)
 require File.join(Kabinet::PLUGIN_DIR, 'output', 'drawing2d')
@@ -102,7 +103,7 @@ module Kabinet
       geometry/transforms.rb geometry/builder.rb
       geometry/joinery.rb geometry/handle_builder.rb
       geometry/preview_entities.rb ui/live_preview.rb ui/web/live-preview.js
-      core/fitting.rb core/space_divider.rb core/countertop.rb commands/countertop.rb core/common.rb commands/common.rb core/panel.rb core/carcase.rb core/door_panel.rb
+      core/fitting.rb core/space_divider.rb core/countertop.rb commands/countertop.rb core/common.rb commands/common.rb commands/slab_thickness.rb core/panel.rb core/carcase.rb core/door_panel.rb
       core/ep_finish_panel.rb core/accessory.rb
       core/shelf_module.rb core/drawer_module.rb
       core/desk_module.rb core/assembly.rb
@@ -162,7 +163,7 @@ module Kabinet
       'core/assembly', 'core/hardware', 'core/validation', 'core/cut_list',
       'core/ep_board', 'core/furniture_library',
       'commands/generate', 'commands/regenerate', 'commands/export',
-      'commands/face_panel', 'commands/space_divide', 'commands/countertop', 'commands/common',
+      'commands/face_panel', 'commands/space_divide', 'commands/countertop', 'commands/common', 'commands/slab_thickness',
       'output/drawing2d', 'output/dxf', 'output/order_sheet',
       'output/group_projection', 'output/dimensions', 'output/views',
       'output/png_export', 'output/pdf_bundler',

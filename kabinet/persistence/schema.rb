@@ -166,6 +166,15 @@ module Kabinet
               'thickness'         => Float(cs['thickness'] || out['body_thickness']),
               'depth_inset'       => Float(cs['depth_inset'] || 0) }
           }
+          idr = m['inner_drawers']
+          if idr.is_a?(Hash) && idr['count'].to_i > 0
+            out['inner_drawers'] = {
+              'bottom' => Float(idr['bottom'] || 0), 'count' => Integer(idr['count']),
+              'height' => Float(idr['height'] || 180), 'gap' => Float(idr['gap'] || 3),
+              'setback' => Float(idr['setback'] || 25), 'type' => (idr['type'] || 'undermount').to_s,
+              'cover' => idr.fetch('cover', true) ? true : false
+            }
+          end
           out['cell_drawers'] = (m['cell_drawers'] || []).map { |cd|
             { 'cell'         => Integer(cd['cell'] || 0),
               'count'        => Integer(cd['count'] || 2),

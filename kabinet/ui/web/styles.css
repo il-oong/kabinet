@@ -785,3 +785,29 @@ body { flex-direction: row; }
 
 details.ep-adv { margin: 8px 0; }
 details.ep-adv > summary { cursor: pointer; font-size: 11px; color: var(--text-dim); }
+
+/* ── 가구 보관함 ── */
+.lib-add-row { display: grid; grid-template-columns: 1fr 120px 70px; gap: 6px; }
+.lib-add-row input { padding: 6px 8px; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); font: inherit; font-size: 12px; min-width: 0; }
+.lib-add-row button { border: none; border-radius: var(--radius); cursor: pointer; font: inherit; font-weight: 600; }
+.lib-toolbar { display: flex; gap: 6px; margin-bottom: 8px; }
+.lib-toolbar input { flex: 1; padding: 6px 8px; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); font: inherit; font-size: 12px; }
+.lib-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.lib-tab { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font: inherit; font-size: 11px; cursor: pointer; }
+.lib-tab span { color: var(--text-dim); margin-left: 2px; }
+.lib-tab.active { border-color: var(--accent); background: rgba(91, 155, 213, .2); color: #fff; }
+.lib-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px; margin-bottom: 8px; border: 1px solid var(--accent); border-radius: var(--radius); font-size: 12px; }
+.lib-bulk input { flex: 1; min-width: 120px; padding: 4px 6px; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; font: inherit; font-size: 12px; }
+.lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.lib-card { position: relative; background: var(--surface2); border: 1px solid transparent; border-radius: var(--radius); padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+.lib-card:hover { border-color: var(--border); }
+.lib-card.sel { border-color: var(--accent); }
+.lib-check { position: absolute; top: 8px; left: 8px; z-index: 1; }
+.lib-thumb { height: 96px; border: none; border-radius: 4px; background: #e9e9e6; cursor: pointer; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 0; }
+.lib-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.lib-thumb span { color: #888; font-size: 11px; }
+.lib-name { background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text); font: inherit; font-size: 12px; font-weight: 600; padding: 2px 4px; }
+.lib-name:hover, .lib-name:focus { border-color: var(--border); background: var(--surface); }
+.lib-meta { font-size: 10px; color: var(--text-dim); padding: 0 4px; }
+.lib-actions { display: flex; gap: 4px; }
+.lib-actions select { flex: 1; min-width: 0; padding: 3px 4px; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 4px; font: inherit; font-size: 11px; }
