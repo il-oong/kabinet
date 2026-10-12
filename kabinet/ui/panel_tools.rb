@@ -58,7 +58,7 @@ module Kabinet
         key = path ? path.map(&:entityID) : nil
         if key != @key
           @key = key
-          @info = path && path.last.is_a?(::Sketchup::Face) ? Kabinet::Commands::FacePanel.analyze(path) : nil
+          @info = path && path.last.is_a?(::Sketchup::Face) ? Kabinet::Commands::FacePanel.analyze(path, view.model) : nil
         end
         update_status
         view.invalidate

@@ -11,7 +11,7 @@ module Kabinet
       SLAB_TOL_MM = 0.3
 
       # raytest 결과 path([..., Face]) → 면 정보 해시. 면이 아니면 nil.
-      def analyze(path)
+      def analyze(path, model)
         face = path.last
         return nil unless face.is_a?(::Sketchup::Face) && face.valid?
         tr = instance_transform(path[0...-1])
@@ -24,7 +24,7 @@ module Kabinet
         found_mm = nil
         if opp
           dir_local = face.normal.clone
-          dir_local.reverse! if opp[:offset] > 0
+          dir_local.reverse! if opp[:offset] < 0   # 반대면이 있는 쪽(= 솔리드 안쪽)으로
           dir_w = dir_local.transform(tr).normalize
           found_mm = Kabinet::Core::Fitting.len_mm(opp[:distance]) * (dir_local.transform(tr).length / dir_local.length)
         end
@@ -35,6 +35,7 @@ module Kabinet
           dir_w: dir_w, found_mm: found_mm, container: container,
           in_assembly: in_assembly,
           replaceable: !in_assembly && container && !container.locked? &&
+                       same_context?(path[0...-2], model) &&
                        slab_container?(container, path, dir_w, found_mm)
         }
       end
@@ -79,6 +80,12 @@ module Kabinet
         elements.inject(Kabinet::Geometry::Transforms::IDENTITY) do |acc, e|
           instance?(e) ? acc * e.transformation : acc
         end
+      end
+
+      # 교체(삭제)는 현재 편집 컨텍스트에 직접 놓인 판재만 허용한다.
+      # 다른 그룹/컴포넌트 안에 중첩된 경우 정의가 공유될 수 있어 지우면 다른 인스턴스까지 사라진다.
+      def same_context?(ancestors, model)
+        ancestors == (model.active_path || [])
       end
 
       # 컨테이너 전체 외곽이 감지 두께와 같으면 "단순 판재 그룹"
