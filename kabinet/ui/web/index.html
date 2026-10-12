@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabinet</title>
-  <link rel="stylesheet" href="styles.css?v=1.15.0">
+  <link rel="stylesheet" href="styles.css?v=1.16.0">
 </head>
 <body>
 
@@ -12,7 +12,7 @@
 <aside class="preset-sidebar">
   <div class="preset-sidebar-head">
     <span class="preset-sidebar-title">Kabinet</span>
-    <span class="version-badge">v1.15.0</span>
+    <span class="version-badge">v1.16.0</span>
   </div>
   <input type="search" id="preset-search" class="preset-search" placeholder="프리셋·도구 검색…"
          oninput="kabinet.renderPresetSidebar()">
@@ -87,22 +87,6 @@
 
   <div class="info-box" id="preset-info" style="display:none"></div>
 
-  <!-- 프리셋 합치기 (사이드바 ＋ 버튼으로 추가) -->
-  <div class="card combine-card" id="combine-card" style="display:none">
-    <div class="card-title">프리셋 합치기 — 왼쪽부터 가로로 이어붙임</div>
-    <div id="combine-list"></div>
-    <div class="field-row">
-      <label>공통 높이</label>
-      <input type="number" id="combine-height" min="100" max="3000"
-             oninput="this._userEdited = true; kabinet.renderCombine()">
-      <span class="unit">mm</span>
-    </div>
-    <div id="combine-info" class="dim-note"></div>
-    <div class="combine-actions">
-      <button class="btn-primary" onclick="kabinet.applyCombine()">합쳐서 불러오기</button>
-      <button class="btn-secondary" onclick="kabinet.clearCombine()">비우기</button>
-    </div>
-  </div>
 
   <div class="card live-preview-card">
     <label class="live-preview-toggle"><input id="live-preview-enabled" type="checkbox" checked
@@ -116,7 +100,6 @@
       <button type="button" class="btn-inline" onclick="kabinetLivePreview.toggle(false)">미리보기 종료</button>
     </div>
     <div id="live-preview-status" role="status" aria-live="polite">프리셋을 선택하거나 모듈을 추가하세요.</div>
-    <p class="field-hint">파란 선으로 변경안을 표시합니다. 기존 가구는 그대로 유지되며 아래 적용 버튼으로 확정합니다. 문 숨김은 미리보기에만 적용됩니다.</p>
   </div>
 
   <!-- 기본 정보 -->
@@ -180,8 +163,8 @@
   </div>
 
   <!-- 모듈 구성 -->
-  <div class="card">
-    <div class="card-title">모듈 구성</div>
+  <details class="card">
+    <summary>고급 — 모듈 세부 구성 (선반·서랍·도어 개별 설정)</summary>
     <div class="height-summary" id="module-height-summary"></div>
     <div id="module-list" class="module-list"></div>
     <div class="add-module-row">
@@ -191,11 +174,11 @@
       <button class="btn-add" onclick="kabinet.addModule('bed_gap')" title="런 모드에서 폭만 차지">🛏 침대공간</button>
       <button class="btn-add" onclick="kabinet.addModule('v_gap')" title="적층 모드에서 높이만 차지 (책상 위 이격 등)">⬜ 개방공간</button>
     </div>
-  </div>
+  </details>
 
   <!-- 구조 옵션 -->
-  <details class="card" open>
-    <summary>구조 옵션 — 상판 · EP · 걸레받이 · 런 모드</summary>
+  <details class="card">
+    <summary>고급 — 구조 옵션 (상판 · EP · 걸레받이 · 런 모드)</summary>
     <div class="toggle-row">
       <label>상판 사용</label>
       <input type="checkbox" id="f-top-use" checked
@@ -275,7 +258,7 @@
 <div class="scroll-area view ep-view" id="view-drawing" hidden>
   <div class="card">
     <div class="card-title" id="ep-drawing-heading">가구 도면 — LayOut + PDF (A3 가로)</div>
-    <label class="ep-check"><input id="ep-space-mode" type="checkbox"> 공간 도면으로 출력</label>
+    <label class="ep-check" hidden><input id="ep-space-mode" type="checkbox"> 공간 도면으로 출력</label>
 
     <div id="ep-space-options" hidden>
       <p class="ep-hint">바닥 안쪽 경계를 두께 없는 면 한 장으로 만들고 그룹으로 묶어 지정하세요. 문·창은 개구부 크기 그룹, 가구는 한 개씩 그룹으로 지정합니다. 지정하지 않은 객체는 출력하지 않습니다.</p>
@@ -302,6 +285,7 @@
         <button type="button" class="btn-secondary" data-front="show">모델에서 방향 보기</button>
         <button type="button" class="btn-secondary" data-front="reverse">앞뒤 반전</button>
       </div>
+      <details class="ep-adv"><summary>고급 — 입체도 방향 · 부품 구분 · 측면 기호</summary>
       <label class="ep-field">컬러 입체도 보는 방향
         <select id="ep-iso-direction"><option value="front_right">정면 + 우측 (기본)</option><option value="front_left">정면 + 좌측</option><option value="back_left">후면 + 좌측</option><option value="back_right">후면 + 우측</option></select></label>
       <p class="ep-hint">가로 치수 3단: 도어 → EP·몸통장 → 전체 외경. 자동 구분이 틀리면 부품을 선택하고 지정하세요.</p>
@@ -316,6 +300,7 @@
         <label class="ep-field">우측<select id="ep-surface-right"><option value="none">표시 안 함</option><option value="open">노출면</option><option value="wall">벽면</option></select></label>
         <label class="ep-field">뒤쪽<select id="ep-surface-back"><option value="none">표시 안 함</option><option value="open">노출면</option><option value="wall">벽면</option></select></label>
       </div>
+      </details>
     </div>
 
     <label class="ep-field" data-furniture-only>도면 이름<input id="ep-title" maxlength="60" value="가구 도면"></label>
@@ -442,9 +427,9 @@
 
 </div><!-- /.main-col -->
 
-<script src="app.js?v=1.15.0"></script>
-<script src="modules.js?v=1.15.0"></script>
-<script src="live-preview.js?v=1.15.0"></script>
-<script src="drawing.js?v=1.15.0"></script>
+<script src="app.js?v=1.16.0"></script>
+<script src="modules.js?v=1.16.0"></script>
+<script src="live-preview.js?v=1.16.0"></script>
+<script src="drawing.js?v=1.16.0"></script>
 </body>
 </html>

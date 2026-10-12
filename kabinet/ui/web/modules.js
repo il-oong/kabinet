@@ -521,11 +521,11 @@ function deskFields(m, i) {
       '<select data-mod-idx="' + i + '" data-key="leg_type">' + legOpts + '</select></div>' +
     '<div class="field-row"><label>다리 폭</label>' +
       '<input type="number" data-mod-idx="' + i + '" data-key="leg_w" ' +
-             'value="' + (m.leg_w||60) + '" min="20" max="200">' +
+             'value="' + (m.leg_w||30) + '" min="20" max="200">' +
       '<span class="unit">mm</span></div>' +
     '<div class="field-row"><label>다리 깊이</label>' +
       '<input type="number" data-mod-idx="' + i + '" data-key="leg_d" ' +
-             'value="' + (m.leg_d||60) + '" min="20" max="200">' +
+             'value="' + (m.leg_d||30) + '" min="20" max="200">' +
       '<span class="unit">mm</span></div>' +
     '<div class="field-row"><label>좌우 안쪽 여백</label>' +
       '<input type="number" data-mod-idx="' + i + '" data-key="leg_inset_x" ' +

@@ -782,3 +782,6 @@ body { flex-direction: row; }
 .add-module-row { display: grid !important; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 6px; }
 .add-module-row .btn-add { margin: 0; padding: 6px 2px; font-size: 11px; white-space: nowrap; }
 @media (max-width: 560px) { .add-module-row { grid-template-columns: repeat(3, 1fr); } }
+
+details.ep-adv { margin: 8px 0; }
+details.ep-adv > summary { cursor: pointer; font-size: 11px; color: var(--text-dim); }

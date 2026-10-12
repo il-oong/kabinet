@@ -338,7 +338,7 @@ module Kabinet
         top_t = (m['top_thickness'] || 25).to_f
         leg_h = h - top_t
         rect(v, x, z + leg_h, w, top_t, 'OUTLINE')                   # 상판
-        lw = (m['leg_w'] || 60).to_f
+        lw = (m['leg_w'] || 30).to_f
         ix = (m['leg_inset_x'] || 30).to_f
         ped = m['pedestal']
         ped_on  = ped.is_a?(Hash) && ped['enabled'] != false

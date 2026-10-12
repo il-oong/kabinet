@@ -14,7 +14,7 @@ module Kabinet
     #     width: 1400, depth: 700, height: 750,
     #     top_thickness: 25,
     #     leg_type: 'box',    # 'box' | 'round'
-    #     leg_w: 60, leg_d: 60,
+    #     leg_w: 30, leg_d: 30,
     #     leg_inset_x: 30, leg_inset_y: 30,
     #     has_modesty_panel: false,
     #     pedestal: {
@@ -38,7 +38,7 @@ module Kabinet
       def initialize(width:, depth:, height:,
                      top_thickness: 25.mm,
                      leg_type: 'box',
-                     leg_w: 60.mm, leg_d: 60.mm,
+                     leg_w: 30.mm, leg_d: 30.mm,
                      leg_inset_x: 30.mm, leg_inset_y: 30.mm,
                      has_modesty_panel: false,
                      pedestal: nil, under_unit: nil)
@@ -134,8 +134,8 @@ module Kabinet
           height:            (h['height'] || 750).mm,
           top_thickness:     (h['top_thickness']   || 25).mm,
           leg_type:          (h['leg_type']         || 'box'),
-          leg_w:             (h['leg_w']            || 60).mm,
-          leg_d:             (h['leg_d']            || 60).mm,
+          leg_w:             (h['leg_w']            || 30).mm,
+          leg_d:             (h['leg_d']            || 30).mm,
           leg_inset_x:       (h['leg_inset_x']      || 30).mm,
           leg_inset_y:       (h['leg_inset_y']      || 30).mm,
           has_modesty_panel: (h['has_modesty_panel'] == true),

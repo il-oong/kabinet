@@ -83,11 +83,14 @@ module Kabinet
               end
               @preview = preview
             end
-            @preview.update(payload['spec'], target: target, internal: payload['internal'] == true,
-                            selected_module: payload['selectedModule'])
+            activated = @preview.update(payload['spec'], target: target, internal: payload['internal'] == true,
+                                        selected_module: payload['selectedModule'])
+            # 미리보기 도구가 처음 켜질 때 SketchUp 화면이 키보드 포커스를 가져가므로 창으로 되돌린다
+            d.bring_to_front if activated
             d.execute_script("kabinetLivePreview.onResult(#{JSON.generate({ revision: payload['revision'], ok: true })})")
           rescue StandardError => e
-            stop_preview
+            # 입력 중간값(예: 2300을 치는 중의 "2")이 검증에 걸려도 미리보기를 끄지 않는다.
+            # 껐다 켜면 도구가 다시 활성화되며 입력칸 포커스를 빼앗아 깜빡임 → 이전 미리보기 유지.
             result = { revision: payload && payload['revision'], ok: false, message: e.message }
             d.execute_script("kabinetLivePreview.onResult(#{JSON.generate(result)})")
           end

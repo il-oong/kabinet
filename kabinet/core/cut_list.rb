@@ -487,8 +487,8 @@ module Kabinet
 
         # 다리 (페데스탈 반대편 + 나머지 코너)
         n_legs = ped_on ? 2 : 4
-        lw = (m['leg_w'] || 60).to_f
-        ld = (m['leg_d'] || 60).to_f
+        lw = (m['leg_w'] || 30).to_f
+        ld = (m['leg_d'] || 30).to_f
         rows << mkrow("#{prefix}-다리", lw, leg_h, ld, n_legs,
                       m['leg_type'] == 'round' ? '원형각재' : '집성각재', '세로결',
                       edge: '-', note: "#{lw.round}×#{ld.round} 각재")
