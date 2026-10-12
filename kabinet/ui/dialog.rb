@@ -480,6 +480,33 @@ module Kabinet
 
       # ── LayOut 도면 · 내 가구 보관함 · EP 판재 (Kabinet 2.0 기능을 이 창에 통합) ──
       def register_drawing_callbacks(d)
+        # 주방 상판: 선택한 하부장들 인식 → 상판 생성
+        d.add_action_callback('kabinet:countertop') do |_ctx, raw|
+          begin
+            stop_preview
+            msg = Kabinet::Commands::Countertop.run(JSON.parse(raw))
+            d.execute_script("kabinet.onSuccess(#{JSON.generate(msg)})")
+          rescue StandardError => e
+            d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
+          end
+        end
+        d.add_action_callback('kabinet:countertop_materials') do |_ctx|
+          names = Kabinet::Commands::Countertop.material_names rescue []
+          d.execute_script("kabinet.setCountertopMaterials(#{JSON.generate(names)})")
+        end
+
+        # 창 정면도 미리보기: 실제 모델을 만드는 코드로 형상을 만들어 정면(X-Z)으로 투영
+        d.add_action_callback('kabinet:preview2d') do |_ctx, raw|
+          rev = nil
+          begin
+            o = JSON.parse(raw)
+            rev = o['rev']
+            d.execute_script("kabinet.onPreview2d(#{JSON.generate(front_projection(o['spec']).merge(rev: rev))})")
+          rescue StandardError => e
+            d.execute_script("kabinet.onPreview2d(#{JSON.generate({ rev: rev, error: e.message })})")
+          end
+        end
+
         d.add_action_callback('ep_library_list') do |_ctx|
           ep_respond(d) { ep_send_library(d); nil }
         end
@@ -536,6 +563,32 @@ module Kabinet
             result ? "도면 저장 완료 (LayOut + PDF): #{result}" : '저장을 취소했습니다.'
           end
         end
+      end
+
+      # 스펙 → 정면 투영 선분 [[x1, z1, x2, z2, 앞판여부(1/0)], ...] (mm, 중복·점 선분 제거)
+      def front_projection(spec)
+        norm = Kabinet::Persistence::Schema.normalize(spec)
+        Kabinet::Persistence::Schema.validate!(norm)
+        root = Kabinet::Core::Assembly.from_hash(norm).build(Kabinet::Geometry::Preview::Entities.new)
+        seen = {}
+        segs = []
+        root.entities.collect.each do |b|
+          front = b[:front] ? 1 : 0
+          b[:points].each_slice(2) do |p, q|
+            next unless q
+            a = [(p.x.to_f * 25.4).round(1), (p.z.to_f * 25.4).round(1)]
+            c = [(q.x.to_f * 25.4).round(1), (q.z.to_f * 25.4).round(1)]
+            next if a == c
+            key = [a, c].sort.flatten
+            prev = seen[key]
+            next if prev && prev >= front
+            seen[key] = front
+            segs << [*a, *c, front]
+          end
+        end
+        xs = segs.flat_map { |s| [s[0], s[2]] }
+        zs = segs.flat_map { |s| [s[1], s[3]] }
+        { segs: segs, min: [xs.min || 0, zs.min || 0], max: [xs.max || 0, zs.max || 0] }
       end
 
       def ep_send_library(d)

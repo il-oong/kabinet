@@ -925,8 +925,9 @@ const kabinet = (() => {
     { id: 'space_divide', label: '공간 균등 분할 (칸막이 + 도어)', hint: '캐비닛 안쪽을 클릭 → 칸 수 입력 창 → 균등 분할' },
     { id: 'ep_board',     label: 'EP 판재 한 장 놓기', hint: '가로·두께·높이를 입력하고 원하는 곳에 판재 한 장 배치' }
   ];
-  // 가구 도구 — Kabinet 가구 불러오기/재생성
+  // 가구 도구 — Kabinet 가구 불러오기/재생성, 주방 상판
   const SIDEBAR_TOOLS = [
+    { id: 'countertop',   label: '주방 상판 설치', hint: '하부장들을 선택하고 규격·재질·높이를 넣으면 상판을 한 장으로 설치' },
     { id: 'load_sel',     label: '선택 가구 불러오기', hint: 'SketchUp에서 선택한 Kabinet 가구를 폼으로' },
     { id: 'regenerate',   label: '선택 가구 재생성', hint: '선택한 Kabinet 가구를 저장된 스펙으로 다시 만들기' }
   ];
@@ -953,6 +954,7 @@ const kabinet = (() => {
       case 'regenerate':   callSketchup('kabinet:tool', JSON.stringify({ name: 'regenerate' })); break;
       case 'load_sel':     showView('design'); loadSelection(); break;
       case 'ep_board':     showView('ep'); break;
+      case 'countertop':   showView('countertop'); loadCountertopForm(); break;
       case 'furniture_drawing': showView('drawing'); window.kabinetDrawing && kabinetDrawing.setSpaceMode(false); break;
       case 'space_drawing':     showView('drawing'); window.kabinetDrawing && kabinetDrawing.setSpaceMode(true); break;
       case 'library_manage':    showView('library'); break;
@@ -1118,7 +1120,40 @@ const kabinet = (() => {
 
   // ── 화면 전환: 가구 설계 / 도면 / 보관함 / EP 판재 ─────────────────────
   let furnitureLibrary = [];
-  const VIEW_TITLES = { drawing: '도면 출력 (LayOut + PDF)', library: '내 가구 보관함', ep: 'EP 판재 한 장' };
+  const VIEW_TITLES = { drawing: '도면 출력 (LayOut + PDF)', library: '내 가구 보관함', ep: 'EP 판재 한 장', countertop: '주방 상판 설치' };
+
+  // ── 주방 상판 ────────────────────────────────────────────────────────
+  const CT_FIELDS = ['thickness', 'front', 'side', 'back', 'material', 'height-mode', 'top-height'];
+  function loadCountertopForm() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('kabinet.countertop') || '{}');
+      CT_FIELDS.forEach(k => { const el = document.getElementById('ct-' + k); if (el && saved[k] != null) el.value = saved[k]; });
+    } catch (e) {}
+    const mode = document.getElementById('ct-height-mode');
+    const top = document.getElementById('ct-top-height');
+    if (mode && top) {
+      top.disabled = mode.value !== 'fixed';
+      mode.onchange = () => { top.disabled = mode.value !== 'fixed'; };
+    }
+    try { if (typeof sketchup !== 'undefined') sketchup['kabinet:countertop_materials'](''); } catch (e) {}
+  }
+  function setCountertopMaterials(names) {
+    const dl = document.getElementById('ct-material-list');
+    if (dl) dl.innerHTML = (names || []).map(n => `<option value="${escAttr(n)}">`).join('');
+  }
+  function installCountertop() {
+    const v = k => (document.getElementById('ct-' + k) || {}).value;
+    const saved = {};
+    CT_FIELDS.forEach(k => { saved[k] = v(k); });
+    try { localStorage.setItem('kabinet.countertop', JSON.stringify(saved)); } catch (e) {}
+    const opts = {
+      thickness: +v('thickness'), front_overhang: +v('front'), side_overhang: +v('side'), back_gap: +v('back'),
+      material: v('material') || '', height_mode: v('height-mode'), top_height: +v('top-height')
+    };
+    if (!(opts.thickness >= 3 && opts.thickness <= 100)) { setStatus('상판 두께를 3~100mm로 입력하세요.', 'error'); return; }
+    setStatus('선택한 하부장을 인식해 상판을 설치하는 중…', '');
+    callSketchup('kabinet:countertop', JSON.stringify(opts));
+  }
   function showView(name) {
     const target = document.getElementById('view-' + name) ? name : 'design';
     document.querySelectorAll('.view').forEach(v => { v.hidden = v.id !== 'view-' + target; });
@@ -1895,8 +1930,48 @@ const kabinet = (() => {
 
   // ── 실시간 정면도 미리보기 (canvas) ──────────────────────────────────
   // Ruby Drawing2D.front_view와 같은 배치 논리의 축약판.
+  // ── 실제 모델 형상 기반 정면도 (SketchUp 안에서만) ─────────────────────
+  // JS 그림은 즉시 대략 표시하고, 곧이어 Ruby가 실제 생성 코드로 만든 정면 투영으로 덮어 그린다.
+  let preview2dRev = 0;
+  let preview2dTimer = null;
+  function requestPreview2d() {
+    if (typeof sketchup === 'undefined' || !sketchup['kabinet:preview2d']) return;
+    clearTimeout(preview2dTimer);
+    const rev = ++preview2dRev;
+    preview2dTimer = setTimeout(() => {
+      try { sketchup['kabinet:preview2d'](JSON.stringify({ rev, spec: state })); } catch (e) {}
+    }, 200);
+  }
+  function onPreview2d(res) {
+    if (!res || res.rev !== preview2dRev || res.error || !res.segs || !res.segs.length) return;
+    const cv = document.getElementById('preview-canvas');
+    if (!cv || !cv.getContext) return;
+    const ctx = cv.getContext('2d');
+    const CW = cv.width, CH = cv.height, pad = 16;
+    const w = res.max[0] - res.min[0], h = res.max[1] - res.min[1];
+    if (w <= 0 || h <= 0) return;
+    const sc = Math.min((CW - 2 * pad) / w, (CH - 2 * pad) / h);
+    const ox = (CW - w * sc) / 2, oy = (CH + h * sc) / 2;
+    const X = x => ox + (x - res.min[0]) * sc, Y = z => oy - (z - res.min[1]) * sc;
+    ctx.clearRect(0, 0, CW, CH);
+    ctx.lineWidth = 1;
+    const hide = !!(document.getElementById('live-preview-internal') || {}).checked;
+    [0, 1].forEach(layer => {        // 내부(점선) 먼저, 앞판(실선) 위에
+      if (layer === 1 && hide) return;
+      ctx.strokeStyle = layer ? '#5b9bd5' : '#7a7a7a';
+      ctx.setLineDash(layer ? [] : [3, 3]);
+      ctx.beginPath();
+      res.segs.forEach(s => { if (s[4] === layer) { ctx.moveTo(X(s[0]), Y(s[1])); ctx.lineTo(X(s[2]), Y(s[3])); } });
+      ctx.stroke();
+    });
+    ctx.setLineDash([]);
+    const meta = document.getElementById('preview-size');
+    if (meta) meta.textContent = Math.round(w) + ' × ' + (state.max_depth || 0) + ' × ' + Math.round(h) + ' mm (실제 형상)';
+  }
+
   function renderPreview() {
     if (typeof kabinetLivePreview !== 'undefined') kabinetLivePreview.schedule();
+    requestPreview2d();
     const cv = document.getElementById('preview-canvas');
     if (!cv || !cv.getContext) return;
     const ctx = cv.getContext('2d');
@@ -2146,7 +2221,7 @@ const kabinet = (() => {
     addModule, removeModule, moveModule,
     loadFurniturePreset, onPresetChange, renderPresetSidebar,
     addToCombine, removeFromCombine, renderCombine, runSidebarAction,
-    showView, setLibrary, setStatus, moveCombine, clearCombine, applyCombine, combinePresets,
+    showView, setLibrary, setStatus, onPreview2d, installCountertop, setCountertopMaterials, moveCombine, clearCombine, applyCombine, combinePresets,
     syncWidthToModules, distributeHeight,
     onTargetHeightLive,
     updateTotalHeight, updateHeightSummary, renderPreview,
