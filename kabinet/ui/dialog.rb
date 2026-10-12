@@ -147,6 +147,62 @@ module Kabinet
           end
         end
 
+        # ── 창에서 모델링 도구 실행 (면 → 패널, 공간 분할) ─────────────
+        d.add_action_callback('kabinet:tool') do |_ctx, json_str|
+          begin
+            opts = JSON.parse(json_str.to_s) rescue {}
+            model = Sketchup.active_model
+            case opts['name']
+            when 'face_panel'
+              t = opts['thickness'].to_f
+              model.select_tool(Kabinet::UI::FacePanelTool.new(t >= 3 && t <= 100 ? t : nil))
+              d.execute_script("kabinet.onSuccess('면 → 패널 도구 실행: 모델에서 면을 클릭하세요 (우클릭: 두께, Esc: 종료)')")
+            when 'space_divide'
+              model.select_tool(Kabinet::UI::SpaceDivideTool.new)
+              d.execute_script("kabinet.onSuccess('공간 분할 도구 실행: 캐비닛 안쪽을 클릭하세요 (Esc: 종료)')")
+            when 'regenerate'
+              Kabinet::Commands::Regenerate.run
+            else
+              d.execute_script("kabinet.onError('알 수 없는 도구입니다.')")
+            end
+          rescue StandardError => e
+            d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
+          end
+        end
+
+        # ── 선택 그룹/컴포넌트 → 재단 목록 CSV (직접 모델링한 가구용) ───
+        # 하위 그룹을 끝까지 내려가 판재(하위 그룹 없는 그룹)마다 두께×폭×길이를 잰다.
+        d.add_action_callback('kabinet:export_group_cutlist') do |_ctx, _params|
+          begin
+            model   = Sketchup.active_model
+            targets = model.selection.to_a.select { |e| e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance) }
+            if targets.empty?
+              d.execute_script("kabinet.onError('그룹 또는 컴포넌트를 먼저 선택하세요.')")
+              next
+            end
+            rows = Kabinet::UI::Dialog.group_cut_rows(targets)
+            raise '선택에 판재(면이 있는 그룹)가 없습니다.' if rows.empty?
+
+            first = targets.first
+            gname = first.name.to_s
+            gname = first.definition.name.to_s if gname.empty? && first.respond_to?(:definition)
+            gname = '선택가구' if gname.empty?
+            safe  = gname.gsub(/[\\\/\:\*\?\"\<\>\|]/, '_')
+            ts    = Time.now.strftime('%Y%m%d_%H%M%S')
+            path  = ::UI.savepanel('재단 목록 CSV 저장', Dir.home, "#{safe}_재단목록_#{ts}.csv")
+            if path
+              path += '.csv' unless path.downcase.end_with?('.csv')
+              csv = "\uFEFF부재명,두께(mm),폭(mm),길이(mm),수량\n" +
+                    rows.map { |r| [r[:name], r[:t], r[:w], r[:l], r[:qty]].join(',') }.join("\n") + "\n"
+              File.open(path, 'wb') { |f| f.write(csv.encode('UTF-8')) }
+              total = rows.sum { |r| r[:qty] }
+              d.execute_script("kabinet.onSuccess(#{JSON.generate("재단 목록 저장 완료: #{File.basename(path)} (부재 #{total}개)")})")
+            end
+          rescue StandardError => e
+            d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
+          end
+        end
+
         # ── Export drawings ────────────────────────────────────────────
         d.add_action_callback('kabinet:export_drawings') do |_ctx, json_str|
           begin
@@ -364,6 +420,34 @@ module Kabinet
       end
 
       # ── Preset persistence via Sketchup.read/write_default ──────────
+      # 판재 수집: 하위 그룹/컴포넌트가 없는 그룹 = 판재 1장.
+      # 치수는 누적 변환을 적용한 로컬 바운딩박스 세 변 → 작은 순서로 두께/폭/길이.
+      def group_cut_rows(targets)
+        parts = []
+        walk = lambda do |inst, tr|
+          tr_all = tr * inst.transformation
+          ents = inst.definition.entities
+          kids = ents.select { |e| e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance) }
+          if kids.empty?
+            next unless ents.any? { |e| e.is_a?(Sketchup::Face) }
+            bb = inst.definition.bounds
+            c0 = bb.corner(0).transform(tr_all)
+            dims = [1, 2, 4].map { |k| (c0.distance(bb.corner(k).transform(tr_all))).to_mm.round(1) }.sort
+            label = inst.name.to_s
+            label = inst.definition.name.to_s if label.empty? && inst.is_a?(Sketchup::ComponentInstance)
+            label = '판재' if label.empty?
+            parts << { name: label.tr(',', ' '), t: dims[0], w: dims[1], l: dims[2] }
+          else
+            kids.each { |k| walk.call(k, tr_all) }
+          end
+        end
+        targets.each { |t| walk.call(t, Geom::Transformation.new) }
+        fmt = ->(v) { v.to_s.sub(/\.0\z/, '') }
+        parts.group_by { |p| [p[:name], p[:t], p[:w], p[:l]] }
+             .map { |(n, t, w, l), list| { name: n, t: fmt.(t), w: fmt.(w), l: fmt.(l), qty: list.size } }
+             .sort_by { |r| [-r[:t].to_f, -r[:l].to_f, -r[:w].to_f] }
+      end
+
       def load_presets
         raw = Sketchup.read_default('kabinet', 'presets', '{}')
         JSON.parse(raw)

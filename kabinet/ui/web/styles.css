@@ -645,3 +645,69 @@ body { flex-direction: row; }
   .preset-sidebar { width: 136px; }
   .preset-entry { padding: 5px 6px; font-size: 11px; }
 }
+
+/* ── 사이드바 폴더 ── */
+.sb-folder { margin-bottom: 2px; }
+.sb-folder-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 7px 4px 5px;
+  background: var(--surface);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.sb-folder-head:hover { color: var(--text); }
+.sb-caret { width: 12px; font-size: 11px; }
+.sb-folder-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-count { font-weight: 400; font-size: 10px; opacity: .7; }
+.sb-folder-body { padding: 3px 0 4px; }
+.sb-sub { margin-left: 8px; }
+.sb-sub > .sb-folder-head { position: static; border-bottom-style: dashed; }
+.sb-tools .sb-folder-head { color: var(--accent); }
+.sb-action { color: #cfe3f7; }
+.sb-action::before { content: '▶ '; font-size: 9px; color: var(--accent); }
+.sb-inline {
+  display: flex; align-items: center; gap: 4px;
+  padding: 4px 8px; font-size: 11px; color: var(--text-dim);
+}
+.sb-inline input {
+  width: 52px; padding: 2px 4px;
+  background: var(--surface2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 4px; font: inherit; font-size: 11px;
+}
+.preset-row { display: flex; align-items: center; gap: 2px; }
+.preset-row .preset-entry { flex: 1; min-width: 0; width: auto; }
+.preset-mini {
+  flex-shrink: 0;
+  width: 20px; height: 22px;
+  background: none; border: 1px solid transparent; border-radius: 4px;
+  color: var(--text-dim); cursor: pointer; font-size: 11px; line-height: 1;
+  opacity: 0;
+}
+.preset-row:hover .preset-mini { opacity: 1; }
+.preset-mini:hover { border-color: var(--accent); color: var(--accent); }
+.preset-mini.del:hover { border-color: var(--danger); color: var(--danger); }
+
+/* ── 프리셋 합치기 ── */
+.combine-card { border-color: var(--accent); }
+.combine-row { display: flex; align-items: center; gap: 4px; padding: 3px 0; }
+.combine-idx {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: 10px;
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.combine-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.combine-actions { display: flex; gap: 6px; margin-top: 8px; }
+.combine-actions button { flex: 1; padding: 7px 4px; border: none; border-radius: var(--radius); cursor: pointer; font: inherit; font-size: 12px; }
+.combine-error { color: var(--danger); }

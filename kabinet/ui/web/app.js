@@ -45,7 +45,7 @@ const FURNITURE_PRESETS = {
         door_config: 'pair', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'bar', material: 'LPM',
         edge_banding_mm: 1.0,
-        shelves: [{ height_from_bottom: 330, thickness: 18, depth_inset: 20 }],
+        shelves: [{ height_from_bottom: 330, thickness: 25, depth_inset: 20 }],
         accessories: []
       }
     ],
@@ -116,13 +116,13 @@ const FURNITURE_PRESETS = {
         door_material: 'LPM', handle_type: 'none', material: 'LPM',
         edge_banding_mm: 1.0,
         shelves: [
-          { height_from_bottom: 160, thickness: 18, depth_inset: 20 },
-          { height_from_bottom: 380, thickness: 18, depth_inset: 20 },
-          { height_from_bottom: 600, thickness: 18, depth_inset: 20 },
-          { height_from_bottom: 820, thickness: 18, depth_inset: 20 },
-          { height_from_bottom: 1040, thickness: 18, depth_inset: 20 },
-          { height_from_bottom: 1260, thickness: 18, depth_inset: 20 },
-          { height_from_bottom: 1480, thickness: 18, depth_inset: 20 }
+          { height_from_bottom: 160, thickness: 25, depth_inset: 20 },
+          { height_from_bottom: 380, thickness: 25, depth_inset: 20 },
+          { height_from_bottom: 600, thickness: 25, depth_inset: 20 },
+          { height_from_bottom: 820, thickness: 25, depth_inset: 20 },
+          { height_from_bottom: 1040, thickness: 25, depth_inset: 20 },
+          { height_from_bottom: 1260, thickness: 25, depth_inset: 20 },
+          { height_from_bottom: 1480, thickness: 25, depth_inset: 20 }
         ],
         accessories: []
       }
@@ -191,8 +191,8 @@ const FURNITURE_PRESETS = {
         shelves: [], accessories: [],
         vertical_dividers: [{ x: 573, thickness: 18 }],
         cell_shelves: [
-          { cell: 0, height_from_bottom: 240, thickness: 18, depth_inset: 0 },
-          { cell: 1, height_from_bottom: 240, thickness: 18, depth_inset: 0 }
+          { cell: 0, height_from_bottom: 240, thickness: 25, depth_inset: 0 },
+          { cell: 1, height_from_bottom: 240, thickness: 25, depth_inset: 0 }
         ],
         cell_drawers: []
       }
@@ -744,10 +744,10 @@ const FURNITURE_PRESETS = {
         suppress_left_side: false, suppress_right_side: false,
         material: 'LPM', edge_banding_mm: 1.0,
         shelves: [
-          { height_from_bottom: 250, thickness: 18, depth_inset: 0 },
-          { height_from_bottom: 500, thickness: 18, depth_inset: 0 },
-          { height_from_bottom: 750, thickness: 18, depth_inset: 0 },
-          { height_from_bottom: 1000, thickness: 18, depth_inset: 0 }
+          { height_from_bottom: 250, thickness: 25, depth_inset: 0 },
+          { height_from_bottom: 500, thickness: 25, depth_inset: 0 },
+          { height_from_bottom: 750, thickness: 25, depth_inset: 0 },
+          { height_from_bottom: 1000, thickness: 25, depth_inset: 0 }
         ],
         accessories: [], vertical_dividers: [], cell_shelves: [], cell_drawers: []
       }
@@ -892,48 +892,298 @@ const kabinet = (() => {
   // ── 통합 프리셋 드롭다운 (기본 + 내 프리셋) ──────────────────────────
   function onPresetChange(value) {
     if (!value) return;
+    activePresetKey = value;
     if (value.indexOf('user:') === 0) {
       const name = value.slice(5);
       if (userPresets[name]) applyPreset(JSON.stringify(userPresets[name]));
+      renderPresetSidebar();
     } else {
       loadFurniturePreset(value);
     }
   }
 
-  // ── 좌측 프리셋 사이드바 (숨김 select를 원본으로 렌더링) ───────────────
+  // ── 좌측 사이드바: 도구 · 출력 · 프리셋 · 내 프리셋을 폴더로 한 곳에서 ──
+  // 기본 프리셋 목록은 숨김 select(optgroup)를 원본으로 쓴다.
+  let activePresetKey = '';
+  let combineList = [];   // 합치기 대기열: [{ key, label }]
+  const FOLDER_STORE = 'kabinet.folders.collapsed';
+
+  function _loadCollapsed() {
+    try { return JSON.parse(localStorage.getItem(FOLDER_STORE) || '{}') || {}; } catch (e) { return {}; }
+  }
+  function toggleFolder(id) {
+    const c = _loadCollapsed();
+    c[id] = !c[id];
+    try { localStorage.setItem(FOLDER_STORE, JSON.stringify(c)); } catch (e) {}
+    renderPresetSidebar();
+  }
+
+  const SIDEBAR_TOOLS = [
+    { id: 'face_panel',   label: '면 → 패널 만들기', hint: '모델에서 면을 클릭하면 아래 두께로 판재를 만듭니다' },
+    { id: 'space_divide', label: '공간 분할 + 도어', hint: '캐비닛 안쪽을 클릭해 칸막이·도어를 균등 분할' },
+    { id: 'load_sel',     label: '선택 가구 불러오기', hint: 'SketchUp에서 선택한 Kabinet 가구를 폼으로' },
+    { id: 'regenerate',   label: '선택 가구 재생성', hint: '선택한 Kabinet 가구를 저장된 스펙으로 다시 만들기' }
+  ];
+  const SIDEBAR_OUTPUTS = [
+    { id: 'dxf',          label: '발주도면 DXF', hint: '현재 폼의 가구 → 3면도 + 표제란' },
+    { id: 'cutlist',      label: '커트리스트 CSV', hint: '현재 폼의 가구 → 부재/하드웨어' },
+    { id: 'group_dxf',    label: '직접 모델링 → DXF', hint: '선택한 그룹/컴포넌트 → 3면도 DXF' },
+    { id: 'group_cut',    label: '직접 모델링 → 재단목록', hint: '선택한 그룹 안 판재별 두께×폭×길이 CSV' },
+    { id: 'scene',        label: '씬 도면 PNG/PDF', hint: '뷰포트 캡처 도면' }
+  ];
+
+  function runSidebarAction(id) {
+    switch (id) {
+      case 'face_panel': {
+        const t = parseFloat((document.getElementById('tool-thickness') || {}).value) || 18;
+        callSketchup('kabinet:tool', JSON.stringify({ name: 'face_panel', thickness: t }));
+        break;
+      }
+      case 'space_divide': callSketchup('kabinet:tool', JSON.stringify({ name: 'space_divide' })); break;
+      case 'regenerate':   callSketchup('kabinet:tool', JSON.stringify({ name: 'regenerate' })); break;
+      case 'load_sel':     loadSelection(); break;
+      case 'dxf':          exportDXF(); break;
+      case 'cutlist':      exportCutList(); break;
+      case 'group_dxf':    exportGroupDXF(); break;
+      case 'group_cut':
+        setStatus('선택 그룹 재단 목록 생성 중…', '');
+        callSketchup('kabinet:export_group_cutlist', '');
+        break;
+      case 'scene':        exportDrawings(); break;
+    }
+  }
+
+  function callSketchup(name, arg) {
+    if (typeof sketchup === 'undefined' || !sketchup[name]) {
+      setStatus('SketchUp 안에서만 실행할 수 있습니다.', 'error');
+      return;
+    }
+    sketchup[name](arg);
+  }
+
+  // 사용자 프리셋 이름 "폴더/이름" → 폴더별 묶음
+  function _userPresetFolders() {
+    const folders = {};
+    Object.keys(userPresets).sort((a, b) => a.localeCompare(b, 'ko')).forEach(full => {
+      const i = full.indexOf('/');
+      const folder = i > 0 ? full.slice(0, i).trim() : '';
+      const label  = i > 0 ? full.slice(i + 1).trim() : full;
+      (folders[folder] = folders[folder] || []).push({ value: 'user:' + full, label, full });
+    });
+    return folders;
+  }
+
   function renderPresetSidebar() {
     const list = document.getElementById('preset-sidebar-list');
     const sel  = document.getElementById('f-furniture-type');
     if (!list || !sel) return;
     const searchEl = document.getElementById('preset-search');
     const q = (searchEl && searchEl.value || '').trim().toLowerCase();
-    const current = sel.value;
+    const match = t => !q || t.toLowerCase().indexOf(q) >= 0;
+    const collapsed = _loadCollapsed();
     let html = '';
-    Array.from(sel.querySelectorAll('optgroup')).forEach(grp => {
-      const opts = Array.from(grp.querySelectorAll('option'))
-        .filter(o => !q || o.textContent.toLowerCase().indexOf(q) >= 0);
-      const isUser = grp.id === 'user-preset-group';
-      if (opts.length === 0 && (q || !isUser)) return;
-      const title = grp.label.replace(/^[─\s]+/, '');
-      html += `<div class="preset-group-title">${esc(title)}</div>`;
-      if (opts.length === 0) {
-        html += '<div class="preset-empty">저장된 프리셋 없음</div>';
-        return;
+
+    const folder = (id, title, inner, count, extraCls) => {
+      const shut = !q && collapsed[id];
+      return `<div class="sb-folder${extraCls || ''}">` +
+        `<button type="button" class="sb-folder-head" data-folder="${escAttr(id)}">` +
+        `<span class="sb-caret">${shut ? '▸' : '▾'}</span><span class="sb-folder-name">${esc(title)}</span>` +
+        (count != null ? `<span class="sb-count">${count}</span>` : '') + '</button>' +
+        (shut ? '' : `<div class="sb-folder-body">${inner}</div>`) + '</div>';
+    };
+    const actionBtn = it =>
+      `<button type="button" class="preset-entry sb-action" title="${escAttr(it.hint)}" data-action="${escAttr(it.id)}">${esc(it.label)}</button>`;
+    const presetBtn = (value, label, opts) => {
+      const o = opts || {};
+      return `<div class="preset-row">` +
+        `<button type="button" class="preset-entry${value === activePresetKey ? ' active' : ''}" ` +
+        `title="${escAttr(o.title || label)}" data-value="${escAttr(value)}">${esc(label)}</button>` +
+        `<button type="button" class="preset-mini" title="합치기에 추가" data-combine="${escAttr(value)}" data-label="${escAttr(label)}">＋</button>` +
+        (o.del ? `<button type="button" class="preset-mini del" title="삭제" data-del="${escAttr(o.del)}">✕</button>` : '') +
+        '</div>';
+    };
+
+    // 도구
+    const tools = SIDEBAR_TOOLS.filter(t => match(t.label));
+    if (tools.length) {
+      let inner = tools.map(actionBtn).join('');
+      if (tools.some(t => t.id === 'face_panel')) {
+        inner += '<label class="sb-inline">패널 두께 <input type="number" id="tool-thickness" min="3" max="100" step="1" ' +
+                 `value="${escAttr(_toolThickness())}"> T</label>`;
       }
-      opts.forEach(o => {
-        const active = o.value === current ? ' active' : '';
-        html += `<button type="button" class="preset-entry${active}" title="${escAttr(o.textContent)}"` +
-                ` data-value="${escAttr(o.value)}">${esc(o.textContent)}</button>`;
-      });
+      html += folder('tools', '도구', inner, null, ' sb-tools');
+    }
+    // 도면 · 출력
+    const outs = SIDEBAR_OUTPUTS.filter(t => match(t.label));
+    if (outs.length) html += folder('outputs', '도면 · 출력', outs.map(actionBtn).join(''), null, ' sb-tools');
+
+    // 기본 프리셋 (카테고리별 폴더)
+    Array.from(sel.querySelectorAll('optgroup')).forEach((grp, gi) => {
+      if (grp.id === 'user-preset-group') return;
+      const opts = Array.from(grp.querySelectorAll('option')).filter(o => match(o.textContent));
+      if (!opts.length) return;
+      const title = grp.label.replace(/^[─\s]+/, '');
+      html += folder('g' + gi + ':' + title, title,
+        opts.map(o => presetBtn(o.value, o.textContent)).join(''), opts.length);
     });
+
+    // 내 프리셋 (사용자 폴더)
+    const uf = _userPresetFolders();
+    const names = Object.keys(uf).sort((a, b) => (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b, 'ko')));
+    let userInner = '';
+    let userCount = 0;
+    names.forEach(fname => {
+      const items = uf[fname].filter(it => match(it.full));
+      if (!items.length) return;
+      userCount += items.length;
+      const rows = items.map(it => presetBtn(it.value, it.label, { title: it.full, del: it.full })).join('');
+      userInner += fname ? folder('u:' + fname, fname, rows, items.length, ' sb-sub') : rows;
+    });
+    if (userCount || !q) {
+      html += folder('user', '내 프리셋', userInner ||
+        '<div class="preset-empty">저장된 프리셋 없음<br>아래 "내 프리셋 저장"에서 "폴더/이름"으로 저장하면 폴더가 생깁니다.</div>',
+        userCount);
+    }
+
     list.innerHTML = html || '<div class="preset-empty">검색 결과 없음</div>';
-    list.querySelectorAll('.preset-entry').forEach(btn => {
-      btn.addEventListener('click', () => {
-        sel.value = btn.dataset.value;
-        onPresetChange(btn.dataset.value);
-        renderPresetSidebar();
-      });
+    list.querySelectorAll('[data-folder]').forEach(b => b.addEventListener('click', () => toggleFolder(b.dataset.folder)));
+    list.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', () => runSidebarAction(b.dataset.action)));
+    list.querySelectorAll('[data-value]').forEach(b => b.addEventListener('click', () => {
+      const v = b.dataset.value;
+      if (v.indexOf('user:') !== 0) sel.value = v;
+      onPresetChange(v);
+    }));
+    list.querySelectorAll('[data-combine]').forEach(b => b.addEventListener('click', () =>
+      addToCombine(b.dataset.combine, b.dataset.label)));
+    list.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
+      if (confirm(`"${b.dataset.del}" 프리셋을 삭제할까요?`)) deletePreset(b.dataset.del);
+    }));
+    const tt = document.getElementById('tool-thickness');
+    if (tt) tt.addEventListener('change', () => {
+      try { localStorage.setItem('kabinet.toolThickness', tt.value); } catch (e) {}
     });
+  }
+
+  function _toolThickness() {
+    try { return localStorage.getItem('kabinet.toolThickness') || '18'; } catch (e) { return '18'; }
+  }
+
+  // ── 프리셋 합치기: 여러 프리셋을 가로(런)로 이어붙여 하나의 가구로 ─────
+  function _presetSpec(key) {
+    if (key.indexOf('user:') === 0) {
+      const p = userPresets[key.slice(5)];
+      return p ? deepClone(p) : null;
+    }
+    return FURNITURE_PRESETS[key] ? deepClone(FURNITURE_PRESETS[key]) : null;
+  }
+
+  function addToCombine(key, label) {
+    combineList.push({ key, label });
+    renderCombine();
+    setStatus(`합치기에 추가: ${label} (총 ${combineList.length}개)`, 'ok');
+  }
+  function removeFromCombine(i) { combineList.splice(i, 1); renderCombine(); }
+  function moveCombine(i, d) {
+    const j = i + d;
+    if (j < 0 || j >= combineList.length) return;
+    [combineList[i], combineList[j]] = [combineList[j], combineList[i]];
+    renderCombine();
+  }
+  function clearCombine() { combineList = []; renderCombine(); }
+
+  function renderCombine() {
+    const card = document.getElementById('combine-card');
+    const body = document.getElementById('combine-list');
+    if (!card || !body) return;
+    card.style.display = combineList.length ? '' : 'none';
+    body.innerHTML = combineList.map((it, i) =>
+      `<div class="combine-row"><span class="combine-idx">${i + 1}</span>` +
+      `<span class="combine-name">${esc(it.label)}</span>` +
+      `<button class="btn-inline" onclick="kabinet.moveCombine(${i},-1)" title="왼쪽으로">◀</button>` +
+      `<button class="btn-inline" onclick="kabinet.moveCombine(${i},1)" title="오른쪽으로">▶</button>` +
+      `<button class="btn-inline del-btn" onclick="kabinet.removeFromCombine(${i})">✕</button></div>`).join('');
+    const h = document.getElementById('combine-height');
+    const r = combinePresets(combineList.map(it => it.key), h && h._userEdited ? +h.value : null);
+    const info = document.getElementById('combine-info');
+    if (info) {
+      info.className = 'dim-note' + (r.error ? ' combine-error' : '');
+      info.textContent = r.error ? r.error :
+        `합친 폭 ${Math.round(r.spec.modules.reduce((a, m) => a + (+m.width || 0), 0))}mm · 공통 높이 ${r.spec.run_height}mm` +
+        (r.warnings.length ? ' · ' + r.warnings.join(' / ') : '');
+    }
+    if (h && !h._userEdited && !r.error) h.value = r.spec.run_height;
+  }
+
+  // keys: 프리셋 키 배열. runHeight: 공통 높이(null이면 최댓값). 반환 { spec, warnings, error }
+  function combinePresets(keys, runHeight) {
+    const warnings = [];
+    if (keys.length < 2) return { error: '프리셋을 2개 이상 추가하세요 (사이드바 ＋ 버튼).', warnings };
+    const parts = [];
+    for (const key of keys) {
+      const sp = _presetSpec(key);
+      if (!sp) return { error: `프리셋을 찾을 수 없음: ${key}`, warnings };
+      const label = sp.name || key;
+      let mods, height;
+      if (sp.run_mode) {
+        mods = sp.modules;
+        height = +sp.run_height || 740;
+      } else {
+        const solid = sp.modules.filter(m => m.kind !== 'v_gap');
+        if (sp.modules.length !== 1 || solid.length !== 1) {
+          return { error: `"${label}"은(는) 세로로 ${sp.modules.length}단 쌓인 구성이라 가로 합치기를 할 수 없습니다. ` +
+                          '단일 모듈 프리셋이나 런(가로 배열) 프리셋을 쓰세요.', warnings };
+        }
+        const ep = sp.ep || {};
+        const epT = (ep.left ? (ep.thickness || 20) : 0) + (ep.right ? (ep.thickness || 20) : 0);
+        const m = sp.modules[0];
+        m.width = Math.round((+sp.width || m.width) - epT);
+        mods = [m];
+        height = +m.height;
+      }
+      parts.push({ sp, label, mods: deepClone(mods), height });
+    }
+    const first = parts[0].sp, last = parts[parts.length - 1].sp;
+    const maxH = Math.max(...parts.map(p => p.height));
+    const rh = runHeight > 0 ? runHeight : maxH;
+    if (parts.some(p => Math.abs(p.height - rh) > 1)) warnings.push(`높이가 달라 모두 ${rh}mm로 맞춰짐`);
+    if (parts.some(p => (+p.sp.base_height || 0) !== (+first.base_height || 0))) {
+      warnings.push(`받침 높이는 첫 프리셋(${+first.base_height || 0}mm) 기준`);
+    }
+    const modules = [].concat(...parts.map(p => p.mods));
+    const depth = Math.max(...parts.map(p => +p.sp.max_depth || 0), ...modules.map(m => +m.depth || 0));
+    const ept = (first.ep && first.ep.thickness) || 20;
+    const topSrc = parts.find(p => p.sp.top_panel);
+    const spec = {
+      name: parts.map(p => p.label).join(' + '),
+      furniture_type: 'combined',
+      width: Math.round(modules.reduce((a, m) => a + (+m.width || 0), 0)),
+      max_depth: depth,
+      base_height: +first.base_height || 0,
+      base_type: first.base_type || 'wood',
+      has_kickboard: first.has_kickboard !== false,
+      material: first.material || 'LPM',
+      run_mode: true,
+      run_height: rh,
+      ep: { left: !!(first.ep && first.ep.left), right: !!(last.ep && last.ep.right), thickness: ept },
+      top_panel: topSrc ? deepClone(topSrc.sp.top_panel) : null,
+      modules
+    };
+    return { spec, warnings };
+  }
+
+  function applyCombine() {
+    const h = document.getElementById('combine-height');
+    const r = combinePresets(combineList.map(it => it.key), h ? +h.value : null);
+    if (r.error) { setStatus(r.error, 'error'); return; }
+    state = r.spec;
+    currentEntityID = null;
+    activePresetKey = '';
+    syncFormFromState();
+    renderModuleList();
+    updateTotalHeight();
+    updateHeightSummary();
+    renderPresetSidebar();
+    setStatus('프리셋 합치기 완료: ' + r.spec.name + (r.warnings.length ? '\n' + r.warnings.join('\n') : ''), 'ok');
   }
 
   function escAttr(s) { return esc(s).replace(/"/g, '&quot;'); }
@@ -966,6 +1216,7 @@ const kabinet = (() => {
     // Keep dropdown in sync
     const sel = document.getElementById('f-furniture-type');
     if (sel) sel.value = type;
+    activePresetKey = type;
     renderPresetSidebar();
 
     setStatus('프리셋 로드: ' + (preset.name || type), 'ok');
@@ -1230,6 +1481,7 @@ const kabinet = (() => {
       const { spec, entityID } = typeof payload === 'string' ? JSON.parse(payload) : payload;
       state = deepClone(spec);
       currentEntityID = entityID || null;
+      activePresetKey = '';
       kabinetLivePreview.reset();
       syncFormFromState();
       renderModuleList();
@@ -1311,8 +1563,11 @@ const kabinet = (() => {
 
   // ── Presets ──────────────────────────────────────────────────────────
   function savePreset() {
-    const name = document.getElementById('f-preset-name').value.trim();
-    if (!name) { setStatus('프리셋 이름을 입력하세요.', 'error'); return; }
+    const base = document.getElementById('f-preset-name').value.trim().replace(/\//g, '-');
+    if (!base) { setStatus('프리셋 이름을 입력하세요.', 'error'); return; }
+    const fEl = document.getElementById('f-preset-folder');
+    const folder = fEl ? fEl.value.trim().replace(/\//g, '-') : '';
+    const name = folder ? folder + '/' + base : base;
     sketchup['kabinet:save_preset'](JSON.stringify({ name, spec: state }));
     setTimeout(listPresets, 300);   // 통합 드롭다운 갱신
   }
@@ -1332,6 +1587,9 @@ const kabinet = (() => {
         `<option value="user:${esc(name)}">${esc(name)}</option>`).join('');
     }
     renderPresetSidebar();
+    const dl = document.getElementById('preset-folder-list');
+    if (dl) dl.innerHTML = Object.keys(_userPresetFolders()).filter(Boolean)
+      .map(f => `<option value="${escAttr(f)}">`).join('');
 
     const el = document.getElementById('preset-list');
     if (!el) return;
@@ -1817,6 +2075,7 @@ const kabinet = (() => {
     savePreset, listPresets, loadPresets, applyPreset, deletePreset,
     addModule, removeModule, moveModule,
     loadFurniturePreset, onPresetChange, renderPresetSidebar,
+    addToCombine, removeFromCombine, renderCombine, runSidebarAction, moveCombine, clearCombine, applyCombine, combinePresets,
     syncWidthToModules, distributeHeight,
     onTargetHeightLive,
     updateTotalHeight, updateHeightSummary, renderPreview,
