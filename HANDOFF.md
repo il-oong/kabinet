@@ -18,7 +18,7 @@
 
 ## 사용자가 요청했고 아직 안 한 것 (우선순위순)
 1. **프리셋 전면 재구성 (task #12, 시작 전)** — "이전 목록 모델 지우고 지금까지 경험으로 더 발전된 세트로 갈아엎기".
-   - `kabinet/ui/web/app.js` 상단 `FURNITURE_PRESETS`(약 10~855행)와 `index.html`의 `<select id="f-furniture-type">` optgroup 목록이 원본(사이드바는 이 select를 읽어 그림). 둘 다 새 세트로 교체하고, `kabinet/constants.rb`의 참고용 목록, `test/common_test.rb`(프리셋 수 비교)·`test/export_furniture_presets.js`는 그대로 동작해야 함.
+   - `kabinet/ui/web/app.js` 상단 `FURNITURE_PRESETS`(약 10~855행)와 `index.html`의 `<select id="f-furniture-type">` optgroup 목록이 원본(사이드바는 이 select를 읽어 그림). 둘 다 새 세트로 교체하고, `kabinet/constants.rb`의 참고용 목록과 `test/export_furniture_presets.js`(FURNITURE_PRESETS를 JSON으로 내보냄)는 그대로 동작해야 함. `test/common_test.rb`는 `FURNITURE_PRESETS` 전체에 대해 JS/Ruby `applyCommon` 결과만 비교하며 프리셋 개수나 `index.html`의 select는 검사하지 않음 → **프리셋을 바꿀 때 `<select id="f-furniture-type">`의 option value 집합이 `FURNITURE_PRESETS` 키와 정확히 같은지 검사하는 테스트를 새로 추가할 것**(한쪽에만 키가 있으면 프리셋이 안 보이거나 데이터 없는 항목이 생김). 내 프리셋 그룹(`user-preset-group`)은 비어 있는 optgroup이라 제외.
    - 반영할 경험(사용자 피드백): 붙박이장 W900·H2300·걸레받이50·푸시 손잡이 + 내부 구성(`wardrobe_layout`: long/double/drawer_hang/shelves, `wardrobe_opts`, `inner_drawers`), 주방 하부장 H880(걸레받이 80 + 몸통 780 + 상판 20), 책상 다리 30×30, 선반은 18T(처짐 경고는 경고로만), 가구 공통사항 적용 후에도 검증 통과, 도어 간격은 `door_gaps`.
    - 제안 세트(검토 후 사용자 확인 권장): 붙박이장(900 단품, 3칸 런 2700), 슬라이딩 붙박이장, 주방 하부장(도어 900 / 서랍 600 / 싱크 1200 런), 주방 상부장, 키큰장(냉장고장·팬트리), 신발장, 책장, TV장, 화장대, 책상(기본/서랍), 침대장, 아이방 붙박이.
    - 검증: 모든 프리셋을 `Schema.normalize/validate!` + `Assembly` 빌드(test/front_projection_test.rb의 방식) 통과, 높이/폭 실측 일치, `Core::Validation.warnings` 확인.
