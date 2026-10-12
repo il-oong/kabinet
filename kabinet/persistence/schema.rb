@@ -167,7 +167,8 @@ module Kabinet
             { 'cell'         => Integer(cd['cell'] || 0),
               'count'        => Integer(cd['count'] || 2),
               'type'         => (cd['type'] || 'undermount').to_s,
-              'thickness'    => Float(cd['thickness'] || out['body_thickness']) }
+              'thickness'    => Float(cd['thickness'] || out['body_thickness']),
+              'rail_clearance_mm' => (cd['rail_clearance_mm'].to_f > 0 ? cd['rail_clearance_mm'].to_f : nil) }
           }
 
         when 'drawer_module'
@@ -182,6 +183,9 @@ module Kabinet
           out['drawer_thickness'] = Float(m['drawer_thickness'] || Kabinet::Constants::DEFAULT_DOOR_THICKNESS_MM)
           out['door_material']    = (m['door_material'] || out['material']).to_s
           out['handle_hole_mm']   = Integer(m['handle_hole_mm'] || Kabinet::Constants::DEFAULT_HANDLE_HOLE_MM)
+          # 편측 레일 공간 직접 지정 (0/빈값이면 타입 기본: 사이드 19, 언더 5)
+          rc = m['rail_clearance_mm'].to_f
+          out['rail_clearance_mm'] = rc > 0 ? rc : nil
         end
         out
       end

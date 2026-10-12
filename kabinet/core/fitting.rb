@@ -114,22 +114,57 @@ module Kabinet
         SLIDE_LENGTHS_MM.select { |l| l <= usable }.max
       end
 
+      # ── 편측 레일 공간 (mm 전용) ─────────────────────────────────────────
+      # override(모듈의 rail_clearance_mm)가 양수면 그 값, 아니면 타입 기본값.
+      def side_clearance_mm(type, override = nil)
+        return override.to_f if override && override.to_f > 0
+        type.to_s == 'undermount' ? Kabinet::Constants::UNDERMOUNT_SIDE_CLEARANCE_MM.to_f :
+                                    Kabinet::Constants::SIDEMOUNT_SIDE_CLEARANCE_MM.to_f
+      end
+
       # ── 서랍통 치수 (mm 전용) ────────────────────────────────────────────
       # open_w_mm:      서랍이 들어가는 개구(칸) 내폭
       # comp_h_mm:      해당 서랍 1단이 차지하는 내부 높이
       # inner_depth_mm: 카케이스 내부 유효 깊이 (뒷판 앞면까지)
       # type:           'undermount' | 'side_mount'
-      # returns { w:, d:, h:, slide_len:, z_off: }  (slide_len nil → 규격 미달)
-      def drawer_box_mm(open_w_mm:, comp_h_mm:, inner_depth_mm:, type: 'undermount')
+      # side_clear_mm:  편측 레일 공간 직접 지정 (nil → 타입 기본값)
+      # returns { w:, d:, h:, slide_len:, z_off:, side_clear: }  (slide_len nil → 규격 미달)
+      def drawer_box_mm(open_w_mm:, comp_h_mm:, inner_depth_mm:, type: 'undermount', side_clear_mm: nil)
         under = type.to_s == 'undermount'
-        side  = under ? Kabinet::Constants::UNDERMOUNT_SIDE_CLEARANCE_MM :
-                        Kabinet::Constants::SIDEMOUNT_SIDE_CLEARANCE_MM
+        side  = side_clearance_mm(type, side_clear_mm)
         z_off = under ? Kabinet::Constants::UNDERMOUNT_HEIGHT_OFFSET_MM :
                         Kabinet::Constants::SIDEMOUNT_HEIGHT_OFFSET_MM
         slide = slide_length_mm(inner_depth_mm, type)
         d     = slide || [inner_depth_mm.to_f - 50.0, 100.0].max
         h     = comp_h_mm.to_f - z_off - Kabinet::Constants::DRAWER_BOX_TOP_CLEAR_MM
-        { w: open_w_mm.to_f - 2.0 * side, d: d, h: h, slide_len: slide, z_off: z_off.to_f }
+        { w: open_w_mm.to_f - 2.0 * side, d: d, h: h, slide_len: slide, z_off: z_off.to_f,
+          side_clear: side }
+      end
+
+      # ── 서랍 레일 좌우 1세트 (mm 전용) ───────────────────────────────────
+      # box: drawer_box_mm 결과. 좌표는 서랍통 외곽 좌-앞-하단 기준.
+      #   사이드마운트: 서랍통 옆판과 몸통 측판 사이 레일 공간 전체를 채움
+      #                 (폭 = 편측 공간, 높이 = 볼레일 45mm, 옆판 높이 중앙)
+      #   언더마운트:   서랍통 바닥 밑, 측판에 붙어 안쪽으로 40mm
+      # 길이 = 레일 공칭 규격 (규격 미달이면 서랍통 깊이).
+      # returns [{ side: :left|:right, x:, y:, z:, w:, d:, h: }, ...]
+      def drawer_rails_mm(box, type)
+        side = box[:side_clear].to_f
+        len  = box[:slide_len] || box[:d]
+        if type.to_s == 'undermount'
+          w = [Kabinet::Constants::UNDERMOUNT_RAIL_WIDTH_MM.to_f, box[:w] / 2.0 + side].min
+          h = box[:z_off].to_f
+          z = -h
+          xs = [-side, box[:w] + side - w]
+        else
+          w = side
+          h = [Kabinet::Constants::SIDE_RAIL_HEIGHT_MM.to_f, box[:h]].min
+          z = (box[:h] - h) / 2.0
+          xs = [-side, box[:w]]
+        end
+        return [] if w <= 0 || h <= 0
+        [{ side: :left,  x: xs[0], y: 0.0, z: z, w: w, d: len, h: h },
+         { side: :right, x: xs[1], y: 0.0, z: z, w: w, d: len, h: h }]
       end
 
       # ── 세로 분할판 → 칸(cell) 범위 (단위 불문) ───────────────────────────

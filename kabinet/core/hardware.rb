@@ -149,8 +149,10 @@ module Kabinet
         slide   = Kabinet::Core::Fitting.slide_length_mm(inner_d)
         label   = m['drawer_type'] == 'side_mount' ? '사이드 볼레일' : '언더마운트'
         len     = slide ? "L#{slide.round}" : '규격 미달(주문 확인)'
+        clear   = Kabinet::Core::Fitting.side_clearance_mm(m['drawer_type'], m['rail_clearance_mm'])
         _ = bt; _ = mh
-        [row("#{prefix}-서랍 레일", "#{label} #{len}", dc, '세트', '좌우 1세트/서랍')]
+        [row("#{prefix}-서랍 레일", "#{label} #{len}", dc, '세트',
+             "좌우 1세트/서랍 · 편측 #{clear.round(1).to_s.sub(/\.0$/, '')}mm")]
       end
 
       def cell_drawer_hardware(m, prefix, _mh)
@@ -161,7 +163,9 @@ module Kabinet
           slide   = Kabinet::Core::Fitting.slide_length_mm(inner_d)
           label   = cd['type'] == 'side_mount' ? '사이드 볼레일' : '언더마운트'
           len     = slide ? "L#{slide.round}" : '규격 미달(주문 확인)'
-          rows << row("#{prefix}-셀서랍 레일", "#{label} #{len}", dc, '세트', "칸#{(cd['cell'] || 0) + 1}")
+          clear   = Kabinet::Core::Fitting.side_clearance_mm(cd['type'], cd['rail_clearance_mm'])
+          rows << row("#{prefix}-셀서랍 레일", "#{label} #{len}", dc, '세트',
+                      "칸#{(cd['cell'] || 0) + 1} · 편측 #{clear.round(1).to_s.sub(/\.0$/, '')}mm")
         end
         rows
       end

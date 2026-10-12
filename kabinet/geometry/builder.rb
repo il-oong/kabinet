@@ -70,6 +70,7 @@ module Kabinet
         when /shelf/ then mat.color = ::Sketchup::Color.new(220, 200, 170)
         when /drawer_front/ then mat.color = ::Sketchup::Color.new(245, 235, 220)
         when /drawer_box/   then mat.color = ::Sketchup::Color.new(200, 180, 150)
+        when /rail/  then mat.color = ::Sketchup::Color.new(160, 165, 172)
         when /top/   then mat.color = ::Sketchup::Color.new(230, 215, 180)
         when /rod/   then mat.color = ::Sketchup::Color.new(200, 200, 200)
         else              mat.color = ::Sketchup::Color.new(220, 200, 170)

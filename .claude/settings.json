@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/ponytail/ponytail-activate.js\"", "timeout": 5, "statusMessage": "Loading ponytail mode..." },
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/caveman/caveman-activate.js\"", "timeout": 30, "statusMessage": "Loading caveman mode..." }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/ponytail/ponytail-subagent.js\"", "timeout": 5 },
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/caveman/caveman-activate.js\" --subagent", "timeout": 30 }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/ponytail/ponytail-mode-tracker.js\"", "timeout": 5 },
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/caveman/caveman-mode-tracker.js\"", "timeout": 30 },
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/ui-ux-pro-max-hint.js\"", "timeout": 5 }
+        ]
+      }
+    ]
+  }
+}
