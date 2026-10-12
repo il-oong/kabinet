@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabinet</title>
-  <link rel="stylesheet" href="styles.css?v=1.16.0">
+  <link rel="stylesheet" href="styles.css?v=1.17.0">
 </head>
 <body>
 
@@ -12,7 +12,7 @@
 <aside class="preset-sidebar">
   <div class="preset-sidebar-head">
     <span class="preset-sidebar-title">Kabinet</span>
-    <span class="version-badge">v1.16.0</span>
+    <span class="version-badge">v1.17.0</span>
   </div>
   <input type="search" id="preset-search" class="preset-search" placeholder="프리셋·도구 검색…"
          oninput="kabinet.renderPresetSidebar()">
@@ -135,6 +135,18 @@
                oninput="kabinet.onField('base_height', +this.value)">
         <span class="unit">mm</span>
       </div>
+    </div>
+    <div id="wardrobe-layout-row" hidden>
+      <div class="field-row">
+        <label>내부 구성</label>
+        <select id="f-wardrobe-layout" onchange="kabinet.applyWardrobeLayout(this.value)">
+          <option value="long">긴옷장 — 상부 선반 + 행거 1단 (코트·원피스)</option>
+          <option value="double">이단옷장 — 행거 2단 (셔츠·바지)</option>
+          <option value="drawer_hang">외부 서랍 + 행거 — 하부 서랍(도어 밖) + 상부 도어·행거</option>
+          <option value="shelves">선반장 — 선반 여러 단 (개킨 옷·이불)</option>
+        </select>
+      </div>
+      <div class="ep-grid" id="wardrobe-opts"></div>
     </div>
     <div class="field-hint" id="width-hint">폭·총높이를 바꾸면 모듈 치수가 비율대로 자동 조정됩니다</div>
     <div class="field-row">
@@ -319,23 +331,31 @@
 
 <!-- ══ 내 가구 보관함 (이 컴퓨터) ══════════════════════════════════════════ -->
 <div class="scroll-area view ep-view" id="view-library" hidden>
-  <div class="card">
-    <div class="card-title">저장한 가구 — 누르면 모델에 배치</div>
-    <div class="ep-grid2">
-      <label class="ep-field">폴더<select id="ep-library-filter"><option value="">전체 폴더</option></select></label>
-      <label class="ep-field">검색<input id="ep-library-search" type="search" placeholder="이름·폴더"></label>
-    </div>
-    <div id="ep-library-list"><p class="ep-hint">보관함을 불러오고 있습니다…</p></div>
+  <div class="card lib-add">
+    <div class="card-title">＋ 선택한 가구를 보관함에 넣기</div>
+    <form id="ep-library-form" class="lib-add-row">
+      <input id="ep-library-name" maxlength="60" placeholder="가구 이름 (예: 안방 붙박이장 900)" required>
+      <input id="ep-library-folder" maxlength="40" list="ep-library-folders" value="미분류" placeholder="폴더">
+      <button type="submit" class="btn-primary">넣기</button>
+    </form>
+    <datalist id="ep-library-folders"></datalist>
+    <p class="ep-hint">SketchUp에서 가구(그룹·판재)를 모두 선택 → 이름·폴더 입력 → 넣기. 미리보기 이미지가 함께 저장됩니다.</p>
   </div>
   <div class="card">
-    <div class="card-title">선택한 가구를 보관함에 저장</div>
-    <form id="ep-library-form">
-      <label class="ep-field">가구 이름<input id="ep-library-name" maxlength="60" placeholder="예: 침실 3단 서랍장" required></label>
-      <label class="ep-field">보관 폴더<input id="ep-library-folder" maxlength="40" list="ep-library-folders" value="미분류" placeholder="예: 안방, 주방"></label>
-      <datalist id="ep-library-folders"></datalist>
-      <p class="ep-hint">만든 가구의 판재·그룹을 모두 선택한 뒤 저장하세요. 저장한 가구는 왼쪽 "내 가구 보관함" 폴더에 나타납니다.</p>
-      <button type="submit" class="btn-primary ep-big">선택한 가구 저장</button>
-    </form>
+    <div class="lib-toolbar">
+      <input id="ep-library-search" type="search" placeholder="이름·폴더 검색">
+      <button type="button" class="btn-inline" id="ep-lib-thumbs" title="미리보기 이미지가 없는 가구의 이미지를 만듭니다">미리보기 이미지 만들기</button>
+    </div>
+    <div id="ep-lib-tabs" class="lib-tabs"></div>
+    <select id="ep-library-filter" hidden><option value="">전체 폴더</option></select>
+    <div id="ep-lib-bulk" class="lib-bulk" hidden>
+      <b id="ep-lib-count"></b>
+      <input id="ep-lib-move-folder" list="ep-library-folders" placeholder="옮길 폴더 (새 이름 가능)">
+      <button type="button" class="btn-inline" id="ep-lib-move">폴더로 이동</button>
+      <button type="button" class="btn-inline del-btn" id="ep-lib-delete">삭제</button>
+      <button type="button" class="btn-inline" id="ep-lib-clear">선택 해제</button>
+    </div>
+    <div id="ep-library-list" class="lib-grid"><p class="ep-hint">보관함을 불러오고 있습니다…</p></div>
   </div>
 </div>
 
@@ -427,9 +447,9 @@
 
 </div><!-- /.main-col -->
 
-<script src="app.js?v=1.16.0"></script>
-<script src="modules.js?v=1.16.0"></script>
-<script src="live-preview.js?v=1.16.0"></script>
-<script src="drawing.js?v=1.16.0"></script>
+<script src="app.js?v=1.17.0"></script>
+<script src="modules.js?v=1.17.0"></script>
+<script src="live-preview.js?v=1.17.0"></script>
+<script src="drawing.js?v=1.17.0"></script>
 </body>
 </html>

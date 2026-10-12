@@ -88,16 +88,20 @@ module Kabinet
           end
         end
 
-        def collect(transform = ::Geom::Transformation.new, module_index = nil, front = false, result = [])
+        # outer: 정면에서 보이는 바깥 부재(걸레받이·EP·상판·철제받침 전면) — 정면도에서 실선으로
+        OUTER_ROLES = %w[kickboard ep_ top_panel steel_base].freeze
+
+        def collect(transform = ::Geom::Transformation.new, module_index = nil, front = false, result = [], outer = false)
           @items.each do |item|
             if item.is_a?(Group)
               role = Kabinet::Persistence::Attributes.role(item).to_s
               index = item.get_attribute(Kabinet::Constants::ATTR_DICT, 'module_index', module_index)
               is_front = front || role.start_with?('door_', 'drawer_front_', 'cell_dfr_', 'handle_')
-              item.entities.collect(transform * item.transformation, index, is_front, result)
+              is_outer = outer || role.start_with?(*OUTER_ROLES)
+              item.entities.collect(transform * item.transformation, index, is_front, result, is_outer)
             else
               points = item.segments.flatten.map { |p| p.transform(transform) }
-              result << { points: points, module_index: module_index, front: front }
+              result << { points: points, module_index: module_index, front: front, outer: outer }
             end
           end
           result

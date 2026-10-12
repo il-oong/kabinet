@@ -28,17 +28,25 @@
     renderLibrary();
   };
 
+  const selected = new Set();
+
   window.epLibrary = function (items) {
     library = Array.isArray(items) ? items : [];
-    const folders = [...new Set(library.map(i => i.folder || '미분류'))].sort((a, b) => a.localeCompare(b, 'ko'));
+    const ids = new Set(library.map(i => i.id));
+    [...selected].forEach(id => { if (!ids.has(id)) selected.delete(id); });
+    const folders = _folders();
     const filter = byId('library-filter');
-    const selected = filter.value;
+    const cur = filter.value;
     filter.replaceChildren(new Option('전체 폴더', ''), ...folders.map(f => new Option(f, f)));
-    filter.value = folders.includes(selected) ? selected : '';
+    filter.value = folders.includes(cur) ? cur : '';
     byId('library-folders').replaceChildren(...folders.map(f => new Option(f, f)));
     renderLibrary();
     kabinet.setLibrary(library);   // 왼쪽 사이드바 "내 가구 보관함" 폴더
   };
+
+  function _folders() {
+    return [...new Set(library.map(i => i.folder || '미분류'))].sort((a, b) => a.localeCompare(b, 'ko'));
+  }
 
   window.kabinetDrawing = {
     place(id) { call('ep_library_place', id, '저장한 가구를 불러오고 있습니다…'); },
@@ -49,65 +57,84 @@
     }
   };
 
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  function renderTabs() {
+    const tabs = byId('lib-tabs');
+    if (!tabs) return;
+    const sel = byId('library-filter').value;
+    const counts = {};
+    library.forEach(i => { const f = i.folder || '미분류'; counts[f] = (counts[f] || 0) + 1; });
+    const tab = (value, label, n) =>
+      `<button type="button" class="lib-tab${sel === value ? ' active' : ''}" data-tab="${esc(value)}">${esc(label)} <span>${n}</span></button>`;
+    tabs.innerHTML = tab('', '전체', library.length) + _folders().map(f => tab(f, f, counts[f])).join('');
+    tabs.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => {
+      byId('library-filter').value = b.dataset.tab;
+      renderLibrary();
+    }));
+  }
+
+  function renderBulk() {
+    const bar = byId('lib-bulk');
+    bar.hidden = selected.size === 0;
+    byId('lib-count').textContent = selected.size + '개 선택';
+  }
+
   function renderLibrary() {
     const box = byId('library-list');
     if (!box) return;
-    box.textContent = '';
+    renderTabs();
+    renderBulk();
     const q = byId('library-search').value.trim().toLocaleLowerCase();
-    const sel = byId('library-filter').value;
+    const selF = byId('library-filter').value;
     const items = library.filter(i => {
       const f = i.folder || '미분류';
-      return (!sel || f === sel) && (i.name.toLocaleLowerCase().includes(q) || f.toLocaleLowerCase().includes(q));
+      return (!selF || f === selF) && (i.name.toLocaleLowerCase().includes(q) || f.toLocaleLowerCase().includes(q));
     });
     if (!items.length) {
-      const p = document.createElement('p');
-      p.className = 'ep-hint';
-      p.textContent = library.length ? '검색한 가구가 없습니다.' : '아직 저장한 가구가 없습니다.';
-      box.appendChild(p);
+      box.innerHTML = `<p class="ep-hint">${library.length ? '조건에 맞는 가구가 없습니다.' : '아직 저장한 가구가 없습니다. 위에서 선택한 가구를 넣어 보세요.'}</p>`;
+      return;
     }
-    items.forEach(item => {
-      const row = document.createElement('div');
-      row.className = 'ep-lib-row';
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'ep-lib-item';
-      btn.disabled = pending;
-      const t = document.createElement('strong');
-      t.textContent = item.name;
-      const d = document.createElement('span');
-      const dims = Array.isArray(item.dimensions_mm) ? item.dimensions_mm.join(' × ') + ' mm · ' : '';
-      d.textContent = (item.folder || '미분류') + ' · ' + dims + String(item.saved_at || '').slice(0, 16).replace('T', ' ');
-      btn.append(t, d);
-      btn.addEventListener('click', () => kabinetDrawing.place(item.id));
-
-      const edit = document.createElement('button');
-      edit.type = 'button';
-      edit.className = 'btn-inline';
-      edit.textContent = '이름·폴더 변경';
-      edit.disabled = pending;
-      const form = document.createElement('form');
-      form.className = 'ep-lib-edit';
-      form.hidden = true;
-      const name = document.createElement('input');
-      name.value = item.name; name.maxLength = 60; name.required = true;
-      const folder = document.createElement('input');
-      folder.value = item.folder || '미분류'; folder.maxLength = 40;
-      folder.setAttribute('list', 'ep-library-folders');
-      const save = document.createElement('button');
-      save.type = 'submit'; save.className = 'btn-primary'; save.textContent = '변경 저장';
-      const cancel = document.createElement('button');
-      cancel.type = 'button'; cancel.className = 'btn-secondary'; cancel.textContent = '취소';
-      cancel.addEventListener('click', () => { form.hidden = true; });
-      edit.addEventListener('click', () => { form.hidden = !form.hidden; if (!form.hidden) name.focus(); });
-      form.append(name, folder, save, cancel);
-      form.addEventListener('submit', ev => {
-        ev.preventDefault();
-        if (!name.value.trim()) { window.epResult('가구 이름을 입력하세요.', true); return; }
-        call('ep_library_update', JSON.stringify({ id: item.id, name: name.value.trim(), folder: folder.value.trim() }),
-             '가구 이름과 폴더를 변경하고 있습니다…');
+    const folders = _folders();
+    box.innerHTML = items.map(it => {
+      const dims = Array.isArray(it.dimensions_mm) ? it.dimensions_mm.map(v => Math.round(v)).join('×') + 'mm' : '';
+      const date = String(it.saved_at || '').slice(0, 10);
+      const f = it.folder || '미분류';
+      return `<div class="lib-card${selected.has(it.id) ? ' sel' : ''}" data-id="${esc(it.id)}">
+        <label class="lib-check" title="여러 개 선택"><input type="checkbox" data-check${selected.has(it.id) ? ' checked' : ''}></label>
+        <button type="button" class="lib-thumb" data-place title="누르고 모델에서 놓을 곳 클릭">
+          ${it.thumb ? `<img src="${it.thumb}" alt="">` : '<span>미리보기 없음</span>'}</button>
+        <input class="lib-name" data-name value="${esc(it.name)}" maxlength="60" title="이름 — 고치고 Enter">
+        <div class="lib-meta">${esc(dims)} · ${esc(date)}</div>
+        <div class="lib-actions">
+          <select data-folder title="폴더 이동">${folders.map(x => `<option${x === f ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select>
+          <button type="button" class="btn-inline" data-place>배치</button>
+          <button type="button" class="btn-inline del-btn" data-del title="삭제">✕</button>
+        </div></div>`;
+    }).join('');
+    box.querySelectorAll('.lib-card').forEach(card => {
+      const id = card.dataset.id;
+      const item = library.find(i => i.id === id);
+      card.querySelectorAll('[data-place]').forEach(b => b.addEventListener('click', () => kabinetDrawing.place(id)));
+      card.querySelector('[data-check]').addEventListener('change', e => {
+        if (e.target.checked) selected.add(id); else selected.delete(id);
+        card.classList.toggle('sel', e.target.checked);
+        renderBulk();
       });
-      row.append(btn, edit, form);
-      box.appendChild(row);
+      const name = card.querySelector('[data-name]');
+      const saveName = () => {
+        const v = name.value.trim();
+        if (!v) { name.value = item.name; return; }
+        if (v !== item.name) call('ep_library_update', JSON.stringify({ id, name: v, folder: item.folder || '미분류' }), '이름을 바꾸는 중…');
+      };
+      name.addEventListener('keydown', e => { if (e.key === 'Enter') name.blur(); });
+      name.addEventListener('change', saveName);
+      card.querySelector('[data-folder]').addEventListener('change', e =>
+        call('ep_library_move', JSON.stringify({ ids: [id], folder: e.target.value }), '폴더를 옮기는 중…'));
+      card.querySelector('[data-del]').addEventListener('click', () => {
+        if (confirm(`‘${item.name}’을(를) 보관함에서 삭제할까요? (보관함 .trash 폴더로 옮겨집니다)`))
+          call('ep_library_delete', JSON.stringify([id]), '삭제하는 중…');
+      });
     });
   }
 
@@ -139,6 +166,19 @@
            '선택한 가구를 보관함에 저장하고 있습니다…');
     });
     byId('library-search').addEventListener('input', renderLibrary);
+    byId('lib-thumbs').addEventListener('click', () => call('ep_library_thumbs', '', '미리보기 이미지를 만드는 중… (가구 수에 따라 잠시 걸립니다)'));
+    byId('lib-move').addEventListener('click', () => {
+      const f = byId('lib-move-folder').value.trim();
+      if (!f) { window.epResult('옮길 폴더 이름을 입력하세요.', true); return; }
+      call('ep_library_move', JSON.stringify({ ids: [...selected], folder: f }), '폴더를 옮기는 중…');
+      selected.clear();
+    });
+    byId('lib-delete').addEventListener('click', () => {
+      if (!selected.size || !confirm(`선택한 ${selected.size}개를 삭제할까요? (보관함 .trash 폴더로 옮겨집니다)`)) return;
+      call('ep_library_delete', JSON.stringify([...selected]), '삭제하는 중…');
+      selected.clear();
+    });
+    byId('lib-clear').addEventListener('click', () => { selected.clear(); renderLibrary(); });
     byId('library-filter').addEventListener('change', renderLibrary);
     byId('space-mode').addEventListener('change', applySpaceMode);
 

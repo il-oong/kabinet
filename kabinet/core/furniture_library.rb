@@ -2,6 +2,7 @@ require 'fileutils'
 require 'json'
 require 'securerandom'
 require 'time'
+require 'base64'
 
 module Kabinet
   # User-owned files live outside the extension so RBZ updates cannot erase them.
@@ -39,7 +40,10 @@ module Kabinet
         begin
           data = JSON.parse(File.read(File.join(folder, 'info.json'), encoding: 'UTF-8'))
           next unless data['name'].is_a?(String) && data['saved_at'].is_a?(String)
-          { id: id, name: data['name'], folder: clean_folder(data['folder']), saved_at: data['saved_at'], dimensions_mm: data['dimensions_mm'] }
+          thumb = File.join(folder, 'thumb.png')
+          { id: id, name: data['name'], folder: clean_folder(data['folder']), saved_at: data['saved_at'],
+            dimensions_mm: data['dimensions_mm'],
+            thumb: File.file?(thumb) ? "data:image/png;base64,#{Base64.strict_encode64(File.binread(thumb))}" : nil }
         rescue JSON::ParserError, SystemCallError, ArgumentError
           # A damaged entry must not prevent the remaining library from opening.
           next
@@ -81,6 +85,11 @@ module Kabinet
           end
           path = File.join(staging, 'furniture.skp')
           raise '가구 파일을 저장하지 못했습니다.' unless container.definition.save_as(path)
+          begin
+            container.definition.save_thumbnail(File.join(staging, 'thumb.png'))   # 보관함 목록 미리보기
+          rescue StandardError
+            nil
+          end
         ensure
           model.abort_operation
           model.selection.clear
@@ -105,6 +114,54 @@ module Kabinet
       data['folder'] = clean_folder(folder)
       File.write(path, JSON.pretty_generate(data), encoding: 'UTF-8')
       true
+    end
+
+    # 여러 가구를 한 번에 다른 폴더로
+    def move(ids, folder, directory: root)
+      folder = clean_folder(folder)
+      Array(ids).count do |id|
+        path = File.join(entry_dir(id, directory), 'info.json')
+        next false unless File.file?(path)
+        data = JSON.parse(File.read(path, encoding: 'UTF-8'))
+        data['folder'] = folder
+        File.write(path, JSON.pretty_generate(data), encoding: 'UTF-8')
+        true
+      end
+    end
+
+    # 삭제 = 보관함의 .trash 폴더로 옮김 (실수해도 그 폴더에서 되살릴 수 있음)
+    def delete(ids, directory: root)
+      trash = File.join(directory, '.trash')
+      FileUtils.mkdir_p(trash)
+      Array(ids).count do |id|
+        src = entry_dir(id, directory)
+        next false unless Dir.exist?(src)
+        dst = File.join(trash, id)
+        FileUtils.remove_entry(dst) if Dir.exist?(dst)
+        File.rename(src, dst)
+        true
+      end
+    end
+
+    # 썸네일이 없는 저장 가구의 미리보기 이미지를 만든다. 반환: 만든 개수
+    def build_missing_thumbnails(model: Sketchup.active_model, directory: root)
+      return 0 unless Dir.exist?(directory)
+      made = 0
+      Dir.children(directory).each do |id|
+        next unless /\A[0-9a-f]{32}\z/.match?(id)
+        dir = File.join(directory, id)
+        skp = File.join(dir, 'furniture.skp')
+        next if File.file?(File.join(dir, 'thumb.png')) || !File.file?(skp)
+        defn = model.definitions.load(skp)
+        next unless defn
+        begin
+          made += 1 if defn.save_thumbnail(File.join(dir, 'thumb.png'))
+        ensure
+          # 썸네일용으로 불러온 정의는 모델에 남기지 않는다 (배치된 적 없을 때만 제거)
+          model.definitions.remove(defn) if defn.instances.empty? && model.definitions.respond_to?(:remove)
+        end
+      end
+      made
     end
 
     def definition(id, model: Sketchup.active_model, directory: root)

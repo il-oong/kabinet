@@ -28,6 +28,7 @@ module Kabinet
                      door_thickness: Kabinet::Constants::DEFAULT_DOOR_THICKNESS_MM.mm,
                      shelves: [], accessories: [],
                      vertical_dividers: [], cell_shelves: [], cell_drawers: [],
+                     inner_drawers: nil,
                      handle_type: 'none', handle_hole_mm: 128,
                      door_mount: 'overlay',
                      door_side_gap_mm: Kabinet::Core::Gaps.outside,
@@ -46,6 +47,7 @@ module Kabinet
         @vertical_dividers = vertical_dividers
         @cell_shelves      = cell_shelves
         @cell_drawers      = cell_drawers
+        @inner_drawers     = inner_drawers
         @handle_type       = handle_type.to_s
         @handle_hole_mm    = handle_hole_mm.to_i
         @door_mount        = door_mount.to_s
@@ -114,6 +116,9 @@ module Kabinet
         # ── 셀별 서랍 컬럼 ───────────────────────────────────────────
         build_cell_drawers(body_grp.entities)
 
+        # ── 내부 서랍 (도어 안쪽, 지정 높이에 쌓음) ──────────────────
+        build_inner_drawers(body_grp.entities)
+
         # ── 액세서리 ─────────────────────────────────────────────────
         @accessories.each do |acc_hash|
           acc = Accessory.new(kind: acc_hash['kind'], **symbolize(acc_hash.reject { |k, _| k == 'kind' }))
@@ -180,6 +185,7 @@ module Kabinet
             vertical_dividers: h['vertical_dividers'] || [],
             cell_shelves:      h['cell_shelves']   || [],
             cell_drawers:      h['cell_drawers']   || [],
+            inner_drawers:     h['inner_drawers'],
             handle_type:       h['handle_type']    || 'none',
             handle_hole_mm:    (h['handle_hole_mm'] || 128).to_i,
             door_mount:        h['door_mount']     || 'overlay',
@@ -337,6 +343,60 @@ module Kabinet
                                            role: 'drawer_back', material_name: 'drawer_box')
           end
         end
+      end
+
+      # 내부 서랍: inner_drawers = { 'bottom' => 서랍 묶음 아래 높이(모듈 바닥 기준 mm),
+      #   'count' => 단수, 'height' => 전판 1장 높이, 'gap' => 전판 사이, 'setback' => 몸통 앞면에서 들임,
+      #   'cover' => 맨 위 덮개 선반 여부 }. 도어가 닫히도록 전판을 몸통 안쪽으로 들여 만든다.
+      def build_inner_drawers(entities)
+        d = @inner_drawers
+        return unless d.is_a?(Hash) && d['count'].to_i > 0
+        n       = d['count'].to_i
+        fh      = d['height'].to_f.mm
+        gap     = (d['gap'] || 3).to_f.mm
+        setback = (d['setback'] || 25).to_f.mm
+        dth     = Kabinet::Constants::DEFAULT_BODY_THICKNESS_MM.mm
+        side    = 2.mm
+        z0      = [d['bottom'].to_f.mm, @body_thickness].max
+        open_w  = opening_width
+        x0      = @body_thickness
+        recess  = Kabinet::Constants::BACK_RECESS_MM.mm
+        inner_depth_mm = Kabinet::Core::Fitting.len_mm(@depth - @back_thickness - recess - setback - dth)
+        box = Kabinet::Core::Fitting.drawer_box_mm(
+          open_w_mm: Kabinet::Core::Fitting.len_mm(open_w), comp_h_mm: Kabinet::Core::Fitting.len_mm(fh),
+          inner_depth_mm: inner_depth_mm, type: (d['type'] || 'undermount'))
+        wall_t = Kabinet::Constants::DRAWER_BOX_WALL_MM.mm
+        bot_t  = Kabinet::Constants::DRAWER_BOX_BOTTOM_MM.mm
+        box_w, box_d, box_h = box[:w].mm, box[:d].mm, box[:h].mm
+        n.times do |i|
+          z = z0 + i * (fh + gap)
+          Kabinet::Geometry::Builder.box(entities, open_w - 2 * side, dth, fh,
+                                         ::Geom::Transformation.new(::Geom::Point3d.new(x0 + side, setback, z)),
+                                         role: "inner_dfr_#{i}", label: "내부서랍전판_#{i + 1}",
+                                         material_name: 'drawer_front')
+          bgrp = entities.add_group
+          bgrp.transformation = ::Geom::Transformation.new(
+            ::Geom::Point3d.new(x0 + (open_w - box_w) / 2.0, setback + dth, z + box[:z_off].mm))
+          Kabinet::Persistence::Attributes.set_role(bgrp, "inner_dbox_#{i}")
+          Kabinet::Geometry::Builder.box(bgrp.entities, box_w, box_d, bot_t, Kabinet::Geometry::Transforms::IDENTITY,
+                                         role: 'drawer_bottom', material_name: 'drawer_box')
+          Kabinet::Geometry::Builder.box(bgrp.entities, wall_t, box_d, box_h, Kabinet::Geometry::Transforms::IDENTITY,
+                                         role: 'drawer_side_left', material_name: 'drawer_box')
+          Kabinet::Geometry::Builder.box(bgrp.entities, wall_t, box_d, box_h,
+                                         ::Geom::Transformation.new(::Geom::Point3d.new(box_w - wall_t, 0, 0)),
+                                         role: 'drawer_side_right', material_name: 'drawer_box')
+          Kabinet::Geometry::Builder.box(bgrp.entities, box_w - 2 * wall_t, wall_t, box_h,
+                                         ::Geom::Transformation.new(::Geom::Point3d.new(wall_t, box_d - wall_t, 0)),
+                                         role: 'drawer_back', material_name: 'drawer_box')
+        end
+        return unless d.fetch('cover', true)
+
+        # 덮개 선반: 서랍 묶음 바로 위
+        top_z = z0 + n * fh + (n - 1) * gap + gap
+        play  = Kabinet::Constants::SHELF_SIDE_PLAY_MM.mm
+        Kabinet::Geometry::Builder.box(entities, open_w - play, @depth - @back_thickness - recess, @body_thickness,
+                                       ::Geom::Transformation.new(::Geom::Point3d.new(x0 + play / 2.0, 0, top_z)),
+                                       role: 'shelf', label: '서랍 덮개 선반', material_name: 'shelf')
       end
 
       def symbolize(hash)

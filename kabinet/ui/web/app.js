@@ -11,13 +11,14 @@ const FURNITURE_PRESETS = {
   wardrobe: {
     name: '붙박이장',
     furniture_type: 'wardrobe',
-    width: 1200, max_depth: 580, base_height: 50,
+    width: 900, max_depth: 580, base_height: 50,
+    wardrobe_layout: 'long',   // 내부 구성: long / double / shelves / drawer_hang
     material: 'LPM',
     ep: { left: true, right: true, thickness: 20 },
     top_panel: { thickness: 18 },
     // 총 높이: 50(걸레받이) + 2232 + 18(상판) = 2300mm
     modules: [
-      { kind: 'shelf_module', width: 1200, depth: 580, height: 2232,
+      { kind: 'shelf_module', width: 860, depth: 580, height: 2232,
         body_thickness: 18, back_thickness: 9, has_back: true,
         door_config: 'pair', door_type: 'swing', door_thickness: 20,
         door_material: 'LPM', handle_type: 'push_open', material: 'LPM',
@@ -27,7 +28,7 @@ const FURNITURE_PRESETS = {
         ]
       }
     ],
-    _info: '표준 붙박이장 W1200×D580×H2300 | 걸레받이50 + 양개여닫이(푸시) + 상의 행거'
+    _info: '표준 붙박이장 W900×D580×H2300 | 걸레받이50 + 양개여닫이(푸시) · 내부 구성은 아래 "내부 구성"에서 선택'
   },
 
   kitchen_base: {
@@ -921,7 +922,8 @@ const kabinet = (() => {
 
   // 사이드바 구성 (중복 없이): 공통사항 → 프리셋 → 내 프리셋 → 보관함 → 도구 → 도면·출력 → 더보기
   const SIDEBAR_TOOLS = [
-    { id: 'face_panel',   label: '면 → 18T 패널', hint: '면 클릭 → 판재 생성 / 그룹 안 판재는 그 자리에서 두께 변경' },
+    { id: 'slab_thickness', label: '선택 판재 두께 → T 일괄 변경', hint: '판재나 가구 그룹을 선택하고 누르면 안의 판재가 모두 아래 두께로' },
+    { id: 'face_panel',   label: '면 클릭 → 판재 만들기', hint: '면을 클릭해 판재 생성 / 그룹 안 판재 두께 변경' },
     { id: 'space_divide', label: '공간 균등 분할', hint: '캐비닛 안쪽 클릭 → 칸 수 입력 → 칸막이·도어 균등 분할' },
     { id: 'countertop',   label: '주방 상판 설치', hint: '하부장들을 선택 → 규격·재질·높이 입력 → 상판 한 장' }
   ];
@@ -929,13 +931,18 @@ const kabinet = (() => {
     { id: 'furniture_drawing', label: '가구 도면 (LayOut)', hint: '선택한 가구 → A3 평면·정면·측면·컬러 입체도 + PDF' },
   ];
   const SIDEBAR_MORE = [
-    { id: 'library_manage', label: '가구 보관함 저장 · 관리', hint: '선택한 가구를 보관함에 저장, 이름·폴더 변경' },
     { id: 'update',         label: 'GitHub에서 업데이트', hint: '최신 kabinet.rbz를 내려받아 설치' },
     { id: 'reload',         label: '플러그인 다시 로드', hint: '설치된 파일을 다시 불러오기 (개발용)' }
   ];
 
   function runSidebarAction(id) {
     switch (id) {
+      case 'slab_thickness': {
+        const t = parseFloat((document.getElementById('tool-thickness') || {}).value) || 18;
+        setStatus('선택한 판재 두께를 ' + t + 'T로 바꾸는 중…', '');
+        callSketchup('kabinet:tool', JSON.stringify({ name: 'slab_thickness', thickness: t }));
+        break;
+      }
       case 'face_panel': {
         const t = parseFloat((document.getElementById('tool-thickness') || {}).value) || 18;
         callSketchup('kabinet:tool', JSON.stringify({ name: 'face_panel', thickness: t }));
@@ -1048,7 +1055,7 @@ const kabinet = (() => {
         (byFolder[it.folder || '미분류'] = byFolder[it.folder || '미분류'] || []).push(it);
       });
       const fnames = Object.keys(byFolder).sort((a, b) => a.localeCompare(b, 'ko'));
-      let inner = '';
+      let inner = actionBtn({ id: 'library_manage', label: '＋ 선택한 가구 넣기 · 관리', hint: '선택한 가구를 보관함에 넣고, 이름·폴더·삭제 관리' });
       let count = 0;
       fnames.forEach(f => {
         count += byFolder[f].length;
@@ -1057,7 +1064,7 @@ const kabinet = (() => {
           `data-lib="${escAttr(it.id)}">${esc(it.name)}</button>`).join('');
         inner += folder('lib:' + f, f, rows, byFolder[f].length, ' sb-sub');
       });
-      if (count) html += folder('library', '내 가구 보관함', inner, count);
+      if (count || !q) html += folder('library', '내 가구 보관함', inner, count);
     }
 
     // 도구
@@ -1066,7 +1073,7 @@ const kabinet = (() => {
       let inner = '';
       tools.forEach(t => {
         inner += actionBtn(t);
-        if (t.id === 'face_panel') {
+        if (t.id === 'slab_thickness') {
           inner += '<label class="sb-inline">패널 두께 <input type="number" id="tool-thickness" min="3" max="100" step="1" ' +
                    `value="${escAttr(_toolThickness())}"> T</label>`;
         }
@@ -1086,26 +1093,32 @@ const kabinet = (() => {
     }
 
     list.innerHTML = html || '<div class="preset-empty">검색 결과 없음</div>';
-    list.querySelectorAll('[data-folder]').forEach(b => b.addEventListener('click', () => {
-      const id = b.dataset.folder;
-      if (id.indexOf('lib:') === 0) { openLibraryFolder(id.slice(4)); return; }
-      toggleFolder(id);
-    }));
-    list.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', () => runSidebarAction(b.dataset.action)));
-    list.querySelectorAll('[data-lib]').forEach(b => b.addEventListener('click', () => {
-      if (window.kabinetDrawing) kabinetDrawing.place(b.dataset.lib);
-    }));
-    list.querySelectorAll('[data-value]').forEach(b => b.addEventListener('click', () => {
-      showView('design');
-      const v = b.dataset.value;
-      if (v.indexOf('user:') !== 0) sel.value = v;
-      onPresetChange(v);
-    }));
-    list.querySelectorAll('[data-combine]').forEach(b => b.addEventListener('click', () =>
-      addToCombine(b.dataset.combine, b.dataset.label)));
-    list.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
-      if (confirm(`"${b.dataset.del}" 프리셋을 삭제할까요?`)) deletePreset(b.dataset.del);
-    }));
+    // 클릭은 목록 컨테이너 한 곳에서 처리 (pointerdown) — 목록이 누르는 사이에 다시 그려져도
+    // 클릭이 사라지지 않게 (예: "가구 공통사항"이 두세 번 눌러야 열리던 문제)
+    if (!list._delegated) {
+      list._delegated = true;
+      list.addEventListener('pointerdown', ev => {
+        if (ev.button !== 0) return;
+        const t = ev.target.closest('[data-folder],[data-action],[data-lib],[data-value],[data-del]');
+        if (!t || !list.contains(t)) return;
+        ev.preventDefault();
+        if (t.dataset.folder !== undefined) {
+          const id = t.dataset.folder;
+          if (id.indexOf('lib:') === 0) openLibraryFolder(id.slice(4)); else toggleFolder(id);
+        } else if (t.dataset.action !== undefined) {
+          runSidebarAction(t.dataset.action);
+        } else if (t.dataset.lib !== undefined) {
+          if (window.kabinetDrawing) kabinetDrawing.place(t.dataset.lib);
+        } else if (t.dataset.del !== undefined) {
+          if (confirm(`"${t.dataset.del}" 프리셋을 삭제할까요?`)) deletePreset(t.dataset.del);
+        } else if (t.dataset.value !== undefined) {
+          showView('design');
+          const v = t.dataset.value;
+          if (v.indexOf('user:') !== 0) sel.value = v;
+          onPresetChange(v);
+        }
+      });
+    }
     const tt = document.getElementById('tool-thickness');
     if (tt) tt.addEventListener('change', () => {
       try { localStorage.setItem('kabinet.toolThickness', tt.value); } catch (e) {}
@@ -1394,6 +1407,7 @@ const kabinet = (() => {
       const iw = _carcaseInnerWidth(state.width);
       state.modules.forEach(m => { if (m.kind !== 'bed_gap') m.width = iw; });
     }
+    if (state.wardrobe_layout) applyWardrobeLayout(state.wardrobe_layout, true);
     syncFormFromState();
     renderModuleList();
     updateTotalHeight();
@@ -1429,6 +1443,7 @@ const kabinet = (() => {
         // 적층 모드: 카케이스 내부 폭 = 전체폭 − EP 두께
         const innerW = _carcaseInnerWidth(value);
         state.modules.forEach(m => { if (m.kind !== 'bed_gap') m.width = innerW; });
+        if (state.wardrobe_layout) applyWardrobeLayout(state.wardrobe_layout, true);   // 1문↔2문 등 다시 계산
         renderModuleList();
       }
       updateTotalHeight();
@@ -1484,6 +1499,11 @@ const kabinet = (() => {
     updateTotalHeight();
     updateHeightSummary();
     // 목표 높이 필드 자체는 건드리지 않음 (사용자가 입력 중)
+    if (state.wardrobe_layout) {      // 내부 구성 비율 대신 구성 규칙대로 다시 배치
+      applyWardrobeLayout(state.wardrobe_layout, true);
+      renderModuleList();
+      updateHeightSummary();
+    }
   }
 
   // ── 런 모드: 총 폭 → 섹션 폭 비율 유지 재분배 ─────────────────────────
@@ -1581,6 +1601,157 @@ const kabinet = (() => {
     updateTotalHeight();
     updateHeightSummary();
     renderModuleList();
+  }
+
+  // ── 붙박이장 내부 구성 (국내 붙박이장에서 흔히 쓰는 4가지) ─────────────
+  // 높이는 모듈 바닥(하판 아래) 기준 mm. 숫자는 wardrobe_opts로 쉽게 고침.
+  const WARDROBE_LAYOUTS = {
+    long:        '긴옷장 — 상부 선반 + 행거 1단 (코트·원피스)',
+    double:      '이단옷장 — 행거 2단 (셔츠·바지)',
+    drawer_hang: '외부 서랍 + 행거 — 하부 서랍(도어 밖) + 상부 도어·행거',
+    shelves:     '선반장 — 선반 여러 단 (개킨 옷·이불)'
+  };
+  const WARDROBE_DEFAULT_OPTS = { top_space: 330, drawer_h: 640, drawer_count: 3, shelf_count: 6, lower_rod: 940,
+                                  inner: null };
+  // 내부 서랍 예시 (도어 안쪽) — bottom: 모듈 바닥 기준 시작 높이, height: 전판 1장 높이
+  const INNER_DRAWER_PRESETS = {
+    none:     { label: '없음', v: null },
+    floor2:   { label: '바닥 2단 (각 200)', v: { bottom: 60, count: 2, height: 200 } },
+    floor3:   { label: '바닥 3단 (각 180)', v: { bottom: 60, count: 3, height: 180 } },
+    waist2:   { label: '허리 높이 2단 (750~, 각 160)', v: { bottom: 750, count: 2, height: 160 } },
+    custom:   { label: '직접 입력', v: null }
+  };
+
+  function _wardrobeBase() {
+    const m = (state.modules || []).find(x => x.kind === 'shelf_module' || x.kind === 'drawer_module') || {};
+    return {
+      body_thickness: m.body_thickness || 18, back_thickness: m.back_thickness || 9, has_back: true,
+      door_thickness: m.door_thickness || 20, door_material: m.door_material || state.material || 'LPM',
+      material: m.material || state.material || 'LPM', handle_type: m.handle_type || 'push_open',
+      edge_banding_mm: m.edge_banding_mm || 1.0, depth: state.max_depth || 580
+    };
+  }
+
+  // 현재 폭·높이로 내부 구성 모듈을 다시 만든다
+  function buildWardrobe(layout, totalModuleH) {
+    const o = Object.assign({}, WARDROBE_DEFAULT_OPTS, state.wardrobe_opts || {});
+    const b = _wardrobeBase();
+    const w = _carcaseInnerWidth(state.width);
+    const H = Math.round(totalModuleH);
+    const t = b.body_thickness;
+    const shelf = (h) => ({ height_from_bottom: Math.round(h), thickness: t, depth_inset: 20 });
+    const rod = (h) => ({ kind: 'hanging_rod', height_from_bottom: Math.round(h), depth_inset: 75, diameter: 32 });
+    const inner = o.inner && o.inner.count > 0 ? o.inner : null;
+    const innerTop = inner ? inner.bottom + inner.count * inner.height + inner.count * 3 + t : 0;   // 덮개 선반 윗면
+    const withInner = (extra) => inner ? Object.assign(extra, { inner_drawers: Object.assign({ cover: true }, inner) }) : extra;
+    const doorCase = (h, extra) => Object.assign({ kind: 'shelf_module', width: w, depth: b.depth, height: h,
+      body_thickness: t, back_thickness: b.back_thickness, has_back: true,
+      door_config: w > 600 ? 'pair' : 'single', door_type: 'swing', door_thickness: b.door_thickness,
+      door_material: b.door_material, handle_type: b.handle_type, material: b.material,
+      edge_banding_mm: b.edge_banding_mm, shelves: [], accessories: [] }, extra);
+    const topShelf = H - t - o.top_space;           // 상부 선반 (위 공간 top_space)
+    if (layout === 'double') {
+      const mid = Math.max(o.lower_rod + 60, Math.round(H * 0.47));
+      return [doorCase(H, withInner({ shelves: [shelf(topShelf), shelf(mid)],
+                            accessories: [rod(topShelf - 70), rod(mid - 60)] }))];
+    }
+    if (layout === 'shelves') {
+      const n = Math.max(1, Math.min(12, o.shelf_count | 0));
+      const start = inner ? innerTop : t;                 // 내부 서랍이 있으면 그 위부터 선반 배치
+      const step = (H - t - start) / (n + 1);
+      return [doorCase(H, withInner({ shelves: Array.from({ length: n }, (_, i) => shelf(start + step * (i + 1))) }))];
+    }
+    if (layout === 'drawer_hang') {
+      const dh = Math.max(300, Math.min(H - 600, o.drawer_h));
+      const upper = H - dh;
+      return [
+        { kind: 'drawer_module', width: w, depth: b.depth, height: dh, body_thickness: t,
+          back_thickness: b.back_thickness, has_back: true, drawer_count: Math.max(1, o.drawer_count | 0),
+          drawer_type: 'undermount', drawer_thickness: b.door_thickness, door_material: b.door_material,
+          handle_type: b.handle_type, material: b.material, edge_banding_mm: b.edge_banding_mm },
+        doorCase(upper, { shelves: [shelf(upper - t - o.top_space)], accessories: [rod(upper - t - o.top_space - 70)] })
+      ];
+    }
+    return [doorCase(H, withInner({ shelves: [shelf(topShelf)], accessories: [rod(topShelf - 70)] }))];   // long
+  }
+
+  function _moduleTotalH() {
+    const topT = state.top_panel ? (state.top_panel.thickness || 0) : 0;
+    const sum = (state.modules || []).reduce((a, m) => a + (m.kind === 'bed_gap' ? 0 : (m.height || 0)), 0);
+    return sum > 0 ? sum : 2300 - (state.base_height || 0) - topT;
+  }
+
+  function applyWardrobeLayout(layout, keepRender) {
+    if (!WARDROBE_LAYOUTS[layout]) { delete state.wardrobe_layout; renderWardrobeRow(); return; }
+    state.wardrobe_layout = layout;
+    state.modules = buildWardrobe(layout, _moduleTotalH());
+    if (keepRender) return;
+    renderModuleList();
+    updateTotalHeight();
+    updateHeightSummary();
+    renderWardrobeRow();
+    renderPreview();
+  }
+
+  function setWardrobeOpt(key, value) {
+    state.wardrobe_opts = Object.assign({}, state.wardrobe_opts || {}, { [key]: +value });
+    if (state.wardrobe_layout) applyWardrobeLayout(state.wardrobe_layout);
+  }
+
+  function setInnerDrawerPreset(key) {
+    const p = INNER_DRAWER_PRESETS[key];
+    let v = p ? p.v : null;
+    if (key === 'custom') v = (state.wardrobe_opts && state.wardrobe_opts.inner) || { bottom: 60, count: 2, height: 200 };
+    state.wardrobe_opts = Object.assign({}, state.wardrobe_opts || {}, { inner: v ? Object.assign({}, v) : null });
+    if (state.wardrobe_layout) applyWardrobeLayout(state.wardrobe_layout);
+  }
+  function setInnerDrawer(k, value) {
+    const cur = Object.assign({ bottom: 60, count: 2, height: 200 }, (state.wardrobe_opts || {}).inner || {});
+    cur[k] = +value;
+    state.wardrobe_opts = Object.assign({}, state.wardrobe_opts || {}, { inner: cur });
+    if (state.wardrobe_layout) applyWardrobeLayout(state.wardrobe_layout);
+  }
+
+  // 기본 정보 카드의 "내부 구성" 줄 — 붙박이장(내부 구성 지정된 가구)에서만 보임
+  function renderWardrobeRow() {
+    const row = document.getElementById('wardrobe-layout-row');
+    if (!row) return;
+    const lay = state.wardrobe_layout;
+    row.hidden = !lay;
+    if (!lay) return;
+    const sel = document.getElementById('f-wardrobe-layout');
+    if (sel) sel.value = lay;
+    const o = Object.assign({}, WARDROBE_DEFAULT_OPTS, state.wardrobe_opts || {});
+    const opt = document.getElementById('wardrobe-opts');
+    if (!opt) return;
+    const num = (k, label, min, max) =>
+      `<label class="ep-field">${label}<input type="number" min="${min}" max="${max}" value="${o[k]}" ` +
+      `onchange="kabinet.setWardrobeOpt('${k}', this.value)"></label>`;
+    let html = num('top_space', '상부 선반 위 공간', 150, 800);
+    if (lay === 'double') html += num('lower_rod', '아래 행거 높이', 600, 1300);
+    if (lay === 'shelves') html = num('shelf_count', '선반 수', 1, 12);
+    if (lay === 'drawer_hang') html += num('drawer_h', '외부 서랍장 높이', 300, 1200) + num('drawer_count', '외부 서랍 단수', 1, 6);
+    if (lay !== 'drawer_hang') {
+      // 내부 서랍 (도어 안쪽): 예시 선택 + 직접 편집
+      const cur = o.inner;
+      let key = 'none';
+      Object.keys(INNER_DRAWER_PRESETS).forEach(k => {
+        const v = INNER_DRAWER_PRESETS[k].v;
+        if (cur && v && v.bottom === cur.bottom && v.count === cur.count && v.height === cur.height) key = k;
+      });
+      if (cur && key === 'none') key = 'custom';
+      html += '<label class="ep-field">내부 서랍<select onchange="kabinet.setInnerDrawerPreset(this.value)">' +
+        Object.keys(INNER_DRAWER_PRESETS).map(k =>
+          `<option value="${k}"${k === key ? ' selected' : ''}>${INNER_DRAWER_PRESETS[k].label}</option>`).join('') +
+        '</select></label>';
+      if (cur) {
+        const inum = (k, label, min, max) =>
+          `<label class="ep-field">${label}<input type="number" min="${min}" max="${max}" value="${cur[k]}" ` +
+          `onchange="kabinet.setInnerDrawer('${k}', this.value)"></label>`;
+        html += inum('bottom', '서랍 시작 높이', 20, 1800) + inum('count', '서랍 단수', 1, 6) + inum('height', '서랍 1단 높이', 80, 400);
+      }
+    }
+    opt.innerHTML = html;
   }
 
   // EP 포함 전체 폭 → 카케이스 내부 폭 계산
@@ -1977,6 +2148,7 @@ const kabinet = (() => {
     const ftSel = document.getElementById('f-furniture-type');
     if (ftSel) ftSel.value = state.furniture_type || '';
     renderPresetSidebar();
+    renderWardrobeRow();
 
     const hasTop = !!state.top_panel;
     document.getElementById('f-top-use').checked = hasTop;
@@ -2044,10 +2216,10 @@ const kabinet = (() => {
     ctx.clearRect(0, 0, CW, CH);
     ctx.lineWidth = 1;
     const hide = !!(document.getElementById('live-preview-internal') || {}).checked;
-    [0, 1].forEach(layer => {        // 내부(점선) 먼저, 앞판(실선) 위에
+    [0, 2, 1].forEach(layer => {     // 내부(점선) → 바깥 부재(걸레받이·EP·상판 실선) → 앞판(실선)
       if (layer === 1 && hide) return;
-      ctx.strokeStyle = layer ? '#5b9bd5' : '#7a7a7a';
-      ctx.setLineDash(layer ? [] : [3, 3]);
+      ctx.strokeStyle = layer === 1 ? '#5b9bd5' : layer === 2 ? '#c9c9c9' : '#7a7a7a';
+      ctx.setLineDash(layer === 0 ? [3, 3] : []);
       ctx.beginPath();
       res.segs.forEach(s => { if (s[4] === layer) { ctx.moveTo(X(s[0]), Y(s[1])); ctx.lineTo(X(s[2]), Y(s[3])); } });
       ctx.stroke();
@@ -2310,7 +2482,7 @@ const kabinet = (() => {
     loadFurniturePreset, onPresetChange, renderPresetSidebar,
     addToCombine, removeFromCombine, renderCombine, runSidebarAction,
     showView, setLibrary, setStatus, onPreview2d, installCountertop, setCountertopMaterials,
-    setCommon, applyCommonAll, applyCommon, moveCombine, clearCombine, applyCombine, combinePresets,
+    setCommon, applyCommonAll, applyCommon, applyWardrobeLayout, setWardrobeOpt, setInnerDrawerPreset, setInnerDrawer, moveCombine, clearCombine, applyCombine, combinePresets,
     syncWidthToModules, distributeHeight,
     onTargetHeightLive,
     updateTotalHeight, updateHeightSummary, renderPreview,
