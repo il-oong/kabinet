@@ -117,8 +117,9 @@ module Kabinet
       end
 
       def onLButtonUp(_flags, _x, _y, view)
-        return unless @pressed && @info
+        pressed = @pressed
         @pressed = false
+        return view.invalidate unless pressed && @info
         Kabinet::Commands::FacePanel.build(view.model, @info, @thickness, flip: @flip)
         @info = nil
         @tris = nil
@@ -198,6 +199,8 @@ module Kabinet
         @error = nil
         @face_hl = nil
         @pressed = false
+        @hover_key = nil
+        @press_key = nil
         @axis = pref('space_axis', 'x')
         @axis = 'x' unless AXIS_LABELS.key?(@axis)
         @cells = pref('space_cells', 2).to_i.clamp(2, 20)
@@ -263,6 +266,9 @@ module Kabinet
         @face_hl = nil
         ray = view.pickray(x, y)
         r = view.model.raytest(ray, true)
+        key = r ? r[1].map(&:entityID) : nil
+        @hover_key = key
+        @pressed = false if key != @press_key   # 누른 채 다른 면으로 옮기면 누름 취소
         if r
           @probe = Kabinet::Commands::SpaceDivide.probe(view.model, r[0], r[1], ray[1])
           @face_hl = face_highlight(r[1])
@@ -283,12 +289,14 @@ module Kabinet
       def onLButtonDown(_flags, _x, _y, view)
         return unless @probe
         @pressed = true
+        @press_key = @hover_key
         view.invalidate
       end
 
       def onLButtonUp(_flags, _x, _y, view)
-        return unless @pressed && @probe
+        pressed = @pressed
         @pressed = false
+        return view.invalidate unless pressed && @probe
         result = Kabinet::Commands::SpaceDivide.build(view.model, @probe, current_settings)
         plan = result[:plan]
         Sketchup.status_text = "칸막이 #{plan[:partitions].size}개 · 도어 #{plan[:doors].size}장 생성 · 칸 내폭 #{plan[:cell_mm].round(1)}mm"
