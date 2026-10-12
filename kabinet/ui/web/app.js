@@ -913,7 +913,8 @@ const kabinet = (() => {
   }
   function toggleFolder(id) {
     const c = _loadCollapsed();
-    c[id] = !c[id];
+    const cur = c[id] === undefined ? id === 'admin' : c[id];   // 설정 폴더는 기본 접힘
+    c[id] = !cur;
     try { localStorage.setItem(FOLDER_STORE, JSON.stringify(c)); } catch (e) {}
     renderPresetSidebar();
   }
@@ -930,6 +931,10 @@ const kabinet = (() => {
     { id: 'group_dxf',    label: '직접 모델링 → DXF', hint: '선택한 그룹/컴포넌트 → 3면도 DXF' },
     { id: 'group_cut',    label: '직접 모델링 → 재단목록', hint: '선택한 그룹 안 판재별 두께×폭×길이 CSV' },
     { id: 'scene',        label: '씬 도면 PNG/PDF', hint: '뷰포트 캡처 도면' }
+  ];
+  const SIDEBAR_ADMIN = [
+    { id: 'update',       label: 'GitHub에서 업데이트', hint: '최신 kabinet.rbz를 내려받아 설치' },
+    { id: 'reload',       label: '플러그인 다시 로드', hint: '설치된 파일을 다시 불러오기 (개발용)' }
   ];
 
   function runSidebarAction(id) {
@@ -950,6 +955,8 @@ const kabinet = (() => {
         callSketchup('kabinet:export_group_cutlist', '');
         break;
       case 'scene':        exportDrawings(); break;
+      case 'update':       setStatus('업데이트 확인 중…', ''); callSketchup('kabinet:admin', 'update'); break;
+      case 'reload':       callSketchup('kabinet:admin', 'reload'); break;
     }
   }
 
@@ -1043,6 +1050,16 @@ const kabinet = (() => {
       html += folder('user', '내 프리셋', userInner ||
         '<div class="preset-empty">저장된 프리셋 없음<br>아래 "내 프리셋 저장"에서 "폴더/이름"으로 저장하면 폴더가 생깁니다.</div>',
         userCount);
+    }
+
+    // 설정 (맨 아래, 기본 접힘)
+    const admin = SIDEBAR_ADMIN.filter(t => match(t.label));
+    if (admin.length) {
+      if (collapsed.admin === undefined) collapsed.admin = true;
+      const shut = !q && collapsed.admin;
+      html += `<div class="sb-folder sb-tools"><button type="button" class="sb-folder-head" data-folder="admin">` +
+        `<span class="sb-caret">${shut ? '▸' : '▾'}</span><span class="sb-folder-name">설정 · 업데이트</span></button>` +
+        (shut ? '' : `<div class="sb-folder-body">${admin.map(actionBtn).join('')}</div>`) + '</div>';
     }
 
     list.innerHTML = html || '<div class="preset-empty">검색 결과 없음</div>';

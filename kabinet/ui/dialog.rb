@@ -5,9 +5,25 @@ module Kabinet
 
       module_function
 
+      # 창이 이미 떠 있으면 앞으로 가져오고, 없으면 새로 연다.
+      # 실패하면 조용히 넘어가지 않고 원인을 메시지로 보여준다.
       def show
         d = get_or_create_dialog
-        d.show
+        if d.visible?
+          d.bring_to_front
+        else
+          d.show
+        end
+      rescue StandardError => e
+        @dialog = nil
+        ::UI.messagebox("Kabinet 창을 열지 못했습니다:\n#{e.message}\n\n" \
+                        '메뉴 > Kabinet > 플러그인 다시 로드 후 다시 시도하세요.')
+      end
+
+      def close_if_open
+        @dialog.close if @dialog&.visible?
+      rescue StandardError
+        nil
       end
 
       def show_with_selection
@@ -167,6 +183,18 @@ module Kabinet
             end
           rescue StandardError => e
             d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
+          end
+        end
+
+        # ── 설정: GitHub 업데이트 / 플러그인 다시 로드 ────────────────
+        d.add_action_callback('kabinet:admin') do |_ctx, name|
+          case name.to_s
+          when 'update'
+            Kabinet::Updater.run do |msg|
+              d.execute_script("kabinet.onSuccess(#{JSON.generate(msg)})") if d.visible?
+            end
+          when 'reload'
+            Kabinet::Updater.reload_with_message
           end
         end
 

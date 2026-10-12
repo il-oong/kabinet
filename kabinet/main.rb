@@ -56,6 +56,7 @@ require File.join(Kabinet::PLUGIN_DIR, 'ui', 'live_preview')
 require File.join(Kabinet::PLUGIN_DIR, 'ui', 'dialog')
 require File.join(Kabinet::PLUGIN_DIR, 'ui', 'panel_tools')
 require File.join(Kabinet::PLUGIN_DIR, 'ui', 'menu')
+require File.join(Kabinet::PLUGIN_DIR, 'updater')
 
 module Kabinet
   unless file_loaded?(__FILE__)
@@ -63,7 +64,8 @@ module Kabinet
     file_loaded(__FILE__)
   end
 
-  # ── 로컬 소스 → 설치 폴더 동기화 + 핫 리로드 ──────────────────────────
+  # ── (개발자용) 로컬 소스 → 설치 폴더 동기화 + 핫 리로드 ─────────────────
+  # 메뉴의 "GitHub에서 업데이트"는 Kabinet::Updater 사용. 이것은 루비 콘솔 전용:
   # 루비 콘솔에서: Kabinet.update!
   #
   # 개발 소스 폴더의 모든 .rb / 웹 파일을 설치된 Plugins 폴더로 복사한 뒤
@@ -99,8 +101,8 @@ module Kabinet
       output/drawing2d.rb output/dxf.rb output/order_sheet.rb
       output/group_projection.rb output/dimensions.rb output/views.rb
       output/png_export.rb output/pdf_bundler.rb
-      ui/dialog.rb ui/panel_tools.rb ui/menu.rb
-      ui/icons/face_panel.svg ui/icons/space_divide.svg
+      ui/dialog.rb ui/panel_tools.rb ui/menu.rb updater.rb
+      ui/icons/face_panel.svg ui/icons/space_divide.svg ui/icons/kabinet.svg
       ui/web/index.html ui/web/app.js
       ui/web/modules.js ui/web/styles.css
     ]
@@ -151,7 +153,7 @@ module Kabinet
       'output/group_projection', 'output/dimensions', 'output/views',
       'output/png_export', 'output/pdf_bundler',
       'geometry/preview_entities', 'ui/live_preview',
-      'ui/dialog', 'ui/panel_tools', 'ui/menu'
+      'ui/dialog', 'ui/panel_tools', 'ui/menu', 'updater'
     ]
 
     errors = []
