@@ -36,3 +36,12 @@ presets.each do |k, spec|
   assert w == expect[k][0] && h == expect[k][1], "#{k} #{w}x#{h}" if expect[k]
 end
 puts "preset_audit_test: OK (#{presets.size} presets)"
+
+# 오픈장(도어 없음): EP 앞면이 도어 라인(도어 두께 + 간격)까지 나옴, align_door_line=false면 카케이스 앞면
+F = Kabinet::Core::Fitting
+open_mods = [{ 'kind' => 'shelf_module', 'door_config' => 'none', 'door_thickness' => 20 }]
+off = Kabinet::Core::Gaps.front_offset.to_f
+assert (F.front_protrusion_mm(open_mods) - (20 + off)).abs < 0.01, 'open cabinet EP at door line'
+assert F.front_protrusion_mm(open_mods, align_open: false) == 0.0, 'opt-out'
+assert F.front_protrusion_mm([{ 'kind' => 'shelf_module', 'door_config' => 'pair', 'door_thickness' => 22 }]) > 22, 'door unchanged'
+puts 'preset_audit_test: open door-line OK'

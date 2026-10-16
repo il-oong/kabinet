@@ -110,6 +110,11 @@ module Kabinet
         [ep_left, ep_right, ep_t]
       end
 
+      # 오픈장(도어 없음)도 EP 앞면을 도어 라인에 맞출지 (ep.align_door_line, 기본 true)
+      def align_door_line?
+        @ep.nil? || @ep.fetch('align_door_line', true) ? true : false
+      end
+
       def top_t_mm
         @top_panel ? @top_panel['thickness'].to_f : 0
       end
@@ -124,7 +129,7 @@ module Kabinet
         t = ep_top_t_mm
         return if t <= 0
         cover = @ep.nil? || @ep.fetch('cover_fronts', true) ? true : false
-        prot  = cover ? Kabinet::Core::Fitting.front_protrusion_mm(@modules).mm : 0.mm
+        prot  = cover ? Kabinet::Core::Fitting.front_protrusion_mm(@modules, align_open: align_door_line?).mm : 0.mm
         local = ::Geom::Transformation.new(::Geom::Point3d.new(0, -prot, top_z))
         Kabinet::Geometry::Builder.box(entities, total_w, depth + prot, t.mm,
                                        local,
@@ -146,7 +151,7 @@ module Kabinet
       # 실무: 측면 마감판이 카케이스에서 끝나면 도어 옆면이 노출된다.
       def add_ep_panels(entities, ep_left, ep_right, ep_t, x_left, x_right, total_h, depth)
         cover = @ep.nil? || @ep.fetch('cover_fronts', true) ? true : false
-        prot  = cover ? Kabinet::Core::Fitting.front_protrusion_mm(@modules).mm : 0.mm
+        prot  = cover ? Kabinet::Core::Fitting.front_protrusion_mm(@modules, align_open: align_door_line?).mm : 0.mm
         ep_d  = depth + prot
         if ep_left
           ep = EpFinishPanel.new(side: :left, thickness: ep_t, height: total_h, depth: ep_d)

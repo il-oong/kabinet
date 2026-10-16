@@ -150,7 +150,7 @@ module Kabinet
         # ── EP 측면 마감판 — 도어 전면까지 커버 ──────────────────────────
         if ep_left || ep_right
           cover = spec['ep'].fetch('cover_fronts', true) ? true : false
-          prot  = cover ? FIT.front_protrusion_mm(spec['modules']) : 0.0
+          prot  = cover ? FIT.front_protrusion_mm(spec['modules'], align_open: (spec['ep'] || {}).fetch('align_door_line', true)) : 0.0
           ep_d  = max_d + prot
           ep_h  = spec['ep_top_flush'] ? (total_h - top_t) : total_h
           note  = prot > 0 ? "도어 전면 커버 (+#{prot.round(1)}mm)" : '측면 마감판'
@@ -161,7 +161,7 @@ module Kabinet
         # ── 상부 EP — 가구 최상단 덮개 (전체 폭, 측면 EP 위에 얹힘) ───────
         if spec.dig('ep', 'top')
           cover = spec['ep'].fetch('cover_fronts', true) ? true : false
-          prot  = cover ? FIT.front_protrusion_mm(spec['modules']) : 0.0
+          prot  = cover ? FIT.front_protrusion_mm(spec['modules'], align_open: (spec['ep'] || {}).fetch('align_door_line', true)) : 0.0
           ep_w  = (ep_left ? ep_t : 0.0) + carcase_w + (ep_right ? ep_t : 0.0)
           rows << mkrow('EP-상', ep_w, max_d + prot, ep_t, 1, ep_mat, '가로결',
                         edge: '앞면', note: '상부 마감판 (측면 EP 위에 얹힘)')
