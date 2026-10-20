@@ -60,7 +60,8 @@ module Kabinet
       def collect(e, out)
         kids = e.definition.entities.select { |c| instance?(c) }
         if kids.empty?
-          out << e if axis_of(e)
+          # 판재 모양이면 판재, 아니면(속이 빈 상자처럼 한 덩어리 그룹) 안의 벽 면들을 대상으로 한다
+          out << e if axis_of(e) || e.definition.entities.grep(Sketchup::Face).size >= 2
         else
           kids.each { |k| collect(k, out) unless Kabinet::Persistence::Attributes.assembly?(k) }
         end
@@ -82,10 +83,51 @@ module Kabinet
         slab_axis(dims_mm(inst))
       end
 
+      WALL_PASS_MAX = 200
+
+      # 한 덩어리 그룹(속 빈 상자 등): 서로 마주 보는 면 쌍 중 간격이 3~60mm인 것을 벽으로 보고,
+      # 가운데에 가까운 쪽 면(안쪽 면)을 밀어 두께를 t로 맞춘다. 바깥 면 위치는 그대로.
+      # 반환: 한 곳이라도 바꿨으면 true
+      def resize_walls(inst, t)
+        inst.make_unique if inst.definition.instances.size > 1
+        defn = inst.definition
+        changed = false
+        WALL_PASS_MAX.times do
+          pair = next_wall(defn, inst, t)
+          break unless pair
+          face, opp, cur, k = pair
+          delta_local = (t - cur) / k
+          sign = opp[:offset] < 0 ? 1 : -1   # 반대면이 뒤쪽(재료 쪽)이면 바깥(+)으로 밀어 두껍게
+          before = face.valid? ? face.area : nil
+          face.pushpull(sign * delta_local.mm)
+          changed = true
+          break if before.nil?
+        end
+        changed
+      end
+
+      # 아직 t와 다른 두께의 벽 하나: [안쪽 면, 반대 면 정보, 현재 두께(mm), 배율]
+      def next_wall(defn, inst, t)
+        ctr = defn.bounds.center
+        defn.entities.grep(Sketchup::Face).each do |f|
+          next unless f.valid?
+          opp = Kabinet::Commands::FacePanel.opposite(f)
+          next unless opp
+          n = f.normal
+          k = n.transform(inst.transformation).length / n.length
+          cur = opp[:distance].to_f * 25.4 * k
+          next if cur < MIN_MM || cur > MAX_MM || (cur - t).abs < 0.05
+          # 마주 보는 두 면 중 가운데에 가까운 쪽을 움직인다 (이쪽이 아니면 상대 면이 같은 쌍으로 잡힘)
+          next unless f.bounds.center.distance(ctr) <= opp[:face].bounds.center.distance(ctr)
+          return [f, opp, cur, k]
+        end
+        nil
+      end
+
       # 반환: 바꿨으면 true
       def resize(inst, t)
         i = axis_of(inst)
-        return false unless i
+        return resize_walls(inst, t) unless i
         cur = dims_mm(inst)[i]
         return false if (cur - t).abs < 0.05
 
