@@ -7,7 +7,7 @@ module Kabinet
     module DoorToggle
       module_function
 
-      OPEN_DEG = 100.0
+      OPEN_DEG = 80.0
       HINGE_LEFT  = %w[door_single door_pair_left].freeze
       HINGE_RIGHT = %w[door_pair_right].freeze
 
