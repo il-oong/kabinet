@@ -21,7 +21,7 @@ out = C.apply(spec, common)
 m0, m1, gap = out['modules']
 assert m0['body_thickness'] == 15.0 && m0['back_thickness'] == 9 && m0['door_thickness'] == 22.0, 'thickness'
 assert m0['shelves'][0]['thickness'] == 20.0 && m0['vertical_dividers'][0]['thickness'] == 20.0, 'shelf'
-assert m1['drawer_thickness'] == 22.0 && m1['handle_type'] == 'push_open', 'drawer'
+assert m1['drawer_thickness'] == 22.0 && m1['handle_type'] != 'push_open', 'drawer (서랍은 푸시형 불가)'
 assert !gap.key?('material'), 'gap untouched'
 assert out['ep'] == { 'left' => true, 'thickness' => 18.0 } && out['material'] == 'PET', 'ep/material'
 assert spec['modules'][0]['body_thickness'] == 18, 'input not mutated'

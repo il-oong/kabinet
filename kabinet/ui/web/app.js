@@ -19,7 +19,7 @@ const FURNITURE_PRESETS = {
     width: 900, max_depth: 580, base_height: 50,
     wardrobe_layout: 'long',   // 내부 구성: long / double / shelves / drawer_hang
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 20, cover_fronts: false },   // 도어가 측면 EP 앞까지 덮음
+    ep: { left: false, right: false, thickness: 20, cover_fronts: false },   // 도어가 측면 EP 앞까지 덮음
     top_panel: null,   // 몸통 천판이 최상단 — 도어 윗선이 최종 높이와 맞음
     // 총 높이: 50(걸레받이) + 2250(몸통) = 2300mm
     modules: [
@@ -43,7 +43,7 @@ const FURNITURE_PRESETS = {
     width: 540, max_depth: 580, base_height: 50,
     wardrobe_layout: 'shelves',
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 20, cover_fronts: false },
+    ep: { left: false, right: false, thickness: 20, cover_fronts: false },
     top_panel: null,
     modules: [
       { kind: 'shelf_module', width: 500, depth: 580, height: 2250,
@@ -61,7 +61,7 @@ const FURNITURE_PRESETS = {
     width: 1000, max_depth: 580, base_height: 50,
     wardrobe_layout: 'long_drawer',
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 20, cover_fronts: false },
+    ep: { left: false, right: false, thickness: 20, cover_fronts: false },
     top_panel: null,
     modules: [
       { kind: 'shelf_module', width: 960, depth: 580, height: 2250,
@@ -79,7 +79,7 @@ const FURNITURE_PRESETS = {
     width: 1000, max_depth: 580, base_height: 50,
     wardrobe_layout: 'hang_split',
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 20, cover_fronts: false },
+    ep: { left: false, right: false, thickness: 20, cover_fronts: false },
     top_panel: null,
     modules: [
       { kind: 'shelf_module', width: 960, depth: 580, height: 2250,
@@ -96,7 +96,7 @@ const FURNITURE_PRESETS = {
     furniture_type: 'wardrobe_top',
     width: 1000, max_depth: 580, base_height: 0,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 20, cover_fronts: false },
+    ep: { left: false, right: false, thickness: 20, cover_fronts: false },
     top_panel: null,
     modules: [
       { kind: 'shelf_module', width: 960, depth: 580, height: 250,
@@ -303,7 +303,7 @@ const FURNITURE_PRESETS = {
     furniture_type: 'kitchen_island',
     width: 940, max_depth: 600, base_height: 150,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 20 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: null,   // 상판은 따로 — 식탁형이면 상판을 뒤로 250 이상 내밀어 다리 공간
     // 아일랜드는 서랍형 하부장 유닛을 나란히 놓고 양끝·뒷면을 마감판으로 싸는 구성.
     // 이 프리셋은 그 유닛 1개 (EP 20 + 900 + EP 20). 여러 개 배치해 길이를 만든다.
@@ -344,7 +344,7 @@ const FURNITURE_PRESETS = {
     furniture_type: 'vanity',
     width: 900, max_depth: 350, base_height: 0,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 20 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: { thickness: 20 },
     // 총 높이: 0 + 480(서랍3단) + 200(오픈선반) + 20(상판) = 700mm
     // 하단 서랍: 주수납. 상단 오픈선반: 화장품·소품 진열.
@@ -372,7 +372,7 @@ const FURNITURE_PRESETS = {
     furniture_type: 'shoe_cabinet',
     width: 900, max_depth: 350, base_height: 0,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 20 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: { thickness: 18 },
     // 총 높이: 0 + 1782 + 18 = 1800mm
     modules: [
@@ -401,7 +401,7 @@ const FURNITURE_PRESETS = {
     furniture_type: 'bookshelf',
     width: 900, max_depth: 300, base_height: 0,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 20 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: { thickness: 18 },
     // 총 높이: 0 + 1782 + 18 = 1800mm
     modules: [
@@ -429,7 +429,7 @@ const FURNITURE_PRESETS = {
     furniture_type: 'tv_unit',
     width: 1800, max_depth: 450, base_height: 80,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 20 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: { thickness: 25 },
     // 총 높이: 80 + 200 + 495 + 25 = 800mm (입식 표준 TV장)
     // 실무 보정: 1764 폭 통짜 서랍은 레일 하중 불가 → 3칸 분할 서랍.
@@ -473,7 +473,7 @@ const FURNITURE_PRESETS = {
     furniture_type: 'display_800',
     width: 800, max_depth: 400, base_height: 0,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 20 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: { thickness: 18 },
     // 총 높이: 0 + 1032 + 18 = 1050mm
     modules: [
@@ -498,7 +498,7 @@ const FURNITURE_PRESETS = {
     furniture_type: 'display_1200',
     width: 1200, max_depth: 400, base_height: 0,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 20 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: { thickness: 18 },
     // 총 높이: 0 + 1032 + 18 = 1050mm
     modules: [
@@ -529,7 +529,7 @@ const FURNITURE_PRESETS = {
     furniture_type: 'drawer_tower',
     width: 400, max_depth: 450, base_height: 0,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 20 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: { thickness: 18 },
     // 총 높이: 0 + 1032 + 18 = 1050mm (서랍 4단)
     modules: [
@@ -547,7 +547,7 @@ const FURNITURE_PRESETS = {
     furniture_type: 'wardrobe_sliding',
     width: 1600, max_depth: 600, base_height: 50,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 20 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: null,
     // 총 높이: 100 + 1982 + 18 = 2100mm
     modules: [
@@ -656,7 +656,7 @@ const FURNITURE_PRESETS = {
     furniture_type: 'shelf_grid',
     width: 1200, max_depth: 400, base_height: 0,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 20 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: { thickness: 18 },
     // 총 높이: 0 + 1032 + 18 = 1050mm
     // 내부: 세로 3칸(분할 2개) → 좌칸 선반, 중칸 서랍, 우칸 선반
@@ -699,7 +699,7 @@ const FURNITURE_PRESETS = {
     material: 'LPM',
     run_mode: true,
     run_height: 780,          // 작업대 하부 내부 높이 (받침80+본체780+상판20=880mm)
-    ep: { left: true, right: true, thickness: 20 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: { thickness: 20 },
     // 수평 배열: 600(서랍) + 600(선반도어) + 600(선반도어)
     // 총 외부 폭: 18(EP좌) + 1800 + 18(EP우) = 1836mm
@@ -740,7 +740,7 @@ const FURNITURE_PRESETS = {
     material: 'LPM',
     run_mode: true,
     run_height: 2020,   // 80(받침) + 2020(타워) = 2100mm 전체 높이
-    ep: { left: true, right: true, thickness: 20 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: null,    // 전고 타워 — 상판 없음
     // 좌타워 600 + 침대 공간 1600(퀸사이즈) + 우타워 600 = 2800mm
     modules: [
@@ -786,7 +786,7 @@ const FURNITURE_PRESETS = {
     material: 'LPM',
     run_mode: true,
     run_height: 1200,   // 하부 타워 높이 (80+1200=1280mm → 침대 헤드와 같은 높이)
-    ep: { left: true, right: true, thickness: 20 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: { thickness: 18 },  // 브릿지 상판 (타워 위를 잇는 가로 패널)
     modules: [
       { kind: 'shelf_module', width: 600, depth: 580, height: 1200,
@@ -823,7 +823,7 @@ const FURNITURE_PRESETS = {
     has_kickboard: true,
     material: 'LPM',
     run_mode: false,
-    ep: { left: true, right: true, thickness: 20, cover_fronts: false },   // 도어가 측면 EP 앞까지 덮음
+    ep: { left: false, right: false, thickness: 20, cover_fronts: false },   // 도어가 측면 EP 앞까지 덮음
     top_panel: null,
     // 총 높이: 50(받침) + 2250(몸통) = 2300mm
     modules: [
@@ -945,7 +945,7 @@ const FURNITURE_PRESETS = {
     material: 'LPM',
     run_mode: true,
     run_height: 2020,   // 80(받침) + 2020(타워) = 2100mm
-    ep: { left: true, right: true, thickness: 20 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: null,
     // 좌선반 500 + 싱글침대 1000 + 우서랍 500 = 2000mm
     modules: [
@@ -983,7 +983,7 @@ const FURNITURE_PRESETS = {
     furniture_type: 'open_shelf',
     width: 900, max_depth: 300, base_height: 0,
     material: 'LPM',
-    ep: { left: true, right: true, thickness: 20 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: { thickness: 18 },
     // 총 높이: 0 + 1182 + 18 = 1200mm
     modules: [
@@ -1038,7 +1038,7 @@ const FURNITURE_PRESETS = {
     width: 1800, max_depth: 700, base_height: 0,
     material: 'LPM',
     run_mode: true, run_height: 725,  // 상판 포함 총 750mm
-    ep: { left: true, right: true, thickness: 20 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: { thickness: 25 },
     // 런 모드: 책상(1200) + 사이드 수납장(600)
     modules: [
@@ -1069,7 +1069,7 @@ const FURNITURE_PRESETS = {
     material: 'LPM',
     run_mode: true,
     run_height: 420,   // 80(받침) + 420 + 25(상판) = 525mm — 거실 로우보드
-    ep: { left: true, right: true, thickness: 20 },
+    ep: { left: false, right: false, thickness: 20 },
     top_panel: { thickness: 25 },
     // 수평 배열: 600(서랍2단) + 1200(도어수납) + 600(도어수납)
     modules: [
@@ -1120,7 +1120,7 @@ const kabinet = (() => {
     edge_banding_mm: 1.0,
     run_mode: false,
     run_height: 740,
-    ep: { left: true, right: true, top: false, thickness: 20 },
+    ep: { left: false, right: false, top: false, thickness: 20 },
     ep_top_flush: false,
     top_panel: { thickness: 20 },
     modules: []

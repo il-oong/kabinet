@@ -57,7 +57,7 @@ module Kabinet
 
         total_w = (ep_l ? ep_t : 0) + carcase_w + (ep_r ? ep_t : 0)
         total_h = base_h + content_h + top_t + ep_top_t
-        prot    = ep.fetch('cover_fronts', true) ? FIT.front_protrusion_mm(mods) : 0.0
+        prot    = ep.fetch('cover_fronts', true) ? FIT.front_protrusion_mm(mods, align_open: ep.fetch('align_door_line', true)) : 0.0
 
         { run: run, ep_l: ep_l, ep_r: ep_r, ep_t: ep_t, ep_top_t: ep_top_t,
           top_t: top_t, base_h: base_h, max_d: max_d,

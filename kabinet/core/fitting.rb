@@ -228,9 +228,11 @@ module Kabinet
       # ── 도어/전판 전면 돌출량 (mm 전용) ──────────────────────────────────
       # EP 마감판이 도어 전면까지 나와야 할 때 필요한 깊이 연장량.
       # modules: normalize된 모듈 해시 배열.
-      def front_protrusion_mm(modules)
+      # align_open: 도어가 전혀 없는 오픈장도 EP 앞면을 "도어 라인"(도어 두께 + 간격)에 맞춘다.
+      def front_protrusion_mm(modules, align_open: true)
         off  = Kabinet::Core::Gaps.front_offset.to_f
         prot = 0.0
+        open_t = nil
         (modules || []).each do |m|
           p = case m['kind']
               when 'drawer_module'
@@ -244,6 +246,7 @@ module Kabinet
                 elsif has_overlay_door || !(m['cell_drawers'] || []).empty?
                   t + off
                 else
+                  open_t = [open_t.to_f, t].max
                   0.0
                 end
               else
@@ -251,6 +254,7 @@ module Kabinet
               end
           prot = p if p > prot
         end
+        prot = open_t + off if align_open && prot <= 0.0 && open_t
         prot
       end
     end
