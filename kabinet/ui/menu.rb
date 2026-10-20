@@ -31,15 +31,22 @@ module Kabinet
           Sketchup.active_model.select_tool(Kabinet::UI::SpaceDivideTool.new)
         end
 
+        door_cmd = ::UI::Command.new('도어 열기/닫기') { Kabinet::Commands::DoorToggle.run }
+        door_cmd.tooltip = '도어 열기/닫기 (선택한 가구, 없으면 전체)'
+        door_cmd.status_bar_text = '여닫이 도어를 열거나 닫습니다 — 단축키: 확장 프로그램 > Kabinet 메뉴 항목에 지정'
+        door_cmd.small_icon = door_cmd.large_icon = File.join(ICON_DIR, 'kabinet.svg')
+
         toolbar = ::UI::Toolbar.new('Kabinet')
         toolbar.add_item(open_cmd)
         toolbar.add_separator
         toolbar.add_item(face_cmd)
         toolbar.add_item(space_cmd)
+        toolbar.add_item(door_cmd)
         toolbar.restore
 
         kabinet_menu = ::UI.menu('Extensions').add_submenu('Kabinet — 카케이스 생성기')
         kabinet_menu.add_item(open_cmd)
+        kabinet_menu.add_item(door_cmd)
         kabinet_menu.add_separator
         tools_menu = kabinet_menu.add_submenu('판재 · 분할 도구')
         tools_menu.add_item(face_cmd)

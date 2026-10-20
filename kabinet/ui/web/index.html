@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabinet</title>
-  <link rel="stylesheet" href="styles.css?v=1.18.1">
+  <link rel="stylesheet" href="styles.css?v=1.19.0">
 </head>
 <body>
 
@@ -12,7 +12,7 @@
 <aside class="preset-sidebar">
   <div class="preset-sidebar-head">
     <span class="preset-sidebar-title">Kabinet</span>
-    <span class="version-badge">v1.18.1</span>
+    <span class="version-badge">v1.19.0</span>
   </div>
   <input type="search" id="preset-search" class="preset-search" placeholder="프리셋·도구 검색…"
          oninput="kabinet.renderPresetSidebar()">
@@ -187,9 +187,9 @@
     </div>
     <div class="toggle-row">
       <label>좌측 EP</label>
-      <input type="checkbox" id="f-ep-left" checked onchange="kabinet.onEP('left', this.checked)">
+      <input type="checkbox" id="f-ep-left" onchange="kabinet.onEP('left', this.checked)">
       <label style="margin-left:14px">우측 EP</label>
-      <input type="checkbox" id="f-ep-right" checked onchange="kabinet.onEP('right', this.checked)">
+      <input type="checkbox" id="f-ep-right" onchange="kabinet.onEP('right', this.checked)">
       <label style="margin-left:14px">상부 EP</label>
       <input type="checkbox" id="f-ep-top" onchange="kabinet.onEP('top', this.checked)">
     </div>
@@ -428,9 +428,9 @@
 
 </div><!-- /.main-col -->
 
-<script src="app.js?v=1.18.1"></script>
-<script src="modules.js?v=1.18.1"></script>
-<script src="live-preview.js?v=1.18.1"></script>
-<script src="drawing.js?v=1.18.1"></script>
+<script src="app.js?v=1.19.0"></script>
+<script src="modules.js?v=1.19.0"></script>
+<script src="live-preview.js?v=1.19.0"></script>
+<script src="drawing.js?v=1.19.0"></script>
 </body>
 </html>
