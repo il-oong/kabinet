@@ -95,7 +95,7 @@ module Kabinet
         pts << ::Geom::Point3d.new(pts.sum(&:x) / pts.size, pts.sum(&:y) / pts.size, pts.sum(&:z) / pts.size)
         pts.any? do |p|
           c = b.classify_point(p.project_to_plane(b.plane))
-          c != ::Geom::PT_OUTSIDE && c != ::Geom::PT_NOT_ON_PLANE
+          c != ::Sketchup::Face::PointOutside && c != ::Sketchup::Face::PointNotOnPlane
         end
       end
 
