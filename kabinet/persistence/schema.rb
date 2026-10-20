@@ -58,6 +58,10 @@ module Kabinet
         gaps = Kabinet::Core::Gaps.clean(h['door_gaps'])
         gaps.empty? ? h.delete('door_gaps') : h['door_gaps'] = gaps
         h['modules'] = Kabinet::Core::Gaps.with(gaps) { (h['modules'] || []).map { |m| normalize_module(m) } }
+        # EP가 도어를 감싸지 않으면(cover_fronts: false) 도어가 좌우 EP 앞면까지 덮는다 —
+        # 도어 좌우를 EP 두께만큼 넓힘. 지오메트리·재단 목록·도면이 이 파생값을 같이 쓴다.
+        over = (!h['run_mode'] && h['ep']['left'] && h['ep']['right'] && !h['ep']['cover_fronts']) ? h['ep']['thickness'] : 0.0
+        h['modules'].each { |m| m['door_over_ep_mm'] = over if %w[shelf_module drawer_module].include?(m['kind']) }
         h
       end
 
@@ -121,8 +125,15 @@ module Kabinet
           'body_thickness'   => Float(m['body_thickness'] || Kabinet::Constants::DEFAULT_BODY_THICKNESS_MM),
           'back_thickness'   => Float(m['back_thickness'] || Kabinet::Constants::DEFAULT_BACK_THICKNESS_MM),
           'has_back'         => m.fetch('has_back', true) ? true : false,
+          # 위가 뚫린 구조: 천판 대신 앞뒤 목대 (주방 하부장 — 상판은 따로 올림)
+          'open_top'         => m['open_top'] ? true : false,
           'material'         => (m['material'] || 'LPM').to_s,
           'handle_type'      => (m['handle_type'] || 'none').to_s,
+          'handle_pos'       => (Kabinet::Constants::HANDLE_POSITIONS.include?(m['handle_pos'].to_s) ? m['handle_pos'].to_s : 'auto'),
+          # 손잡이 방향: auto(도어 세로·서랍 가로) / h(가로) / v(세로)
+          'handle_rot'       => (%w[h v].include?(m['handle_rot'].to_s) ? m['handle_rot'].to_s : 'auto'),
+          # 도어·전판 하부 내림: 몸통 아랫선보다 이만큼 더 내려옴 (상부장 손걸이, 하부장 좌대 가림)
+          'door_drop_mm'     => [[m['door_drop_mm'].to_f, 0.0].max, 100.0].min,
           'handle_hole_mm'   => Integer(m['handle_hole_mm'] || Kabinet::Constants::DEFAULT_HANDLE_HOLE_MM),
           'edge_banding_mm'  => Float(m['edge_banding_mm'] || Kabinet::Constants::DEFAULT_EDGE_THICKNESS_MM)
         }
@@ -130,6 +141,8 @@ module Kabinet
         unless HANDLE_TYPES.include?(out['handle_type'])
           out['handle_type'] = 'none'
         end
+        # 서랍은 푸시형 불가 → 찬넬로
+        out['handle_type'] = 'channel' if kind == 'drawer_module' && out['handle_type'] == 'push_open'
 
         case kind
         when 'shelf_module'
@@ -137,6 +150,7 @@ module Kabinet
           unless DOOR_CONFIGS.include?(out['door_config'])
             raise ValidationError, "invalid door_config: #{out['door_config']}"
           end
+          out['center_stile'] = m['center_stile'] ? true : false   # 앞면 중앙 세로 목대
           out['door_type']    = (m['door_type'] || 'swing').to_s
           out['door_type']    = 'swing' unless DOOR_TYPES.include?(out['door_type'])
           out['door_thickness'] = Float(m['door_thickness'] || Kabinet::Constants::DEFAULT_DOOR_THICKNESS_MM)
@@ -157,8 +171,10 @@ module Kabinet
           }
           out['accessories']       = (m['accessories'] || []).map { |a| normalize_accessory(a) }
           out['vertical_dividers'] = (m['vertical_dividers'] || []).map { |d|
-            { 'x'         => Float(d['x'] || 0),
-              'thickness' => Float(d['thickness'] || out['body_thickness']) }
+            dv = { 'x'         => Float(d['x'] || 0),
+                   'thickness' => Float(d['thickness'] || out['body_thickness']) }
+            dv['top'] = Float(d['top']) if d['top'].to_f > 0   # 이 높이(모듈 바닥 기준)까지만 — 없으면 전체 높이
+            dv
           }
           out['cell_shelves'] = (m['cell_shelves'] || []).map { |cs|
             { 'cell'              => Integer(cs['cell'] || 0),
@@ -194,6 +210,10 @@ module Kabinet
           out['drawer_thickness'] = Float(m['drawer_thickness'] || Kabinet::Constants::DEFAULT_DOOR_THICKNESS_MM)
           out['door_material']    = (m['door_material'] || out['material']).to_s
           out['handle_hole_mm']   = Integer(m['handle_hole_mm'] || Kabinet::Constants::DEFAULT_HANDLE_HOLE_MM)
+          out['inner_drawer']     = m['inner_drawer'] ? true : false   # 맨 위 서랍 안 속서랍 1개
+          # 서랍별 높이 비율 (아래 → 위). 개수가 서랍 수와 같을 때만 유효
+          dr = m['drawer_ratios']
+          out['drawer_ratios']    = dr.map(&:to_f) if dr.is_a?(Array) && dr.size == out['drawer_count'] && dr.all? { |v| v.to_f > 0 }
         end
         out
       end

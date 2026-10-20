@@ -113,14 +113,25 @@ module Kabinet
 
       # ── 서랍 전판 스택 (풀 오버레이) ─────────────────────────────────────
       # 모듈 외곽 기준. 반환: [{ x:, z:, w:, h: }, ...] 아래→위 순.
-      def drawer_fronts(mod_w, mod_h, count, side_gap:, top_gap:, bottom_gap:, reveal:)
+      # ratios: 서랍별 높이 비율 (아래 → 위). 예: 3단 [2, 1, 1] = 맨 아래 깊은 서랍 + 위 얕은 서랍 2.
+      #         nil 이거나 개수가 안 맞으면 균등.
+      def drawer_fronts(mod_w, mod_h, count, side_gap:, top_gap:, bottom_gap:, reveal:, ratios: nil)
         n       = [count.to_i, 1].max
         avail   = mod_h - top_gap - bottom_gap - reveal * (n - 1)
-        front_h = avail / n
         front_w = mod_w - 2 * side_gap
-        n.times.map do |i|
-          { x: side_gap, z: bottom_gap + i * (front_h + reveal), w: front_w, h: front_h }
+        z = bottom_gap
+        split_by_ratio(avail, n, ratios).map do |h|
+          f = { x: side_gap, z: z, w: front_w, h: h }
+          z += h + reveal
+          f
         end
+      end
+
+      # total 을 n 칸으로 — ratios(양수 n개)가 있으면 그 비율로, 없으면 균등
+      def split_by_ratio(total, n, ratios = nil)
+        r = ratios.is_a?(Array) && ratios.size == n && ratios.all? { |v| v.to_f > 0 } ? ratios.map(&:to_f) : [1.0] * n
+        sum = r.sum
+        r.map { |v| total * v / sum }
       end
 
       # ── 슬라이드 공칭 길이 선택 (mm 전용) ────────────────────────────────
@@ -146,6 +157,28 @@ module Kabinet
         d     = slide || [inner_depth_mm.to_f - 50.0, 100.0].max
         h     = comp_h_mm.to_f - z_off - Kabinet::Constants::DRAWER_BOX_TOP_CLEAR_MM
         { w: open_w_mm.to_f - 2.0 * side, d: d, h: h, slide_len: slide, z_off: z_off.to_f }
+      end
+
+      # 찬넬 서랍: 칸마다 위쪽을 ㄴ자 찬넬이 파고드는 깊이(mm) — 서랍통 높이에서 뺄 값.
+      # 찬넬 아랫선 = 그 서랍 전판 윗선 + 내림 − 이마 높이. 칸 윗선보다 내려온 만큼이 침범량.
+      # fronts: drawer_fronts 결과(mm, 모듈 바닥 기준) · comps: 칸 높이 배열(mm) · 찬넬 아니면 전부 0.
+      def channel_box_clears_mm(channel, fronts, comps, body_t, reveal)
+        return [0.0] * comps.size unless channel
+        drop = Kabinet::Constants::CHANNEL_FRONT_DROP_MM.to_f
+        rail = Kabinet::Constants::CHANNEL_RAIL_H_MM.to_f
+        comps.each_index.map do |i|
+          comp_top = body_t + comps[0..i].sum + i * reveal
+          rail_bot = fronts[i][:z] + fronts[i][:h] + drop - rail
+          [comp_top - rail_bot, 0.0].max
+        end
+      end
+
+      # 속서랍: 맨 위 서랍통 높이(mm)를 [본 서랍통, 속서랍통] 으로 나눈다 (지오메트리·재단 공용).
+      # 본 서랍통이 60mm 미만이 되면 속서랍을 넣지 않는다 → nil.
+      def inner_drawer_split_mm(box_h_mm)
+        inner = Kabinet::Constants::INNER_DRAWER_BOX_H_MM.to_f
+        main  = box_h_mm.to_f - inner - Kabinet::Constants::INNER_DRAWER_GAP_MM
+        main >= 60 ? [main, inner] : nil
       end
 
       # ── 세로 분할판 → 칸(cell) 범위 (단위 불문) ───────────────────────────

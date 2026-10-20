@@ -1,5 +1,5 @@
 # frozen_string_literal: false
-# 전체 프리셋: Schema 검증 + Assembly 빌드 + 치수 실측(붙박이장 900x2300, 주방 하부장 900x880)
+# 전체 프리셋: Schema 검증 + Assembly 빌드 + 치수 실측(붙박이장 900x2300, 주방 하부장 900x830)
 require 'json'
 require 'open3'
 require_relative 'support/geom'
@@ -24,7 +24,7 @@ out, err, st = Open3.capture3('node', '-e', js)
 raise "node failed: #{err}" unless st.success?
 presets = JSON.parse(out)
 assert presets.size >= 12, "preset count #{presets.size}"
-expect = { 'wardrobe' => [900, 2300], 'kitchen_base' => [900, 880] }
+expect = { 'wardrobe' => [900, 2300], 'kitchen_base' => [900, 830] }
 expect.each_key { |k| assert presets.key?(k), "missing preset #{k}" }
 presets.each do |k, spec|
   n = Kabinet::Persistence::Schema.normalize(spec)

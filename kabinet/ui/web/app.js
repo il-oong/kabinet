@@ -7,6 +7,11 @@
    모듈 width 는 어셈블리 width 와 동일하게 설정.
    총 높이 계산: base_height + Σ(module.height) + top_panel.thickness
 ================================================================== */
+const RUN_MODE_ENABLED = false;   // 수평 런 모드: 완성 전까지 UI 에서 숨김 (프리셋·토글)
+// 여러 종류 장을 한 덩어리로 묶은 프리셋 — 낱개 장 + 배치로 대체할 때까지 사이드바에서 숨김
+const BUNDLED_PRESETS = ['desk_with_pedestal', 'desk_with_side_cabinet', 'kids_desk_upper',
+                         'bed_surround', 'bed_surround_with_bridge', 'kids_bed_single'];
+
 const FURNITURE_PRESETS = {
   wardrobe: {
     name: '붙박이장',
@@ -14,14 +19,14 @@ const FURNITURE_PRESETS = {
     width: 900, max_depth: 580, base_height: 50,
     wardrobe_layout: 'long',   // 내부 구성: long / double / shelves / drawer_hang
     material: 'LPM',
-    ep: { left: false, right: false, thickness: 20 },
-    top_panel: { thickness: 18 },
-    // 총 높이: 50(걸레받이) + 2232 + 18(상판) = 2300mm
+    ep: { left: false, right: false, thickness: 20, cover_fronts: false },   // 도어가 측면 EP 앞까지 덮음
+    top_panel: null,   // 몸통 천판이 최상단 — 도어 윗선이 최종 높이와 맞음
+    // 총 높이: 50(걸레받이) + 2250(몸통) = 2300mm
     modules: [
-      { kind: 'shelf_module', width: 860, depth: 580, height: 2232,
+      { kind: 'shelf_module', width: 860, depth: 580, height: 2250,
         body_thickness: 18, back_thickness: 9, has_back: true,
         door_config: 'pair', door_type: 'swing', door_thickness: 20,
-        door_material: 'LPM', handle_type: 'push_open', material: 'LPM',
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
         edge_banding_mm: 1.0, shelves: [],
         accessories: [
           { kind: 'hanging_rod', height_from_bottom: 1000, depth_inset: 75, diameter: 32 }
@@ -31,26 +36,286 @@ const FURNITURE_PRESETS = {
     _info: '표준 붙박이장 W900×D580×H2300 | 걸레받이50 + 양개여닫이(푸시) · 내부 구성은 아래 "내부 구성"에서 선택'
   },
 
-  kitchen_base: {
-    name: '주방 하부장',
-    furniture_type: 'kitchen_base',
-    width: 900, max_depth: 580, base_height: 80,
+  // ── 붙박이장 구성표(오톤도) 기반 몸통 — 도어 1장 폭 400~550 기준 ───────────────
+  wardrobe_1door: {
+    name: '붙박이장 1도어 (선반장)',
+    furniture_type: 'wardrobe',
+    width: 540, max_depth: 580, base_height: 50,
+    wardrobe_layout: 'shelves',
     material: 'LPM',
-    ep: { left: false, right: false, thickness: 20 },
-    top_panel: { thickness: 20 },
-    // 총 높이: 80(걸레받이) + 780(단일 몸통) + 20(상판) = 880mm
-    // 주방 하부장은 단일 카케이스 몸통으로 구성 (도어+선반 내부 배치)
+    ep: { left: false, right: false, thickness: 20, cover_fronts: false },
+    top_panel: null,
     modules: [
-      { kind: 'shelf_module', width: 900, depth: 580, height: 780,
+      { kind: 'shelf_module', width: 500, depth: 580, height: 2250,
         body_thickness: 18, back_thickness: 9, has_back: true,
-        door_config: 'pair', door_type: 'swing', door_thickness: 20,
-        door_material: 'LPM', handle_type: 'bar', material: 'LPM',
-        edge_banding_mm: 1.0,
-        shelves: [{ height_from_bottom: 330, thickness: 18, depth_inset: 20 }],
-        accessories: []
+        door_config: 'single', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
+        edge_banding_mm: 1.0, shelves: [], accessories: []
       }
     ],
-    _info: '주방 하부장 W900×D580×H880 | 걸레받이80+단일몸통780+상판20. 작업대 880mm'
+    _info: '붙박이장 1도어 W540(EP 포함)×D580×H2300 | 선반 6단 — 구성표 도어 5개의 가운데 좁은 몸통'
+  },
+  wardrobe_long_drawer: {
+    name: '붙박이장 2도어 (긴옷 + 서랍 3단)',
+    furniture_type: 'wardrobe',
+    width: 1000, max_depth: 580, base_height: 50,
+    wardrobe_layout: 'long_drawer',
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 20, cover_fronts: false },
+    top_panel: null,
+    modules: [
+      { kind: 'shelf_module', width: 960, depth: 580, height: 2250,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
+        edge_banding_mm: 1.0, shelves: [], accessories: []
+      }
+    ],
+    _info: '붙박이장 2도어 W1000×D580×H2300 | 상부 선반·행거 + 바닥 내부서랍 3단 — 구성표 도어 3·4개의 왼쪽 몸통'
+  },
+  wardrobe_hang_split: {
+    name: '붙박이장 2도어 (행거 + 하부 분할)',
+    furniture_type: 'wardrobe',
+    width: 1000, max_depth: 580, base_height: 50,
+    wardrobe_layout: 'hang_split',
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 20, cover_fronts: false },
+    top_panel: null,
+    modules: [
+      { kind: 'shelf_module', width: 960, depth: 580, height: 2250,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
+        edge_banding_mm: 1.0, shelves: [], accessories: []
+      }
+    ],
+    _info: '붙박이장 2도어 W1000×D580×H2300 | 상부 행거 + 아래 좌 칸 / 우 선반 4단 — 구성표 도어 5·6개 몸통'
+  },
+  wardrobe_top_box: {
+    name: '붙박이장 적층 상부장',
+    furniture_type: 'wardrobe_top',
+    width: 1000, max_depth: 580, base_height: 0,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 20, cover_fronts: false },
+    top_panel: null,
+    modules: [
+      { kind: 'shelf_module', width: 960, depth: 580, height: 250,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
+        edge_banding_mm: 1.0, shelves: [], accessories: []
+      }
+    ],
+    _info: '적층 상부장 W1000×D580×H250 | 2300 붙박이장 위에 얹어 2550 (구성표 H-2550 적층) — 높이는 천장에 맞춰 조정'
+  },
+  wardrobe_vanity_500: {
+    name: '붙박이장 사이 화장대 500',
+    furniture_type: 'wardrobe_vanity',
+    width: 500, max_depth: 580, base_height: 50,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: null,
+    modules: [
+      { kind: 'drawer_module', width: 500, depth: 580, height: 720,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        drawer_count: 4, drawer_type: 'undermount', drawer_thickness: 20,
+        door_material: 'LPM', handle_type: 'channel', material: 'LPM', edge_banding_mm: 1.0
+      },
+      { kind: 'v_gap', height: 280, label: '화장대 개방 니치 (간접조명)' },
+      { kind: 'shelf_module', width: 500, depth: 580, height: 1250,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'single', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
+        edge_banding_mm: 1.0, shelves: [{ height_from_bottom: 420, thickness: 18, depth_inset: 20 }, { height_from_bottom: 830, thickness: 18, depth_inset: 20 }], accessories: []
+      }
+    ],
+    _info: '장 사이 화장대 W500×D580×H2300 | 서랍 4단 + 개방 니치 + 거울 도어장 (거울·조명은 모델링 안 함). 양옆 장 사이에 끼워 배치'
+  },
+  wardrobe_vanity_900: {
+    name: '붙박이장 사이 화장대 900',
+    furniture_type: 'wardrobe_vanity',
+    width: 900, max_depth: 580, base_height: 50,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: null,
+    modules: [
+      { kind: 'shelf_module', width: 900, depth: 580, height: 430,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
+        edge_banding_mm: 1.0, shelves: [], accessories: []
+      },
+      { kind: 'drawer_module', width: 900, depth: 580, height: 320,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        drawer_count: 2, drawer_type: 'undermount', drawer_thickness: 20,
+        door_material: 'LPM', handle_type: 'channel', material: 'LPM', edge_banding_mm: 1.0
+      },
+      { kind: 'v_gap', height: 300, label: '화장대 개방 니치 (간접조명)' },
+      { kind: 'shelf_module', width: 900, depth: 580, height: 1200,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
+        edge_banding_mm: 1.0, shelves: [{ height_from_bottom: 400, thickness: 18, depth_inset: 20 }, { height_from_bottom: 800, thickness: 18, depth_inset: 20 }], accessories: []
+      }
+    ],
+    _info: '장 사이 화장대 W900×D580×H2300 | 도어 수납 + 서랍 2단 + 개방 니치 + 거울 도어장 (거울·조명은 모델링 안 함)'
+  },
+  kids_bed_front_shelf: {
+    name: '침대 앞 오픈 책장 (D280)',
+    furniture_type: 'kids_shelf',
+    width: 1138, max_depth: 280, base_height: 50,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: null,
+    // 보관함의 1120 침대앞 오픈장 280 (1138×280×2407) 치수 기준. 칸 구성은 추정
+    modules: [
+      { kind: 'shelf_module', width: 1138, depth: 280, height: 2350,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'none', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
+        edge_banding_mm: 1.0,
+        vertical_dividers: [{ x: 542, thickness: 18 }],
+        cell_shelves: [0, 1].flatMap(c => [1, 2, 3, 4, 5].map(i => ({ cell: c, height_from_bottom: 18 + Math.round(2314 / 6 * i), thickness: 18, depth_inset: 0 }))),
+        cell_drawers: [], shelves: [], accessories: [] }
+    ],
+    _info: '침대 앞 오픈 책장 W1138×D280×H2400 | 세로 2칸 × 6단 — 자녀방 구성표의 침대 앞 책장'
+  },
+
+  // ── 주방 하부장: 받침 150 + 몸통 680 = 830mm, 상판 20 을 따로 올려 850 (국내 일반 규격). 몸통 위는 뚫려 있고 앞뒤 목대만 ──
+  kitchen_base: {
+    name: '주방 하부장 (도어 수납)',
+    furniture_type: 'kitchen_base',
+    width: 900, max_depth: 580, base_height: 150,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: null,   // 상판(인조대리석 등)은 '주방 상판 설치'로 따로 — 몸통 위는 목대만
+    modules: [
+      { kind: 'shelf_module', width: 900, depth: 580, height: 680, open_top: true, door_drop_mm: 20,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
+        edge_banding_mm: 1.0, shelves: [{ height_from_bottom: 330, thickness: 18, depth_inset: 20 }], accessories: []
+      }
+    ],
+    _info: '하부장 W900×D580×H830(+상판 20 = 850) | 양개도어 + 선반 1 · 상부 개방(목대)'
+  },
+  kitchen_sink: {
+    name: '싱크장',
+    furniture_type: 'kitchen_sink',
+    width: 900, max_depth: 580, base_height: 150,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: null,   // 상판(인조대리석 등)은 '주방 상판 설치'로 따로 — 몸통 위는 목대만
+    modules: [
+      { kind: 'shelf_module', width: 900, depth: 580, height: 680, open_top: true, door_drop_mm: 20,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
+        edge_banding_mm: 1.0, shelves: [], accessories: []
+      }
+    ],
+    _info: '싱크장 W900×D580×H830(+상판 20 = 850) | 선반 없음(싱크볼·배관) · 양개도어 · 상부 개방(목대)'
+  },
+  kitchen_cook: {
+    name: '조리장 (2단 서랍장)',
+    furniture_type: 'kitchen_cook',
+    width: 900, max_depth: 580, base_height: 150,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: null,   // 상판(인조대리석 등)은 '주방 상판 설치'로 따로 — 몸통 위는 목대만
+    modules: [
+      { kind: 'drawer_module', width: 900, depth: 580, height: 680, open_top: true, door_drop_mm: 20,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        drawer_count: 2, drawer_type: 'undermount', drawer_thickness: 20,
+        door_material: 'LPM', handle_type: 'channel', material: 'LPM', edge_banding_mm: 1.0
+      }
+    ],
+    _info: '조리장·2단 서랍장 W900×D580×H830(+상판 20 = 850) | 깊은 서랍 2단 · 쿡탑 컷아웃은 상판에서'
+  },
+  kitchen_drawer2_inner: {
+    name: '2단 서랍장 + 속서랍',
+    furniture_type: 'kitchen_drawer2_inner',
+    width: 900, max_depth: 580, base_height: 150,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: null,   // 상판(인조대리석 등)은 '주방 상판 설치'로 따로 — 몸통 위는 목대만
+    modules: [
+      { kind: 'drawer_module', width: 900, depth: 580, height: 680, open_top: true, door_drop_mm: 20, inner_drawer: true,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        drawer_count: 2, drawer_type: 'undermount', drawer_thickness: 20,
+        door_material: 'LPM', handle_type: 'channel', material: 'LPM', edge_banding_mm: 1.0
+      }
+    ],
+    _info: '2단 서랍장 + 속서랍 W900×D580×H830(+상판 20 = 850) | 맨 위 서랍 안에 낮은 속서랍 1'
+  },
+  kitchen_drawer3: {
+    name: '3단 서랍장',
+    furniture_type: 'kitchen_drawer3',
+    width: 600, max_depth: 580, base_height: 150,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: null,   // 상판(인조대리석 등)은 '주방 상판 설치'로 따로 — 몸통 위는 목대만
+    modules: [
+      { kind: 'drawer_module', width: 600, depth: 580, height: 680, open_top: true, door_drop_mm: 20,
+        drawer_ratios: [2, 1, 1],   // 아래 → 위: 깊은 서랍 1 + 얕은 서랍 2
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        drawer_count: 3, drawer_type: 'undermount', drawer_thickness: 20,
+        door_material: 'LPM', handle_type: 'channel', material: 'LPM', edge_banding_mm: 1.0
+      }
+    ],
+    _info: '3단 서랍장 W600×D580×H830(+상판 20 = 850) | 얕은 서랍 2 + 깊은 서랍 1 (아래)'
+  },
+  kitchen_pullout: {
+    name: '인출망장',
+    furniture_type: 'kitchen_pullout',
+    width: 300, max_depth: 580, base_height: 150,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: null,   // 상판(인조대리석 등)은 '주방 상판 설치'로 따로 — 몸통 위는 목대만
+    modules: [
+      { kind: 'drawer_module', width: 300, depth: 580, height: 680, open_top: true, door_drop_mm: 20,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        drawer_count: 1, drawer_type: 'undermount', drawer_thickness: 20,
+        door_material: 'LPM', handle_type: 'channel', material: 'LPM', edge_banding_mm: 1.0
+      }
+    ],
+    _info: '인출망장 W300×D580×H830(+상판 20 = 850) | 전판 1장이 통째로 앞으로 나오는 세로 인출 (내부 인출망은 철물 — 모델링 안 함). 폭 150~400'
+  },
+  kitchen_filler: {
+    name: '휠라장 (좁은 마감장)',
+    furniture_type: 'kitchen_filler',
+    width: 150, max_depth: 580, base_height: 150,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: null,   // 상판(인조대리석 등)은 '주방 상판 설치'로 따로 — 몸통 위는 목대만
+    modules: [
+      { kind: 'shelf_module', width: 150, depth: 580, height: 680, open_top: true, door_drop_mm: 20,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'single', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
+        edge_banding_mm: 1.0, shelves: [{ height_from_bottom: 330, thickness: 18, depth_inset: 20 }], accessories: []
+      }
+    ],
+    _info: '휠라장 W150×D580×H830(+상판 20 = 850) | 남는 폭 메움용. 폭 100~300'
+  },
+  kitchen_island: {
+    name: '아일랜드장 (서랍형 유닛)',
+    furniture_type: 'kitchen_island',
+    width: 940, max_depth: 600, base_height: 150,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: null,   // 상판은 따로 — 식탁형이면 상판을 뒤로 250 이상 내밀어 다리 공간
+    // 아일랜드는 서랍형 하부장 유닛을 나란히 놓고 양끝·뒷면을 마감판으로 싸는 구성.
+    // 이 프리셋은 그 유닛 1개 (EP 20 + 900 + EP 20). 여러 개 배치해 길이를 만든다.
+    modules: [
+      { kind: 'drawer_module', width: 900, depth: 600, height: 680, open_top: true, door_drop_mm: 20,
+        drawer_ratios: [2, 1, 1],
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        drawer_count: 3, drawer_type: 'undermount', drawer_thickness: 20,
+        door_material: 'LPM', handle_type: 'channel', material: 'LPM', edge_banding_mm: 1.0
+      }
+    ],
+    _info: '아일랜드 서랍형 유닛 W940(EP 포함)×D600×H830(+상판) | 얕은 서랍 2 + 깊은 서랍 1, 양옆 EP. 뒷면 마감판·상판은 별도'
   },
 
   kitchen_upper: {
@@ -62,16 +327,44 @@ const FURNITURE_PRESETS = {
     top_panel: null,
     // 총 높이: 0 + 700 = 700mm
     modules: [
-      { kind: 'shelf_module', width: 900, depth: 320, height: 700,
+      { kind: 'shelf_module', width: 900, depth: 320, height: 700, center_stile: true, door_drop_mm: 20,   // 처짐 방지 중앙 목대
         body_thickness: 18, back_thickness: 9, has_back: true,
         door_config: 'pair', door_type: 'swing', door_thickness: 20,
-        door_material: 'LPM', handle_type: 'knob', material: 'LPM',
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
         edge_banding_mm: 1.0,
         shelves: [{ height_from_bottom: 300, thickness: 15, depth_inset: 20 }],
         accessories: []
       }
     ],
     _info: '주방 상부장 W900×D320×H700 | 바닥 설치 높이 1500mm 위 권장'
+  },
+
+  vanity: {
+    name: '화장대',
+    furniture_type: 'vanity',
+    width: 900, max_depth: 350, base_height: 0,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: { thickness: 20 },
+    // 총 높이: 0 + 480(서랍3단) + 200(오픈선반) + 20(상판) = 700mm
+    // 하단 서랍: 주수납. 상단 오픈선반: 화장품·소품 진열.
+    // 접합부(서랍→선반) suppress_bottom 으로 이중패널 방지.
+    modules: [
+      { kind: 'drawer_module', width: 900, depth: 350, height: 480,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        drawer_count: 3, drawer_type: 'undermount', drawer_thickness: 20,
+        door_material: 'LPM', handle_type: 'channel', material: 'LPM', edge_banding_mm: 1.0
+      },
+      { kind: 'shelf_module', width: 900, depth: 350, height: 200,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'none', door_type: 'none', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
+        edge_banding_mm: 1.0,
+        shelves: [],
+        accessories: []
+      }
+    ],
+    _info: '화장대 W900×D350×H700 | 서랍 3단(480) + 오픈 선반(200) + 상판20. 접합부 단일 패널'
   },
 
   shoe_cabinet: {
@@ -131,6 +424,48 @@ const FURNITURE_PRESETS = {
     _info: '오픈 책장 W900×D300×H1800 | 선반 5개 25T (책 하중 대응)'
   },
 
+  tv_unit: {
+    name: 'TV장',
+    furniture_type: 'tv_unit',
+    width: 1800, max_depth: 450, base_height: 80,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: { thickness: 25 },
+    // 총 높이: 80 + 200 + 495 + 25 = 800mm (입식 표준 TV장)
+    // 실무 보정: 1764 폭 통짜 서랍은 레일 하중 불가 → 3칸 분할 서랍.
+    //            상부는 878mm/짝 여닫이 대신 중앙 분할 오픈 선반.
+    modules: [
+      { kind: 'shelf_module', width: 1764, depth: 450, height: 200,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'none', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
+        edge_banding_mm: 1.0,
+        shelves: [], accessories: [],
+        vertical_dividers: [{ x: 564, thickness: 18 }, { x: 1146, thickness: 18 }],
+        cell_shelves: [],
+        cell_drawers: [
+          { cell: 0, count: 1, type: 'undermount', thickness: 18 },
+          { cell: 1, count: 1, type: 'undermount', thickness: 18 },
+          { cell: 2, count: 1, type: 'undermount', thickness: 18 }
+        ]
+      },
+      { kind: 'shelf_module', width: 1764, depth: 450, height: 495,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'none', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
+        edge_banding_mm: 1.0,
+        shelves: [], accessories: [],
+        vertical_dividers: [{ x: 573, thickness: 18 }],
+        cell_shelves: [
+          { cell: 0, height_from_bottom: 240, thickness: 18, depth_inset: 0 },
+          { cell: 1, height_from_bottom: 240, thickness: 18, depth_inset: 0 }
+        ],
+        cell_drawers: []
+      }
+    ],
+    _info: 'TV장 W1800×D450×H800 | 하부 서랍 3칸(분할) + 상부 오픈 2칸. 입식형'
+  },
+
   // ── 카탈로그 신규 프리셋 ─────────────────────────────────────────────────
 
   display_800: {
@@ -145,7 +480,7 @@ const FURNITURE_PRESETS = {
       { kind: 'shelf_module', width: 800, depth: 400, height: 1032,
         body_thickness: 18, back_thickness: 9, has_back: true,
         door_config: 'pair', door_type: 'swing', door_thickness: 20,
-        door_material: 'LPM', handle_type: 'bar', material: 'LPM',
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
         edge_banding_mm: 1.0,
         shelves: [
           { height_from_bottom: 300, thickness: 18, depth_inset: 20 },
@@ -171,7 +506,7 @@ const FURNITURE_PRESETS = {
       { kind: 'shelf_module', width: 1200, depth: 400, height: 1032,
         body_thickness: 18, back_thickness: 9, has_back: true,
         door_config: 'pair', door_type: 'swing', door_thickness: 20,
-        door_material: 'LPM', handle_type: 'bar', material: 'LPM',
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
         edge_banding_mm: 1.0,
         shelves: [], accessories: [],
         vertical_dividers: [{ x: 573, thickness: 18 }],
@@ -201,7 +536,7 @@ const FURNITURE_PRESETS = {
       { kind: 'drawer_module', width: 400, depth: 450, height: 1032,
         body_thickness: 18, back_thickness: 9, has_back: true,
         drawer_count: 4, drawer_type: 'undermount', drawer_thickness: 20,
-        door_material: 'LPM', handle_type: 'bar', material: 'LPM', edge_banding_mm: 1.0
+        door_material: 'LPM', handle_type: 'channel', material: 'LPM', edge_banding_mm: 1.0
       }
     ],
     _info: '서랍장 타워 W400×D450×H1050 | 서랍 4단. 침실/드레스룸 범용'
@@ -213,24 +548,28 @@ const FURNITURE_PRESETS = {
     width: 1600, max_depth: 600, base_height: 50,
     material: 'LPM',
     ep: { left: false, right: false, thickness: 20 },
-    top_panel: { thickness: 18 },
+    top_panel: null,
     // 총 높이: 100 + 1982 + 18 = 2100mm
     modules: [
-      { kind: 'shelf_module', width: 1600, depth: 600, height: 2232,
+      { kind: 'shelf_module', width: 1600, depth: 600, height: 2250,
         body_thickness: 18, back_thickness: 9, has_back: true,
         door_config: 'pair', door_type: 'sliding', door_thickness: 20,
-        door_material: 'LPM', handle_type: 'channel', material: 'LPM',
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
         edge_banding_mm: 1.0,
         // 실무 보정: 2단 행거 표준 높이 (상단 ~1850, 하단 ~930 — 상의 2단걸이)
         // 기존 500/1000은 옷이 바닥에 끌리는 높이였음. 1564 스팬 선반은 처짐 → 제거.
-        shelves: [],
+        // 1524 스팬 → 25T 선반. 봉은 선반 바로 아래(70)에 달아 옷걸이가 선반에 닿지 않게
+        shelves: [
+          { height_from_bottom: 1058, thickness: 25, depth_inset: 20 },
+          { height_from_bottom: 1902, thickness: 25, depth_inset: 20 }
+        ],
         accessories: [
-          { kind: 'hanging_rod', height_from_bottom: 1850, depth_inset: 75, diameter: 32 },
-          { kind: 'hanging_rod', height_from_bottom: 930,  depth_inset: 75, diameter: 32 }
+          { kind: 'hanging_rod', height_from_bottom: 1832, depth_inset: 75, diameter: 32 },
+          { kind: 'hanging_rod', height_from_bottom: 988,  depth_inset: 75, diameter: 32 }
         ]
       }
     ],
-    _info: '슬라이딩 붙박이장 W1600×D600×H2300 | 걸레받이50 · 미닫이 2짝·2단 행거(1850/930). 드레스룸'
+    _info: '슬라이딩 붙박이장 W1600×D600×H2300 | 걸레받이50 · 미닫이 2짝·상부·중간 선반 + 행거 2단(1832/988). 드레스룸'
   },
 
   // ── 책상 프리셋 ─────────────────────────────────────────────────────────
@@ -282,14 +621,360 @@ const FURNITURE_PRESETS = {
     _info: '책상 W1400×D700×H750 | 우측 페데스탈(서랍3단)+좌측 상판 하부 서랍'
   },
 
+  desk_l_shape: {
+    name: 'L자 책상 (런 모드)',
+    furniture_type: 'desk_l_shape',
+    width: 2100, max_depth: 700, base_height: 0,
+    material: 'LPM',
+    run_mode: true, run_height: 725,  // 상판포함 750 → top_thickness=25
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: { thickness: 25 },     // 런 공통 상판
+    // 런 모드: 책상(1400) + 코너 선반(700) 배치
+    modules: [
+      { kind: 'desk_module', width: 1400, depth: 700, height: 725,
+        top_thickness: 25, leg_type: 'box', leg_w: 30, leg_d: 30,
+        leg_inset_x: 30, leg_inset_y: 30,
+        has_modesty_panel: false,
+        pedestal: null, under_unit: null,
+        material: 'LPM', edge_banding_mm: 1.0
+      },
+      { kind: 'desk_module', width: 700, depth: 700, height: 725,
+        top_thickness: 25, leg_type: 'box', leg_w: 30, leg_d: 30,
+        leg_inset_x: 30, leg_inset_y: 30,
+        has_modesty_panel: false,
+        pedestal: null, under_unit: null,
+        material: 'LPM', edge_banding_mm: 1.0
+      }
+    ],
+    _info: 'L자 책상 W2100×D700 | 런 모드 수평 배열. 상판 25mm 포함 총 높이 750mm'
+  },
+
   // ── 자유 설계 선반/격자 프리셋 ────────────────────────────────────────
+
+  shelf_grid: {
+    name: '격자형 수납장',
+    furniture_type: 'shelf_grid',
+    width: 1200, max_depth: 400, base_height: 0,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: { thickness: 18 },
+    // 총 높이: 0 + 1032 + 18 = 1050mm
+    // 내부: 세로 3칸(분할 2개) → 좌칸 선반, 중칸 서랍, 우칸 선반
+    modules: [
+      { kind: 'shelf_module', width: 1200, depth: 400, height: 1032,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'none', door_type: 'none', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
+        edge_banding_mm: 1.0,
+        shelves: [],
+        accessories: [],
+        // 내부 폭 = 1200 - 36 = 1164mm → 분할 at 388mm, 788mm
+        vertical_dividers: [
+          { x: 388, thickness: 18 },
+          { x: 788, thickness: 18 }
+        ],
+        // 셀 0 (좌, 370mm): 선반 2개
+        // 셀 1 (중, 370mm): 서랍 3개
+        // 셀 2 (우, 376mm): 선반 2개
+        cell_shelves: [
+          { cell: 0, height_from_bottom: 320, thickness: 18, depth_inset: 0 },
+          { cell: 0, height_from_bottom: 640, thickness: 18, depth_inset: 0 },
+          { cell: 2, height_from_bottom: 320, thickness: 18, depth_inset: 0 },
+          { cell: 2, height_from_bottom: 640, thickness: 18, depth_inset: 0 }
+        ],
+        cell_drawers: [
+          { cell: 1, count: 3, type: 'undermount', thickness: 18 }
+        ]
+      }
+    ],
+    _info: '격자형 수납장 W1200×D400×H1050 | 좌우 선반칸 + 중앙 서랍 3단'
+  },
 
   // ── 수평 런 모드 프리셋 ───────────────────────────────────────────────────
 
+  kitchen_run: {
+    name: '주방 런 1800',
+    furniture_type: 'kitchen_run',
+    width: 1800, max_depth: 580, base_height: 80,
+    material: 'LPM',
+    run_mode: true,
+    run_height: 780,          // 작업대 하부 내부 높이 (받침80+본체780+상판20=880mm)
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: { thickness: 20 },
+    // 수평 배열: 600(서랍) + 600(선반도어) + 600(선반도어)
+    // 총 외부 폭: 18(EP좌) + 1800 + 18(EP우) = 1836mm
+    // 총 외부 높이: 80 + 660 + 20 = 760mm (작업대 높이)
+    modules: [
+      { kind: 'drawer_module', width: 600, depth: 580, height: 780,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        drawer_count: 3, drawer_type: 'undermount', drawer_thickness: 20,
+        door_material: 'LPM', handle_type: 'channel', material: 'LPM', edge_banding_mm: 1.0
+      },
+      { kind: 'shelf_module', width: 600, depth: 580, height: 780,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
+        edge_banding_mm: 1.0,
+        shelves: [{ height_from_bottom: 300, thickness: 18, depth_inset: 20 }],
+        accessories: []
+      },
+      { kind: 'shelf_module', width: 600, depth: 580, height: 780,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
+        edge_banding_mm: 1.0,
+        shelves: [{ height_from_bottom: 300, thickness: 18, depth_inset: 20 }],
+        accessories: []
+      }
+    ],
+    _info: '주방 런 1800mm | 서랍(600)+수납(600)+수납(600). 런높이 780 → 작업대 880mm'
+  },
+
   // ── 침대장 (베드 서라운드) ────────────────────────────────────────────
+
+  bed_surround: {
+    name: '침대장',
+    furniture_type: 'bed_surround',
+    width: 2800, max_depth: 580, base_height: 80,
+    has_kickboard: true,
+    material: 'LPM',
+    run_mode: true,
+    run_height: 2020,   // 80(받침) + 2020(타워) = 2100mm 전체 높이
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: null,    // 전고 타워 — 상판 없음
+    // 좌타워 600 + 침대 공간 1600(퀸사이즈) + 우타워 600 = 2800mm
+    modules: [
+      { kind: 'shelf_module', width: 600, depth: 580, height: 2020,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', handle_hole_mm: 128,
+        door_mount: 'overlay', material: 'LPM', edge_banding_mm: 1.0,
+        shelves: [
+          { height_from_bottom: 500, thickness: 18, depth_inset: 20 },
+          { height_from_bottom: 1000, thickness: 18, depth_inset: 20 }
+        ],
+        accessories: [
+          { kind: 'hanging_rod', height_from_bottom: 1932, depth_inset: 75, diameter: 32 }
+        ],
+        vertical_dividers: [], cell_shelves: [], cell_drawers: []
+      },
+      { kind: 'bed_gap', width: 1600, label: '침대 공간 (퀸 1600mm)',
+        storage: true, platform_height: 350, bed_depth: 2000,
+        drawer_count: 2, drawer_side: 'foot', lift_up_storage: false,
+        material: 'LPM', door_material: 'LPM' },
+      { kind: 'shelf_module', width: 600, depth: 580, height: 2020,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', handle_hole_mm: 128,
+        door_mount: 'overlay', material: 'LPM', edge_banding_mm: 1.0,
+        shelves: [
+          { height_from_bottom: 400, thickness: 18, depth_inset: 20 },
+          { height_from_bottom: 800, thickness: 18, depth_inset: 20 }
+        ],
+        accessories: [],
+        vertical_dividers: [], cell_shelves: [], cell_drawers: []
+      }
+    ],
+    _info: '침대장 W2800 (좌타워600 + 퀸침대1600 + 우타워600) | 전고 H2100mm'
+  },
+
+  bed_surround_with_bridge: {
+    name: '침대장+브릿지',
+    furniture_type: 'bed_surround_with_bridge',
+    width: 2800, max_depth: 580, base_height: 80,
+    has_kickboard: true,
+    material: 'LPM',
+    run_mode: true,
+    run_height: 1200,   // 하부 타워 높이 (80+1200=1280mm → 침대 헤드와 같은 높이)
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: { thickness: 18 },  // 브릿지 상판 (타워 위를 잇는 가로 패널)
+    modules: [
+      { kind: 'shelf_module', width: 600, depth: 580, height: 1200,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', handle_hole_mm: 128,
+        door_mount: 'overlay', material: 'LPM', edge_banding_mm: 1.0,
+        shelves: [{ height_from_bottom: 500, thickness: 18, depth_inset: 20 }],
+        accessories: [],
+        vertical_dividers: [], cell_shelves: [], cell_drawers: []
+      },
+      { kind: 'bed_gap', width: 1600, label: '침대 공간 (퀸 1600mm)',
+        storage: true, platform_height: 350, bed_depth: 2000,
+        drawer_count: 2, drawer_side: 'foot', lift_up_storage: false,
+        material: 'LPM', door_material: 'LPM' },
+      { kind: 'drawer_module', width: 600, depth: 580, height: 1200,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        drawer_count: 3, drawer_type: 'undermount', drawer_thickness: 20,
+        door_material: 'LPM', handle_type: 'channel', handle_hole_mm: 128,
+        material: 'LPM', edge_banding_mm: 1.0
+      }
+    ],
+    _info: '침대장+브릿지 W2800 | 좌타워선반 + 퀸침대공간 + 우타워서랍3단. 상부 브릿지 연결'
+  },
 
   // ── 자녀방 (Children's Room) ─────────────────────────────────────────
   // 보고서 기준 치수: 책상고 750mm, 붙박이장 2100mm, 상부장 H400 D280mm
+
+  kids_wardrobe: {
+    name: '자녀방 붙박이장',
+    furniture_type: 'kids_wardrobe',
+    width: 1200, max_depth: 580, base_height: 50,
+    wardrobe_layout: 'double',   // 내부 구성: 이단옷장 (아이 옷은 짧아 행거 2단) — 아래 '내부 구성'에서 변경
+    has_kickboard: true,
+    material: 'LPM',
+    run_mode: false,
+    ep: { left: false, right: false, thickness: 20, cover_fronts: false },   // 도어가 측면 EP 앞까지 덮음
+    top_panel: null,
+    // 총 높이: 50(받침) + 2250(몸통) = 2300mm
+    modules: [
+      { kind: 'shelf_module', width: 1160, depth: 580, height: 2250,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', handle_hole_mm: 128,
+        door_mount: 'overlay', material: 'LPM', edge_banding_mm: 1.0,
+        shelves: [], accessories: [],
+        vertical_dividers: [], cell_shelves: [], cell_drawers: []
+      }
+    ],
+    _info: '자녀방 붙박이장 W1200×D580×H2300 | 이단옷장(행거 2단) + 상부 선반 · 내부 구성은 아래에서 변경'
+  },
+
+  kids_upper_open: {
+    name: '오픈 상부장',
+    furniture_type: 'kids_upper_open',
+    width: 1200, max_depth: 280, base_height: 0,
+    has_kickboard: false,
+    material: 'LPM',
+    run_mode: false,
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: null,
+    // 총 높이: 400mm — 책상·수납장 상부 벽면 설치용
+    modules: [
+      { kind: 'shelf_module', width: 1200, depth: 280, height: 400,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'none', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', handle_hole_mm: 128,
+        door_mount: 'overlay', material: 'LPM', edge_banding_mm: 1.0,
+        // 1170 스팬 15T 처짐 → 중앙 분할 + 셀 선반 (실무 보정)
+        shelves: [],
+        accessories: [],
+        vertical_dividers: [{ x: 577.5, thickness: 15 }],
+        cell_shelves: [
+          { cell: 0, height_from_bottom: 200, thickness: 15, depth_inset: 20 },
+          { cell: 1, height_from_bottom: 200, thickness: 15, depth_inset: 20 }
+        ],
+        cell_drawers: []
+      }
+    ],
+    _info: '오픈 상부장 W1200×D280×H400 | 책상/수납장 상부 오픈 선반. 하부 LED 조명 권장'
+  },
+
+  kids_upper_door: {
+    name: '도어 상부장',
+    furniture_type: 'kids_upper_door',
+    width: 1200, max_depth: 280, base_height: 0,
+    has_kickboard: false,
+    material: 'LPM',
+    run_mode: false,
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: null,
+    // 총 높이: 400mm — 방진+정리 효과 도어형
+    modules: [
+      { kind: 'shelf_module', width: 1200, depth: 280, height: 400,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', handle_hole_mm: 128,
+        door_mount: 'overlay', material: 'LPM', edge_banding_mm: 1.0,
+        // 1170 스팬 15T 처짐 → 중앙 분할 + 셀 선반 (실무 보정)
+        shelves: [],
+        accessories: [],
+        vertical_dividers: [{ x: 577.5, thickness: 15 }],
+        cell_shelves: [
+          { cell: 0, height_from_bottom: 200, thickness: 15, depth_inset: 20 },
+          { cell: 1, height_from_bottom: 200, thickness: 15, depth_inset: 20 }
+        ],
+        cell_drawers: []
+      }
+    ],
+    _info: '도어 상부장 W1200×D280×H400 | 양개여닫이 도어. 방진·정리 우수. 책상 상부 설치용'
+  },
+
+  kids_desk_upper: {
+    name: '자녀방 책상+상부장',
+    furniture_type: 'kids_desk_upper',
+    width: 1200, max_depth: 600, base_height: 0,
+    has_kickboard: false,
+    material: 'LPM',
+    run_mode: false,
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: null,
+    // 총 높이: 750(책상) + 500(개방 이격) + 400(상부장) = 1650mm
+    // 보고서 기준: 책상고 750mm, 상부장 D280 H400mm, 책상면~상부장 이격 500mm
+    modules: [
+      { kind: 'desk_module', width: 1200, depth: 600, height: 750,
+        top_thickness: 25, leg_type: 'box',
+        leg_w: 30, leg_d: 30, leg_inset_x: 30, leg_inset_y: 30,
+        has_modesty_panel: false, pedestal: null, under_unit: null,
+        material: 'LPM', edge_banding_mm: 1.0
+      },
+      { kind: 'v_gap', height: 500, label: '책상 위 개방 (모니터/작업 공간)' },
+      { kind: 'shelf_module', width: 1200, depth: 280, height: 400,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', handle_hole_mm: 128,
+        door_mount: 'overlay', material: 'LPM', edge_banding_mm: 1.0,
+        // 1170 스팬 15T 처짐 → 중앙 분할 + 셀 선반 (실무 보정)
+        shelves: [],
+        accessories: [],
+        vertical_dividers: [{ x: 577.5, thickness: 15 }],
+        cell_shelves: [
+          { cell: 0, height_from_bottom: 200, thickness: 15, depth_inset: 20 },
+          { cell: 1, height_from_bottom: 200, thickness: 15, depth_inset: 20 }
+        ],
+        cell_drawers: []
+      }
+    ],
+    _info: '자녀방 책상+상부장 W1200 | 책상750 + 개방500 + 도어상부장400mm. 총 H1650mm. 초등~중학생 권장'
+  },
+
+  kids_bed_single: {
+    name: '자녀방 싱글 침대장',
+    furniture_type: 'kids_bed_single',
+    width: 2000, max_depth: 580, base_height: 80,
+    has_kickboard: true,
+    material: 'LPM',
+    run_mode: true,
+    run_height: 2020,   // 80(받침) + 2020(타워) = 2100mm
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: null,
+    // 좌선반 500 + 싱글침대 1000 + 우서랍 500 = 2000mm
+    modules: [
+      { kind: 'shelf_module', width: 500, depth: 580, height: 2020,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', handle_hole_mm: 128,
+        door_mount: 'overlay', material: 'LPM', edge_banding_mm: 1.0,
+        shelves: [
+          { height_from_bottom: 400, thickness: 18, depth_inset: 20 },
+          { height_from_bottom: 900, thickness: 18, depth_inset: 20 },
+          { height_from_bottom: 1400, thickness: 18, depth_inset: 20 }
+        ],
+        accessories: [],
+        vertical_dividers: [], cell_shelves: [], cell_drawers: []
+      },
+      { kind: 'bed_gap', width: 1000, label: '싱글 침대 공간 (1000mm)',
+        storage: true, platform_height: 350, bed_depth: 2000,
+        drawer_count: 2, drawer_side: 'foot', lift_up_storage: false,
+        material: 'LPM', door_material: 'LPM' },
+      { kind: 'drawer_module', width: 500, depth: 580, height: 2020,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        drawer_count: 4, drawer_type: 'undermount', drawer_thickness: 20,
+        door_material: 'LPM', handle_type: 'channel', handle_hole_mm: 128,
+        material: 'LPM', edge_banding_mm: 1.0
+      }
+    ],
+    _info: '자녀방 싱글침대장 W2000 (수납500 + 싱글1000 + 서랍4단500) | 전고 H2100mm'
+  },
 
   // ── 신규 프리셋 ──────────────────────────────────────────────────────────
 
@@ -321,6 +1006,102 @@ const FURNITURE_PRESETS = {
     _info: '오픈 선반장 W900×D300×H1200 | 도어 없음, 선반 4개 (250mm 피치). 책·소품 진열용'
   },
 
+  corner_unit: {
+    name: '코너 수납장',
+    furniture_type: 'corner_unit',
+    width: 600, max_depth: 600, base_height: 0,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: { thickness: 18 },
+    // 총 높이: 0 + 782 + 18 = 800mm — 정사각형 오픈 선반, 코너 배치용
+    modules: [
+      { kind: 'shelf_module', width: 600, depth: 600, height: 782,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'none', door_type: 'none', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', handle_hole_mm: 128,
+        door_side_gap_mm: 2,
+        suppress_left_side: false, suppress_right_side: false,
+        material: 'LPM', edge_banding_mm: 1.0,
+        shelves: [
+          { height_from_bottom: 250, thickness: 18, depth_inset: 0 },
+          { height_from_bottom: 500, thickness: 18, depth_inset: 0 }
+        ],
+        accessories: [], vertical_dividers: [], cell_shelves: [], cell_drawers: []
+      }
+    ],
+    _info: '코너 수납장 W600×D600×H800 | 정사각형 오픈선반 2단. EP 없음. 코너에 수동 배치'
+  },
+
+  desk_with_side_cabinet: {
+    name: '책상 + 사이드 수납장',
+    furniture_type: 'desk_with_side_cabinet',
+    width: 1800, max_depth: 700, base_height: 0,
+    material: 'LPM',
+    run_mode: true, run_height: 725,  // 상판 포함 총 750mm
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: { thickness: 25 },
+    // 런 모드: 책상(1200) + 사이드 수납장(600)
+    modules: [
+      { kind: 'desk_module', width: 1200, depth: 700, height: 725,
+        top_thickness: 25, leg_type: 'box',
+        leg_w: 30, leg_d: 30, leg_inset_x: 30, leg_inset_y: 30,
+        has_modesty_panel: false, pedestal: null, under_unit: null,
+        material: 'LPM', edge_banding_mm: 1.0
+      },
+      { kind: 'shelf_module', width: 600, depth: 400, height: 725,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', handle_hole_mm: 128,
+        door_side_gap_mm: 2,
+        suppress_left_side: false, suppress_right_side: false,
+        material: 'LPM', edge_banding_mm: 1.0,
+        shelves: [{ height_from_bottom: 350, thickness: 18, depth_inset: 20 }],
+        accessories: [], vertical_dividers: [], cell_shelves: [], cell_drawers: []
+      }
+    ],
+    _info: '책상+사이드장 W1800 | 런모드: 책상1200 + 사이드수납장600. 총높이 750mm'
+  },
+
+  living_run: {
+    name: '거실 수납 런',
+    furniture_type: 'living_run',
+    width: 2400, max_depth: 450, base_height: 80,
+    material: 'LPM',
+    run_mode: true,
+    run_height: 420,   // 80(받침) + 420 + 25(상판) = 525mm — 거실 로우보드
+    ep: { left: false, right: false, thickness: 20 },
+    top_panel: { thickness: 25 },
+    // 수평 배열: 600(서랍2단) + 1200(도어수납) + 600(도어수납)
+    modules: [
+      { kind: 'drawer_module', width: 600, depth: 450, height: 420,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        drawer_count: 2, drawer_type: 'undermount', drawer_thickness: 20,
+        door_material: 'LPM', handle_type: 'channel', material: 'LPM', edge_banding_mm: 1.0
+      },
+      { kind: 'shelf_module', width: 1200, depth: 450, height: 420,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', handle_hole_mm: 128,
+        door_side_gap_mm: 2,
+        suppress_left_side: false, suppress_right_side: false,
+        material: 'LPM', edge_banding_mm: 1.0,
+        // 1164 스팬 18T 처짐 → 25T (실무 보정)
+        shelves: [{ height_from_bottom: 200, thickness: 25, depth_inset: 0 }],
+        accessories: [], vertical_dividers: [], cell_shelves: [], cell_drawers: []
+      },
+      { kind: 'shelf_module', width: 600, depth: 450, height: 420,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 20,
+        door_material: 'LPM', handle_type: 'none', handle_hole_mm: 128,
+        door_side_gap_mm: 2,
+        suppress_left_side: false, suppress_right_side: false,
+        material: 'LPM', edge_banding_mm: 1.0,
+        shelves: [{ height_from_bottom: 200, thickness: 18, depth_inset: 0 }],
+        accessories: [], vertical_dividers: [], cell_shelves: [], cell_drawers: []
+      }
+    ],
+    _info: '거실 수납 런 W2400×D450×H525 | 서랍(600)+도어수납(1200+600). 핸들리스 채널. 로우보드'
+  }
 };
 
 /* ====================================================================== */
@@ -492,7 +1273,10 @@ const kabinet = (() => {
     // 기본 프리셋 (카테고리별 폴더)
     Array.from(sel.querySelectorAll('optgroup')).forEach((grp, gi) => {
       if (grp.id === 'user-preset-group') return;
-      const opts = Array.from(grp.querySelectorAll('option')).filter(o => match(o.textContent));
+      // 런 모드 프리셋은 완성될 때까지 숨김 (RUN_MODE_ENABLED = true 로 복구)
+      const opts = Array.from(grp.querySelectorAll('option')).filter(o =>
+        match(o.textContent) && !BUNDLED_PRESETS.includes(o.value) &&
+        (RUN_MODE_ENABLED || !(FURNITURE_PRESETS[o.value] || {}).run_mode));
       if (!opts.length) return;
       const title = grp.label.replace(/^[─\s]+/, '');
       html += folder('g' + gi + ':' + title, title,
@@ -528,10 +1312,8 @@ const kabinet = (() => {
       let count = 0;
       fnames.forEach(f => {
         count += byFolder[f].length;
-        const rows = byFolder[f].map(it =>
-          `<button type="button" class="preset-entry" title="${escAttr(it.name)} — 클릭 후 모델에서 놓을 곳 클릭" ` +
-          `data-lib="${escAttr(it.id)}">${esc(it.name)}</button>`).join('');
-        inner += folder('lib:' + f, f, rows, byFolder[f].length, ' sb-sub');
+        // 가구 목록은 오른쪽 보관함 화면에만 (사이드바와 중복 표시하지 않음) — 폴더 클릭 → 그 폴더 열기
+        inner += folder('lib:' + f, f, '', byFolder[f].length, ' sb-sub');
       });
       if (count || !q) html += folder('library', '내 가구 보관함', inner, count);
     }
@@ -599,7 +1381,7 @@ const kabinet = (() => {
   let commonSettings = {};
   const COMMON_NUM = ['body_thickness', 'back_thickness', 'door_thickness', 'shelf_thickness', 'ep_thickness'];
   const COMMON_GAP = { gap_top: 'top', gap_bottom: 'bottom', gap_outside: 'outside', gap_between: 'between', gap_front: 'front_offset' };
-  const COMMON_TXT = ['material', 'door_material', 'handle_type'];
+  const COMMON_TXT = ['material', 'door_material', 'handle_type', 'handle_pos'];
   function _cleanCommon(c) {
     const out = {};
     COMMON_NUM.forEach(k => { const v = parseFloat(c && c[k]); if (v > 0 && v <= 100) out[k] = v; });
@@ -627,7 +1409,8 @@ const kabinet = (() => {
       if (c.door_material) m.door_material = c.door_material;
       if (c.body_thickness) m.body_thickness = c.body_thickness;
       if (c.back_thickness) m.back_thickness = c.back_thickness;
-      if (c.handle_type) m.handle_type = c.handle_type;
+      if (c.handle_type && !(kind === 'drawer_module' && c.handle_type === 'push_open')) m.handle_type = c.handle_type;   // 서랍은 푸시형 불가
+      if (c.handle_pos) m.handle_pos = c.handle_pos;
       if ('gap_outside' in c && kind === 'shelf_module') m.door_side_gap_mm = c.gap_outside;
       if (c.door_thickness) {
         if (kind === 'shelf_module') m.door_thickness = c.door_thickness;
@@ -1078,7 +1861,11 @@ const kabinet = (() => {
     long:        '긴옷장 — 상부 선반 + 행거 1단 (코트·원피스)',
     double:      '이단옷장 — 행거 2단 (셔츠·바지)',
     drawer_hang: '외부 서랍 + 행거 — 하부 서랍(도어 밖) + 상부 도어·행거',
-    shelves:     '선반장 — 선반 여러 단 (개킨 옷·이불)'
+    shelves:     '선반장 — 선반 여러 단 (개킨 옷·이불)',
+    // 아래 3가지: 오톤도 붙박이장 구성표(도어 3~8개 기본 내부구성 그림)에서 가져온 몸통 구성
+    long_drawer: '긴옷 + 하부 서랍 — 상부 선반·행거 + 바닥 내부서랍 3단',
+    hang_shelf:  '행거 + 하부 선반칸 — 상부 행거, 중간 선반 아래는 선반 수납',
+    hang_split:  '행거 + 하부 분할 — 상부 행거, 아래는 좌 칸 + 우 선반 4단'
   };
   const WARDROBE_DEFAULT_OPTS = { top_space: 330, drawer_h: 640, drawer_count: 3, shelf_count: 6, lower_rod: 940,
                                   inner: null };
@@ -1096,7 +1883,7 @@ const kabinet = (() => {
     return {
       body_thickness: m.body_thickness || 18, back_thickness: m.back_thickness || 9, has_back: true,
       door_thickness: m.door_thickness || 20, door_material: m.door_material || state.material || 'LPM',
-      material: m.material || state.material || 'LPM', handle_type: m.handle_type || 'push_open',
+      material: m.material || state.material || 'LPM', handle_type: m.handle_type || 'none',
       edge_banding_mm: m.edge_banding_mm || 1.0, depth: state.max_depth || 580
     };
   }
@@ -1141,6 +1928,29 @@ const kabinet = (() => {
         doorCase(upper, { shelves: [shelf(upper - t - o.top_space)], accessories: [rod(upper - t - o.top_space - 70)] })
       ];
     }
+    if (layout === 'long_drawer') {     // 도어 3·4개 그림의 왼쪽 몸통: 긴옷 행거 + 바닥 서랍 3단 (도어 안)
+      const idr = inner || INNER_DRAWER_PRESETS.floor3.v;
+      return [doorCase(H, { shelves: [shelf(topShelf)], accessories: [rod(topShelf - 70)],
+                            inner_drawers: Object.assign({ cover: true }, idr) })];
+    }
+    if (layout === 'hang_shelf' || layout === 'hang_split') {
+      // 중간 선반으로 위(행거)·아래(수납)를 나눔 — 중간 선반 높이는 lower_rod 값을 같이 씀
+      const mid = Math.max(o.lower_rod + 60, Math.round(H * 0.47));
+      const extra = { shelves: [shelf(topShelf), shelf(mid)], accessories: [rod(topShelf - 70)] };
+      if (layout === 'hang_shelf') {     // 도어 3·4개 오른쪽 몸통: 아래 칸에 선반 1
+        extra.shelves.push(shelf(t + (mid - t) / 2));
+        return [doorCase(H, withInner(extra))];
+      }
+      // 도어 5·6개 그림: 아래를 세로로 나눠 왼쪽은 통 칸, 오른쪽은 선반 4단 (좁은 1도어 폭이면 분할 없이 선반칸)
+      const innerW = w - 2 * t;
+      if (innerW < 700) { extra.shelves.push(shelf(t + (mid - t) / 2)); return [doorCase(H, extra)]; }
+      const dx = Math.round(innerW / 2 - t / 2);
+      extra.vertical_dividers = [{ x: dx, thickness: t, top: mid }];
+      const step = (mid - t) / 4;
+      extra.cell_shelves = [1, 2, 3].map(i => ({ cell: 1, height_from_bottom: Math.round(t + step * i), thickness: t, depth_inset: 20 }));
+      extra.cell_drawers = [];
+      return [doorCase(H, extra)];
+    }
     return [doorCase(H, withInner({ shelves: [shelf(topShelf)], accessories: [rod(topShelf - 70)] }))];   // long
   }
 
@@ -1153,6 +1963,10 @@ const kabinet = (() => {
   function applyWardrobeLayout(layout, keepRender) {
     if (!WARDROBE_LAYOUTS[layout]) { delete state.wardrobe_layout; renderWardrobeRow(); return; }
     state.wardrobe_layout = layout;
+    // 긴옷 + 하부 서랍: 내부서랍이 비어 있으면 바닥 3단을 기본으로 넣는다 → 아래 '서랍 단수·1단 높이' 칸에서 수정
+    if (layout === 'long_drawer' && !(state.wardrobe_opts && state.wardrobe_opts.inner)) {
+      state.wardrobe_opts = Object.assign({}, state.wardrobe_opts, { inner: Object.assign({}, INNER_DRAWER_PRESETS.floor3.v) });
+    }
     state.modules = buildWardrobe(layout, _moduleTotalH());
     if (keepRender) return;
     renderModuleList();
@@ -1198,9 +2012,10 @@ const kabinet = (() => {
       `onchange="kabinet.setWardrobeOpt('${k}', this.value)"></label>`;
     let html = num('top_space', '상부 선반 위 공간', 150, 800);
     if (lay === 'double') html += num('lower_rod', '아래 행거 높이', 600, 1300);
+    if (lay === 'hang_shelf' || lay === 'hang_split') html += num('lower_rod', '중간 선반 높이', 600, 1300);
     if (lay === 'shelves') html = num('shelf_count', '선반 수', 1, 12);
     if (lay === 'drawer_hang') html += num('drawer_h', '외부 서랍장 높이', 300, 1200) + num('drawer_count', '외부 서랍 단수', 1, 6);
-    if (lay !== 'drawer_hang') {
+    if (lay !== 'drawer_hang' && lay !== 'hang_split') {
       // 내부 서랍 (도어 안쪽): 예시 선택 + 직접 편집
       const cur = o.inner;
       let key = 'none';
@@ -1302,6 +2117,18 @@ const kabinet = (() => {
     setStatus('재생성 중…', '');
     const payload = JSON.stringify({ spec: state, entityID: currentEntityID });
     sketchup['kabinet:regenerate'](payload);
+  }
+
+  // 수정하던 가구가 모델에서 지워졌을 때: 연결을 끊고 '가구 생성'으로 되돌린다
+  function clearEntity() {
+    currentEntityID = null;
+    const b = document.getElementById('btn-apply');
+    if (b) b.textContent = '가구 생성';
+  }
+  function regenerateMissing() {
+    clearEntity();
+    setStatus('수정하던 가구가 모델에 없어 새로 생성합니다.', '');
+    generate();
   }
 
   function loadSelection() {
@@ -1474,7 +2301,7 @@ const kabinet = (() => {
       mod = { kind, width: w, depth: d, height: 200,
               body_thickness: 18, back_thickness: 9, has_back: true,
               drawer_count: 2, drawer_type: 'undermount', drawer_thickness: 20,
-              door_material: mat, handle_type: 'none', handle_hole_mm: 128,
+              door_material: mat, handle_type: 'channel', handle_hole_mm: 128,
               material: mat, edge_banding_mm: 1.0 };
     } else if (kind === 'desk_module') {
       mod = { kind, width: w, depth: d || 700, height: 750,
@@ -1937,6 +2764,7 @@ const kabinet = (() => {
     updateTotalHeight();
     renderPreview();
     renderPresetSidebar();
+    showView('common'); renderCommonForm();   // 시작 화면 = 가구 공통사항
     // 저장 프리셋 → 통합 드롭다운 채우기 (SketchUp 콜백 가능할 때만)
     try { if (typeof sketchup !== 'undefined') sketchup['kabinet:list_presets'](''); } catch (e) {}
   });
@@ -1944,7 +2772,7 @@ const kabinet = (() => {
   // ── Public API ───────────────────────────────────────────────────────
   return {
     switchTab, onField, onTopPanelToggle, onTopPanelField, onEP, onEpTopFlush,
-    generate, regenerate, smartApply, loadSelection, loadSpec,
+    generate, regenerate, smartApply, loadSelection, loadSpec, clearEntity, regenerateMissing,
     exportDrawings, exportCutList, exportDXF, exportGroupDXF, loadSelectionForExport,
     savePreset, listPresets, loadPresets, applyPreset, deletePreset,
     addModule, removeModule, moveModule,

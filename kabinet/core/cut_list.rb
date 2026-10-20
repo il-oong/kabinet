@@ -112,12 +112,30 @@ module Kabinet
             rows << mkrow("#{prefix}-측판", md, mh, bt, n_sides, mat, '세로결',
                           edge: '앞면', note: '좌우 측판')
           end
+          # 찬넬: 지오메트리(Joinery channel_top / ShelfModule#channel?)와 같은 조건·치수
+          ch = Kabinet::Core::Gaps.channel?(m) &&
+               (m['kind'] == 'drawer_module' ||
+                (m['door_config'].to_s != 'none' && m['door_mount'].to_s != 'inset' &&
+                 (m['door_type'] || 'swing') == 'swing'))
+          top_cut = ch ? C::CHANNEL_POCKET_D_MM + bt : 0.0
           unless shared_bottom
             rows << mkrow("#{prefix}-하판", inner_w, md, bt, 1, mat, '가로결',
                           edge: '앞면', note: '하판')
           end
-          rows << mkrow("#{prefix}-상판", inner_w, md, bt, 1, mat, '가로결',
-                        edge: '앞면', note: shared_bottom ? '상판(아래 모듈과 공유)' : '상판')
+          if m['open_top']
+            rows << mkrow("#{prefix}-목대", inner_w, C::TOP_RAIL_W_MM, bt, 2, mat, '가로결',
+                          edge: '앞면', note: '상부 목대 앞·뒤 (천판 없음 — 상판은 따로)')
+          else
+            rows << mkrow("#{prefix}-상판", inner_w, md - top_cut, bt, 1, mat, '가로결',
+                          edge: '앞면', note: ch ? "상판 (찬넬 — 앞 #{top_cut.round}mm 물림)" : (shared_bottom ? '상판(아래 모듈과 공유)' : '상판'))
+          end
+          if ch
+            n_rail = m['kind'] == 'drawer_module' ? [(m['drawer_count'] || 1).to_i, 1].max : 1
+            rows << mkrow("#{prefix}-찬넬이마", mw, C::CHANNEL_RAIL_H_MM, bt, n_rail, mat, '가로결',
+                          edge: '아랫면', note: "찬넬 이마 (몸통 앞 #{C::CHANNEL_POCKET_D_MM}mm 뒤, 측판 위를 지나 끝까지) · 측판 앞 #{(C::CHANNEL_POCKET_D_MM + bt).round}×#{C::CHANNEL_RAIL_H_MM} 따냄 가공")
+            rows << mkrow("#{prefix}-찬넬받침", mw, C::CHANNEL_POCKET_D_MM, bt, n_rail, mat, '가로결',
+                          edge: '앞면', note: '찬넬 받침 (이마 아랫선 ~ 몸통 앞면)')
+          end
           if m.fetch('has_back', true)
             rows << mkrow("#{prefix}-뒷판", inner_w, mh - 2.0 * bt, bkt, 1, '합판', '세로결',
                           edge: '-', note: "끼움식(전면 #{C::BACK_RECESS_MM}mm 후퇴)")
@@ -126,6 +144,10 @@ module Kabinet
           case m['kind']
           when 'shelf_module'
             rows.concat(door_rows(m, prefix, mw, mh, bt, mat_drw))
+            if m['center_stile']
+              rows << mkrow("#{prefix}-중앙목대", C::CENTER_STILE_W_MM, mh - 2.0 * bt, bt, 1, mat, '세로결',
+                            edge: '앞면', note: '앞면 중앙 세로 보강목 (처짐 방지)')
+            end
             rows.concat(shelf_rows(m, prefix, inner_w, md, bkt, mat))
             rows.concat(divider_rows(m, prefix, md, mh, bt, bkt, mat))
             rows.concat(cell_shelf_rows(m, prefix, inner_w, md, bkt, mat))
@@ -245,7 +267,7 @@ module Kabinet
         dt        = (m['door_thickness'] || 18).to_f
         door_type = m['door_type'] || 'swing'
         mount     = m['door_mount'] || 'overlay'
-        side_gap  = (m['door_side_gap_mm'] || Kabinet::Core::Gaps.outside).to_f
+        side_gap  = (m['door_side_gap_mm'] || Kabinet::Core::Gaps.outside).to_f - m['door_over_ep_mm'].to_f
 
         doors =
           case door_type
@@ -284,8 +306,8 @@ module Kabinet
             else
               FIT.swing_doors(mw, mh, dc,
                               side_gap:   side_gap,
-                              top_gap:    Kabinet::Core::Gaps.top.to_f,
-                              bottom_gap: Kabinet::Core::Gaps.bottom.to_f,
+                              top_gap:    Kabinet::Core::Gaps.top_for(m),
+                              bottom_gap: Kabinet::Core::Gaps.bottom_for(m),
                               center_gap: Kabinet::Core::Gaps.between.to_f)
             end
           end
@@ -305,7 +327,7 @@ module Kabinet
           st    = (s['thickness']   || 18).to_f
           inset = (s['depth_inset'] || 20).to_f
           sw    = inner_w - C::SHELF_SIDE_PLAY_MM   # 끼임 방지 여유 (3D와 동일)
-          sd    = md - inset - bkt - C::BACK_RECESS_MM
+          sd    = md - inset - bkt - C::BACK_RECESS_MM - (m['center_stile'] ? m['body_thickness'].to_f : 0.0)
           rows << mkrow("#{prefix}-선반#{si + 1}", sw, sd, st, 1, mat, '가로결',
                         edge: '앞면', note: '가동선반')
         end
@@ -317,9 +339,9 @@ module Kabinet
         (m['vertical_dividers'] || []).each_with_index do |d, di|
           dt_   = (d['thickness'] || bt).to_f
           div_d = md - bkt - C::BACK_RECESS_MM
-          div_h = mh - 2.0 * bt
+          div_h = d['top'].to_f > 0 ? [d['top'].to_f - bt, mh - 2.0 * bt].min : mh - 2.0 * bt
           rows << mkrow("#{prefix}-세로분할판#{di + 1}", div_d, div_h, dt_, 1, mat, '세로결',
-                        edge: '앞면', note: '세로 분할판')
+                        edge: '앞면', note: d['top'].to_f > 0 ? '세로 분할판 (하부만)' : '세로 분할판')
         end
         rows
       end
@@ -418,24 +440,40 @@ module Kabinet
         df_t = (m['drawer_thickness'] || 18).to_f
 
         fronts = FIT.drawer_fronts(mw, mh, dc,
-                                   side_gap:   Kabinet::Core::Gaps.drawer_gap.to_f,
-                                   top_gap:    Kabinet::Core::Gaps.top.to_f,
-                                   bottom_gap: Kabinet::Core::Gaps.bottom.to_f,
-                                   reveal:     Kabinet::Core::Gaps.drawer_between.to_f)
-        f = fronts.first
-        rows << mkrow("#{prefix}-전판", f[:w], f[:h], df_t, dc, mat_drw, '세로결',
-                      edge: '4면', note: "서랍 전판 ×#{dc} (오버레이)")
+                                   side_gap:   Kabinet::Core::Gaps.drawer_side_for(m),
+                                   top_gap:    Kabinet::Core::Gaps.top_for(m),
+                                   bottom_gap: Kabinet::Core::Gaps.bottom_for(m),
+                                   reveal:     Kabinet::Core::Gaps.drawer_between_for(m),
+                                   ratios:     m['drawer_ratios'])
+        # 높이가 같은 전판끼리 수량으로 묶음
+        fronts.group_by { |f| f[:h].round(1) }.each do |_h, fs|
+          f = fs.first
+          rows << mkrow("#{prefix}-전판", f[:w], f[:h], df_t, fs.size, mat_drw, '세로결',
+                        edge: '4면', note: "서랍 전판 ×#{fs.size} (오버레이)")
+        end
 
         open_w      = mw - 2.0 * bt
         open_h      = mh - 2.0 * bt
         inner_depth = md - bkt - C::BACK_RECESS_MM
         # 박스 깊이 상한 (수납침대 — 지오메트리와 동일)
         inner_depth = [inner_depth, m['box_depth_mm'].to_f].min if m['box_depth_mm']
-        comp_h      = (open_h - Kabinet::Core::Gaps.drawer_between * (dc - 1)) / dc
-        box = FIT.drawer_box_mm(open_w_mm: open_w, comp_h_mm: comp_h,
-                                inner_depth_mm: inner_depth,
-                                type: m['drawer_type'] || 'undermount')
-        rows.concat(box_rows("#{prefix}-서랍", box, dc, walls: 4))
+        between = Kabinet::Core::Gaps.drawer_between_for(m)
+        comps   = FIT.split_by_ratio(open_h - between * (dc - 1), dc, m['drawer_ratios'])
+        clears  = FIT.channel_box_clears_mm(Kabinet::Core::Gaps.channel?(m), fronts, comps, bt, between)
+        boxes = comps.each_with_index.map do |ch, i|
+          FIT.drawer_box_mm(open_w_mm: open_w, comp_h_mm: ch - clears[i],
+                            inner_depth_mm: inner_depth, type: m['drawer_type'] || 'undermount')
+        end
+        # 속서랍: 맨 위 칸 서랍통을 [본 서랍통, 속서랍통] 으로
+        split = m['inner_drawer'] ? FIT.inner_drawer_split_mm(boxes.last[:h]) : nil
+        if split
+          top = boxes.pop
+          rows.concat(box_rows("#{prefix}-서랍(속서랍 칸)", top.merge(h: split[0]), 1, walls: 4))
+          rows.concat(box_rows("#{prefix}-속서랍", top.merge(h: split[1]), 1, walls: 4))
+        end
+        boxes.group_by { |bx| bx[:h].round(1) }.each do |_h, bs|
+          rows.concat(box_rows("#{prefix}-서랍", bs.first, bs.size, walls: 4))
+        end
         rows
       end
 

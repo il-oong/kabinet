@@ -213,6 +213,23 @@ module Kabinet
         Kabinet::Core::Fitting.run_segments(@modules)
       end
 
+      # 모듈 그룹을 풀어서 루트 바로 아래에 '몸통 / 도어 / 서랍' 그룹이 따로 오게 한다.
+      # (가구 그룹에 한 번 들어가면 몸통과 도어를 따로 잡을 수 있도록)
+      PART_NAMES = { 'body_group' => '몸통', 'doors_group' => '도어', 'drawers_group' => '서랍' }.freeze
+
+      def flatten_module(mod_group, idx)
+        # 실시간 미리보기(Preview::Group)는 explode 가 없다 — 모듈 번호만 붙이고 그대로 둔다.
+        unless mod_group.respond_to?(:explode)
+          Kabinet::Persistence::Attributes.set(mod_group, 'module_index', idx)
+          return
+        end
+        mod_group.explode.grep(::Sketchup::Group).each do |g|
+          Kabinet::Persistence::Attributes.set(g, 'module_index', idx)
+          part = PART_NAMES[Kabinet::Persistence::Attributes.role(g).to_s]
+          g.name = "M#{idx + 1} #{part}" if part
+        end
+      end
+
       # ── STACK MODE (modules bottom → top along Z) ────────────────────────
 
       def do_stack(entities)
@@ -251,7 +268,7 @@ module Kabinet
           mod_group = build_module(m_actual).build(entities, local,
                                                    role: "#{m['kind']}_#{idx}",
                                                    suppress_bottom: idx > 0)
-          Kabinet::Persistence::Attributes.set(mod_group, 'module_index', idx)
+          flatten_module(mod_group, idx)
           current_z += m['height'].mm
         end
 
@@ -312,7 +329,7 @@ module Kabinet
             local = ::Geom::Transformation.new(
               ::Geom::Point3d.new(current_x, y_offset, @base_height.mm))
             mod_group = mod_obj.build(entities, local, role: "#{m['kind']}_#{idx}")
-            Kabinet::Persistence::Attributes.set(mod_group, 'module_index', idx)
+            flatten_module(mod_group, idx)
           elsif m['kind'] == 'bed_gap' && m['storage']
             add_storage_bed(entities, m, idx, current_x, max_d)
           end

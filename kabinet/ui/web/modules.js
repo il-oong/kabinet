@@ -168,7 +168,7 @@ function commonFields(m, i) {
 
 /* ── 서랍 모듈 필드 ─────────────────────────────────────────────────── */
 function drawerFields(m, i) {
-  const handleOpts = handleOptions(m.handle_type);
+  const handleOpts = handleOptions(m.handle_type, true);
   const bt     = m.body_thickness || 18;
   const dc     = m.drawer_count  || 1;
   const openH  = m.height - 2 * bt;
@@ -204,9 +204,13 @@ function drawerFields(m, i) {
                'value="' + (m.box_depth_mm||'') + '" min="200" max="800" placeholder="자동">' +
         '<span class="unit">mm (빈칸=레일 규격 자동)</span></div>' +
     '</details>' +
+    '<div class="field-row"><label>속서랍 (맨 위 칸 안)</label>' +
+      '<input type="checkbox" data-mod-idx="' + i + '" data-key="inner_drawer"' + (m.inner_drawer ? ' checked' : '') + '></div>' +
+    openTopField(m, i) +
     '<details><summary class="detail-summary">손잡이</summary>' +
       '<div class="field-row"><label>손잡이 타입</label>' +
         '<select data-mod-idx="' + i + '" data-key="handle_type">' + handleOpts + '</select></div>' +
+      handlePosField(m, i) +
       (showHole ?
         '<div class="field-row"><label>홀간 거리</label>' +
           '<input type="number" data-mod-idx="' + i + '" data-key="handle_hole_mm" ' +
@@ -282,6 +286,9 @@ function shelfFields(m, i) {
   // ── 도어 주요 (항상 표시) ──────────────────────────────────────────
   const doorMain =
     '<div class="main-fields">' +
+      openTopField(m, i) +
+      '<div class="field-row"><label>중앙 목대 (처짐 방지 세로목)</label>' +
+        '<input type="checkbox" data-mod-idx="' + i + '" data-key="center_stile"' + (m.center_stile ? ' checked' : '') + '></div>' +
       '<div class="field-row"><label>도어 구성</label>' +
         '<select data-mod-idx="' + i + '" data-key="door_config">' + dcOpts + '</select></div>' +
       (hasDoor
@@ -326,6 +333,7 @@ function shelfFields(m, i) {
       ? '<details><summary class="detail-summary">손잡이</summary>' +
           '<div class="field-row"><label>손잡이 타입</label>' +
             '<select data-mod-idx="' + i + '" data-key="handle_type">' + handleOpts + '</select></div>' +
+      handlePosField(m, i) +
           (showHole
             ? '<div class="field-row"><label>홀간 거리</label>' +
                 '<input type="number" data-mod-idx="' + i + '" data-key="handle_hole_mm" ' +
@@ -592,11 +600,54 @@ function deskToggleRow(label, checked, modIdx, key, customHandler) {
 }
 
 /* ── 손잡이 옵션 HTML ─────────────────────────────────────────────────── */
-function handleOptions(current) {
+// 손잡이 위치 (푸시형·없음은 위치 없음, 찬넬은 몸통 상단 ㄴ자 포켓으로 고정)
+//   도어: 가로는 항상 열리는 쪽(경첩 반대편 — 양개는 가운데). 여기서는 세로 위치만 고른다.
+//   서랍: 가로 중앙, 세로 위치만.
+function handlePosField(m, i) {
+  const t = m.handle_type || 'none';
+  if (t === 'none' || t === 'push_open') return '';
+  if (t === 'channel') {
+    return '<div class="calc-info" style="margin:0;font-size:11px;color:var(--text-dim)">' +
+      '찬넬: 전판은 평판, 윗선 24mm 내림 · 몸통 상단에 이마 62 / 포켓 38 (ㄴ자)' +
+      (m.kind === 'drawer_module' ? ' · 서랍 사이마다 같은 찬넬' : '') + '</div>';
+  }
+  const isDoor = m.kind !== 'drawer_module';
+  const all = [['auto', isDoor ? '자동 (낮은 문 상단 · 큰 문 중앙)' : '자동 (상단)'],
+               ['top','상단'],['center','중앙'],['bottom','하단']]
+    .concat(isDoor ? [['left','좌측 고정'],['right','우측 고정']] : []);
+  const cur = m.handle_pos || 'auto';
+  const opts = all.map(([v, l]) =>
+    '<option value="' + v + '"' + (cur === v ? ' selected' : '') + '>' + l + '</option>').join('');
+  const rot = m.handle_rot || 'auto';
+  const rotRow = t !== 'bar' ? '' :
+    '<div class="field-row"><label>손잡이 방향</label>' +
+    '<select data-mod-idx="' + i + '" data-key="handle_rot">' +
+    [['auto', isDoor ? '자동 (세로)' : '자동 (가로)'], ['h', '가로'], ['v', '세로']].map(([v, l]) =>
+      '<option value="' + v + '"' + (rot === v ? ' selected' : '') + '>' + l + '</option>').join('') +
+    '</select></div>';
+  return '<div class="field-row"><label>손잡이 위치</label>' +
+    '<select data-mod-idx="' + i + '" data-key="handle_pos">' + opts + '</select></div>' + rotRow +
+    (isDoor ? '<div class="calc-info" style="margin:0;font-size:11px;color:var(--text-dim)">' +
+              '가로 위치는 열리는 쪽(경첩 반대편)에 자동 — 양개는 가운데, 단문은 "경첩 쪽" 반대</div>' : '');
+}
+
+// 위가 뚫린 구조 (주방 하부장): 천판 대신 앞뒤 목대 — 상판은 '주방 상판 설치'로 따로
+function openTopField(m, i) {
+  return '<div class="field-row"><label>상부 개방 (천판 없이 목대만)</label>' +
+    '<input type="checkbox" data-mod-idx="' + i + '" data-key="open_top"' + (m.open_top ? ' checked' : '') + '></div>' +
+    // 도어·전판이 몸통 아랫선보다 더 내려오는 양 (상부장 손걸이 · 하부장 좌대 가림)
+    '<div class="field-row"><label>도어 하부 내림</label>' +
+    '<input type="number" data-mod-idx="' + i + '" data-key="door_drop_mm" value="' + (m.door_drop_mm || 0) + '" min="0" max="100">' +
+    '<span class="unit">mm</span></div>';
+}
+
+// isDrawer: 서랍은 푸시형 불가 (선택지에서 제외)
+function handleOptions(current, isDrawer) {
   const types = [
-    ['none','없음'],['bar','바 핸들'],['knob','원형 손잡이'],
-    ['cup_pull','컵 풀'],['channel','채널 (핸들리스)'],['push_open','푸시 오픈']
-  ];
+    ['none','없음'],['push_open','푸시형 (손잡이 없음)'],
+    ['channel','찬넬형 (목찬넬 · 몸통 상단 포켓)'],
+    ['bar','손잡이형 · 바'],['knob','손잡이형 · 노브'],['cup_pull','손잡이형 · 컵풀']
+  ].filter(t => !(isDrawer && t[0] === 'push_open'));
   return types.map(([v, l]) =>
     '<option value="' + v + '"' + ((current || 'none') === v ? ' selected' : '') + '>' + l + '</option>'
   ).join('');
@@ -612,6 +663,7 @@ function syncModuleField(el) {
   const val = el.type === 'checkbox' ? el.checked :
               el.type === 'number'   ? +el.value  : el.value;
   state.modules[idx][key] = val;
+  if (key === 'handle_type') state.modules[idx].handle_pos = 'auto';   // 형태가 바뀌면 위치는 자동으로
 
   const card = el.closest('.module-card');
   if (card) {

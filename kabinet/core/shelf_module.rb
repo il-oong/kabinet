@@ -17,7 +17,7 @@ module Kabinet
       attr_reader :width, :depth, :height, :body_thickness, :back_thickness,
                   :door_config, :door_thickness, :shelves, :accessories,
                   :vertical_dividers, :cell_shelves, :cell_drawers,
-                  :handle_type, :handle_hole_mm, :door_mount,
+                  :handle_type, :handle_hole_mm, :handle_pos, :handle_rot, :door_drop_mm, :door_hinge_side, :door_mount,
                   :door_side_gap_mm, :suppress_left_side, :suppress_right_side,
                   :has_back
 
@@ -29,11 +29,12 @@ module Kabinet
                      shelves: [], accessories: [],
                      vertical_dividers: [], cell_shelves: [], cell_drawers: [],
                      inner_drawers: nil,
-                     handle_type: 'none', handle_hole_mm: 128,
+                     handle_type: 'none', handle_hole_mm: 128, handle_pos: 'auto', handle_rot: 'auto', door_drop_mm: 0,
+                     door_hinge_side: 'left',
                      door_mount: 'overlay',
                      door_side_gap_mm: Kabinet::Core::Gaps.outside,
                      suppress_left_side: false, suppress_right_side: false,
-                     has_back: true)
+                     has_back: true, open_top: false, center_stile: false)
         @width             = width
         @depth             = depth
         @height            = height
@@ -50,11 +51,17 @@ module Kabinet
         @inner_drawers     = inner_drawers
         @handle_type       = handle_type.to_s
         @handle_hole_mm    = handle_hole_mm.to_i
+        @handle_pos        = handle_pos.to_s
+        @handle_rot        = handle_rot.to_s
+        @door_drop_mm      = door_drop_mm.to_f   # 도어 하부 내림 (몸통 아랫선 밑으로)
+        @door_hinge_side   = door_hinge_side.to_s
         @door_mount        = door_mount.to_s
         @door_side_gap_mm  = door_side_gap_mm.to_f
         @suppress_left_side  = suppress_left_side  ? true : false
         @suppress_right_side = suppress_right_side ? true : false
         @has_back            = has_back ? true : false
+        @open_top            = open_top ? true : false
+        @center_stile        = center_stile ? true : false
       end
 
       def carcase
@@ -62,7 +69,14 @@ module Kabinet
                                  body_thickness: @body_thickness, back_thickness: @back_thickness,
                                  has_back: @has_back,
                                  suppress_left_side: @suppress_left_side,
-                                 suppress_right_side: @suppress_right_side)
+                                 suppress_right_side: @suppress_right_side,
+                                 channel_top: channel?, open_top: @open_top)
+      end
+
+      # 찬넬: 오버레이 여닫이 도어가 있을 때만 (몸통 상단 ㄴ자 포켓 + 도어 윗선 내림)
+      def channel?
+        @handle_type == 'channel' && @door_config != 'none' &&
+          @door_mount != 'inset' && @door_type == 'swing'
       end
 
       def opening_width
@@ -89,7 +103,8 @@ module Kabinet
                         has_back: @has_back,
                         suppress_bottom: suppress_bottom,
                         suppress_left_side: @suppress_left_side,
-                        suppress_right_side: @suppress_right_side)
+                        suppress_right_side: @suppress_right_side,
+                        channel_top: channel?, open_top: @open_top)
         c.build(body_grp.entities, Kabinet::Geometry::Transforms::IDENTITY, wrap_group: false)
 
         # ── 전체폭 선반 (좌우 끼임 여유 — 커트리스트와 동일) ──────────
@@ -100,11 +115,22 @@ module Kabinet
           inset  = (s['depth_inset'] || 20).mm
           recess = Kabinet::Constants::BACK_RECESS_MM.mm
           shelf_d = @depth - inset - @back_thickness - recess
+          # 중앙 목대가 있으면 선반은 목대 두께만큼 뒤에서 시작
+          sy      = @center_stile ? @body_thickness : 0
           local   = ::Geom::Transformation.new(
-            ::Geom::Point3d.new(@body_thickness + play / 2.0, 0, z))
-          Kabinet::Geometry::Builder.box(body_grp.entities, opening_width - play, shelf_d, t,
+            ::Geom::Point3d.new(@body_thickness + play / 2.0, sy, z))
+          Kabinet::Geometry::Builder.box(body_grp.entities, opening_width - play, shelf_d - sy, t,
                                          local, role: 'shelf', label: 'shelf',
                                          material_name: 'shelf')
+        end
+
+        # ── 중앙 목대 (세로 보강목 — 앞면 중앙, 하판 위 ~ 천판 아래)
+        if @center_stile
+          sw = Kabinet::Constants::CENTER_STILE_W_MM.mm
+          Kabinet::Geometry::Builder.box(
+            body_grp.entities, sw, @body_thickness, opening_height,
+            ::Geom::Transformation.new(::Geom::Point3d.new((@width - sw) / 2.0, 0, @body_thickness)),
+            role: 'center_stile', label: '중앙 목대', material_name: 'body')
         end
 
         # ── 세로 분할판 ──────────────────────────────────────────────
@@ -145,7 +171,10 @@ module Kabinet
               z_origin:       @body_thickness,
               inset_depth:    Kabinet::Constants::INSET_DOOR_DEPTH_MM.mm,
               handle_type:    @handle_type,
-              handle_hole_mm: @handle_hole_mm
+              handle_hole_mm: @handle_hole_mm,
+              handle_pos:     @handle_pos,
+              handle_rot:     @handle_rot,
+              hinge_side:     @door_hinge_side
             )
           else
             # 오버레이: 도어가 카케이스 전면 측판을 덮음 (기본)
@@ -156,12 +185,15 @@ module Kabinet
               thickness:      @door_thickness,
               config:         @door_config,
               door_type:      @door_type,
-              gap_top:        Kabinet::Core::Gaps.top.mm,
-              gap_bottom:     Kabinet::Core::Gaps.bottom.mm,
+              gap_top:        (channel? ? Kabinet::Constants::CHANNEL_FRONT_DROP_MM : Kabinet::Core::Gaps.top).mm,
+              gap_bottom:     (@door_drop_mm > 0 ? -@door_drop_mm : Kabinet::Core::Gaps.bottom).mm,
               gap_outside:    @door_side_gap_mm.mm,
               mount_style:    'overlay',
               handle_type:    @handle_type,
-              handle_hole_mm: @handle_hole_mm
+              handle_hole_mm: @handle_hole_mm,
+              handle_pos:     @handle_pos,
+              handle_rot:     @handle_rot,
+              hinge_side:     @door_hinge_side
             )
           end
           door.build(group.entities, Kabinet::Geometry::Transforms::IDENTITY)
@@ -188,11 +220,17 @@ module Kabinet
             inner_drawers:     h['inner_drawers'],
             handle_type:       h['handle_type']    || 'none',
             handle_hole_mm:    (h['handle_hole_mm'] || 128).to_i,
+            handle_pos:        h['handle_pos']     || 'auto',
+            handle_rot:        h['handle_rot']     || 'auto',
+            door_drop_mm:      h['door_drop_mm'].to_f,
+            door_hinge_side:   h['door_hinge_side'] || 'left',
             door_mount:        h['door_mount']     || 'overlay',
-            door_side_gap_mm:  (h['door_side_gap_mm'] || Kabinet::Core::Gaps.outside).to_f,
+            door_side_gap_mm:  (h['door_side_gap_mm'] || Kabinet::Core::Gaps.outside).to_f - h['door_over_ep_mm'].to_f,
             suppress_left_side:  h.fetch('suppress_left_side',  false) ? true : false,
             suppress_right_side: h.fetch('suppress_right_side', false) ? true : false,
-            has_back:            h.fetch('has_back', true) ? true : false)
+            has_back:            h.fetch('has_back', true) ? true : false,
+            open_top:            h['open_top'],
+            center_stile:        h['center_stile'])
       end
 
       private
@@ -207,9 +245,11 @@ module Kabinet
         @vertical_dividers.sort_by { |d| d['x'].to_f }.each_with_index do |div, idx|
           x     = @body_thickness + div['x'].mm
           div_t = (div['thickness'] || 18).mm
+          # 'top' 이 있으면 그 높이의 선반 아래까지만 (하부만 나누는 분할판)
+          h     = div['top'].to_f > 0 ? [div['top'].mm - @body_thickness, div_h].min : div_h
           local = ::Geom::Transformation.new(
             ::Geom::Point3d.new(x, 0, @body_thickness))
-          Kabinet::Geometry::Builder.box(entities, div_t, div_d, div_h,
+          Kabinet::Geometry::Builder.box(entities, div_t, div_d, h,
                                          local,
                                          role:          "divider_#{idx}",
                                          label:         "세로분할판_#{idx + 1}",

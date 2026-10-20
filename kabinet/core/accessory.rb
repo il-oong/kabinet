@@ -27,12 +27,13 @@ module Kabinet
       def build_hanging_rod(parent_entities, parent_transform, carcase)
         diameter = (@params[:diameter] || Kabinet::Constants::HANGING_ROD_DIAMETER_MM).mm
         z_height = (@params[:height_from_bottom]).mm
-        depth_inset = (@params[:depth_inset] || 75).mm
 
         rod_length = carcase.width - 2 * carcase.body_thickness
-        # Rod runs along X, mounted between sides at z=z_height, depth-inset from rear by depth_inset.
+        # 봉은 X 방향, 내부 깊이(앞면 ~ 뒷판 앞)의 중앙 — 옷걸이가 앞뒤로 고르게 들어가도록.
+        # (예전 depth_inset = 뒷판에서 75mm 는 옷이 뒷판에 닿아 폐기)
         x0 = carcase.body_thickness
-        y0 = carcase.depth - depth_inset
+        back = carcase.has_back ? carcase.back_thickness + Kabinet::Constants::BACK_RECESS_MM.mm : 0
+        y0 = (carcase.depth - back) / 2.0
         z0 = z_height
         local = ::Geom::Transformation.new(::Geom::Point3d.new(x0, y0, z0))
         # rod axis along +X — Builder.rod draws circle in YZ then pushpulls along X
