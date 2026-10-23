@@ -48,6 +48,7 @@ require File.join(Kabinet::PLUGIN_DIR, 'commands', 'countertop')
 require File.join(Kabinet::PLUGIN_DIR, 'commands', 'common')
 require File.join(Kabinet::PLUGIN_DIR, 'commands', 'slab_thickness')
 require File.join(Kabinet::PLUGIN_DIR, 'commands', 'door_toggle')
+require File.join(Kabinet::PLUGIN_DIR, 'commands', 'drawing_import')
 
 # Output (drawings)
 require File.join(Kabinet::PLUGIN_DIR, 'output', 'drawing2d')
@@ -104,7 +105,7 @@ module Kabinet
       geometry/transforms.rb geometry/builder.rb
       geometry/joinery.rb geometry/handle_builder.rb
       geometry/preview_entities.rb ui/live_preview.rb ui/web/live-preview.js
-      core/fitting.rb core/space_divider.rb core/countertop.rb commands/countertop.rb core/common.rb commands/common.rb commands/slab_thickness.rb commands/door_toggle.rb core/panel.rb core/carcase.rb core/door_panel.rb
+      core/fitting.rb core/space_divider.rb core/countertop.rb commands/countertop.rb core/common.rb commands/common.rb commands/slab_thickness.rb commands/door_toggle.rb commands/drawing_import.rb core/panel.rb core/carcase.rb core/door_panel.rb
       core/ep_finish_panel.rb core/accessory.rb
       core/shelf_module.rb core/drawer_module.rb
       core/desk_module.rb core/assembly.rb
@@ -119,7 +120,7 @@ module Kabinet
       ui/dialog.rb ui/panel_tools.rb ui/place_tool.rb ui/front_view_tool.rb ui/menu.rb updater.rb
       ui/icons/face_panel.svg ui/icons/space_divide.svg ui/icons/kabinet.svg
       ui/web/index.html ui/web/app.js
-      ui/web/modules.js ui/web/styles.css ui/web/drawing.js
+      ui/web/modules.js ui/web/styles.css ui/web/drawing.js ui/web/drawing_import.js
     ]
 
     puts "Kabinet.update! — #{src_root} → #{dst_root}"
@@ -164,7 +165,7 @@ module Kabinet
       'core/assembly', 'core/hardware', 'core/validation', 'core/cut_list',
       'core/ep_board', 'core/furniture_library',
       'commands/generate', 'commands/regenerate', 'commands/export',
-      'commands/face_panel', 'commands/space_divide', 'commands/countertop', 'commands/common', 'commands/slab_thickness', 'commands/door_toggle',
+      'commands/face_panel', 'commands/space_divide', 'commands/countertop', 'commands/common', 'commands/slab_thickness', 'commands/door_toggle', 'commands/drawing_import',
       'output/drawing2d', 'output/dxf', 'output/order_sheet',
       'output/group_projection', 'output/dimensions', 'output/views',
       'output/png_export', 'output/pdf_bundler',

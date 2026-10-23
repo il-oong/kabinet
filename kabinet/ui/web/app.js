@@ -1307,6 +1307,7 @@ const kabinet = (() => {
   ];
   const SIDEBAR_OUTPUTS = [
     { id: 'furniture_drawing', label: '가구 도면 (LayOut)', hint: '선택한 가구 → A3 평면·정면·측면·컬러 입체도 + PDF' },
+    { id: 'drawing_import', label: '도면 치수표 → 3D 가구', hint: '도면의 가구별 치수를 표로 입력 → 프리셋 구조로 한 번에 생성·배치' },
   ];
   const SIDEBAR_MORE = [
     { id: 'update',         label: 'GitHub에서 업데이트', hint: '최신 kabinet.rbz를 내려받아 설치' },
@@ -1332,6 +1333,7 @@ const kabinet = (() => {
       case 'countertop':   showView('countertop'); loadCountertopForm(); break;
       case 'furniture_drawing': showView('drawing'); window.kabinetDrawing && kabinetDrawing.setSpaceMode(false); break;
       case 'space_drawing':     showView('drawing'); window.kabinetDrawing && kabinetDrawing.setSpaceMode(true); break;
+      case 'drawing_import':    showView('dimport'); window.kabinetDrawingImport && kabinetDrawingImport.open(); break;
       case 'library_manage':    showView('library'); break;
       case 'cutlist':      exportCutList(); break;
       case 'group_cut':
@@ -1589,7 +1591,7 @@ const kabinet = (() => {
 
   // ── 화면 전환: 가구 설계 / 도면 / 보관함 / EP 판재 ─────────────────────
   let furnitureLibrary = [];
-  const VIEW_TITLES = { drawing: '도면 출력 (LayOut + PDF)', library: '내 가구 보관함', ep: 'EP 판재 한 장', countertop: '주방 상판 설치', common: '가구 공통사항' };
+  const VIEW_TITLES = { drawing: '도면 출력 (LayOut + PDF)', library: '내 가구 보관함', ep: 'EP 판재 한 장', countertop: '주방 상판 설치', common: '가구 공통사항', dimport: '도면 치수표 → 3D 가구' };
 
   // ── 주방 상판 ────────────────────────────────────────────────────────
   const CT_FIELDS = ['thickness', 'front', 'side', 'back', 'material', 'height-mode', 'top-height'];
@@ -2878,6 +2880,67 @@ const kabinet = (() => {
   }
 
   // ── Utilities ────────────────────────────────────────────────────────
+  // ── 도면 치수표 한 줄 → 가구 spec (기존 프리셋 구조 유지, 값만 변경) ───────────
+  // row: { preset, name, width, height, depth, thickness, doors, drawers }  (mm, 빈 값=프리셋 값)
+  // 현재 폼의 state 는 건드리지 않는다(임시로 바꿨다가 복원).
+  function buildDrawingSpec(row) {
+    const preset = FURNITURE_PRESETS[row.preset];
+    if (!preset) return { error: '프리셋을 선택하세요.' };
+    const saved = { state, key: activePresetKey, id: currentEntityID };
+    const pos = (v) => { const n = parseFloat(v); return n > 0 ? n : 0; };
+    try {
+      state = applyCommon(preset);
+      delete state._info;
+      if (!state.run_mode) {
+        const iw = _carcaseInnerWidth(state.width);
+        state.modules.forEach(m => { if (m.kind !== 'bed_gap') m.width = iw; });
+      }
+      // 1) 판재 두께 (뒷판 제외) — 높이·내부 구성 계산 전에 적용
+      const t = pos(row.thickness);
+      if (t) {
+        (state.modules || []).forEach(m => {
+          ['body_thickness', 'door_thickness', 'drawer_thickness', 'top_thickness'].forEach(k => { if (m[k]) m[k] = t; });
+          ['shelves', 'vertical_dividers', 'cell_shelves'].forEach(k => (m[k] || []).forEach(x => { x.thickness = t; }));
+        });
+        if (state.top_panel) state.top_panel.thickness = t;
+        if (state.ep) state.ep.thickness = t;
+      }
+      if (state.wardrobe_layout) applyWardrobeLayout(state.wardrobe_layout, true);
+      // 2) 깊이 → 3) 폭 → 4) 총 높이 (모두 기존 프리셋 보정 로직 그대로)
+      if (pos(row.depth)) onField('max_depth', pos(row.depth));
+      if (pos(row.width)) onField('width', pos(row.width));
+      if (pos(row.height)) {
+        if (state.run_mode) {      // 런 모드: 높이는 run_height 하나 (모듈이 가로로 나열됨)
+          const topT = state.top_panel ? (+state.top_panel.thickness || 0) : 0;
+          const rh = pos(row.height) - (+state.base_height || 0) - topT - _epTopT();
+          if (rh < 10) throw new Error('총 높이가 받침·상판 두께보다 작습니다.');
+          onField('run_height', Math.round(rh));
+        } else {
+          onTargetHeightLive(pos(row.height));
+        }
+      }
+      // 5) 도어·서랍
+      if (row.doors) {
+        state.modules.forEach(m => {
+          if (m.kind !== 'shelf_module') return;
+          m.door_config = row.doors;
+          m.door_type = row.doors === 'none' ? 'none' : 'swing';
+        });
+      }
+      if (pos(row.drawers)) {
+        state.modules.forEach(m => { if (m.kind === 'drawer_module') m.drawer_count = Math.round(pos(row.drawers)); });
+      }
+      const spec = deepClone(state);
+      if (row.name) spec.name = row.name;
+      return { spec };
+    } catch (e) {
+      return { error: e.message };
+    } finally {
+      state = saved.state; activePresetKey = saved.key; currentEntityID = saved.id;
+      renderModuleList(); updateTotalHeight(); updateHeightSummary();
+    }
+  }
+
   function deepClone(o) { return JSON.parse(JSON.stringify(o)); }
   function esc(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -2912,7 +2975,7 @@ const kabinet = (() => {
     onTargetHeightLive,
     updateTotalHeight, updateHeightSummary, renderPreview,
     onRunMode,
-    onSuccess, onError, onApplied,
+    onSuccess, onError, onApplied, buildDrawingSpec, callSketchup,
     getState, getEntityID: () => currentEntityID
   };
 })();

@@ -125,6 +125,21 @@ module Kabinet
           end
         end
 
+        # ── 도면 치수표 → 여러 가구를 표의 위치대로 한 번에 생성 ─────────────
+        d.add_action_callback('kabinet:drawing_import') do |_ctx, json_str|
+          begin
+            stop_preview
+            ensure_dialog_model!
+            items = JSON.parse(json_str.to_s)['items']
+            r = Kabinet::Commands::DrawingImport.run(items)
+            msg = "가구 #{r[:roots].size}개를 도면 위치대로 만들었습니다."
+            msg += "\n경고 #{r[:warnings].size}건:\n" + r[:warnings].first(8).join("\n") unless r[:warnings].empty?
+            d.execute_script("kabinet.onSuccess(#{JSON.generate(msg)})")
+          rescue StandardError => e
+            d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
+          end
+        end
+
         # ── Regenerate (update existing assembly group) ────────────────
         d.add_action_callback('kabinet:regenerate') do |_ctx, json_str|
           begin

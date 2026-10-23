@@ -811,3 +811,11 @@ details.ep-adv > summary { cursor: pointer; font-size: 11px; color: var(--text-d
 .lib-meta { font-size: 10px; color: var(--text-dim); padding: 0 4px; }
 .lib-actions { display: flex; gap: 4px; }
 .lib-actions select { flex: 1; min-width: 0; padding: 3px 4px; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 4px; font: inherit; font-size: 11px; }
+
+/* 도면 치수표 → 3D 가구 */
+.di-wrap { overflow-x: auto; margin: 8px 0; }
+.di-table { border-collapse: collapse; font-size: 11px; width: 100%; }
+.di-table th { text-align: left; font-weight: 600; padding: 2px 3px; white-space: nowrap; }
+.di-table td { padding: 2px 3px; white-space: nowrap; }
+.di-table input, .di-table select { font: inherit; font-size: 11px; padding: 3px 4px; }
+.di-actions { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 10px; }
