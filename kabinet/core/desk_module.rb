@@ -41,7 +41,8 @@ module Kabinet
                      leg_w: 30.mm, leg_d: 30.mm,
                      leg_inset_x: 30.mm, leg_inset_y: 30.mm,
                      has_modesty_panel: false,
-                     pedestal: nil, under_unit: nil)
+                     pedestal: nil, under_unit: nil,
+                     top_radius: 0.mm, top_round_corners: %w[fl fr])
         @width            = width
         @depth            = depth
         @height           = height
@@ -54,6 +55,8 @@ module Kabinet
         @has_modesty_panel = has_modesty_panel
         @pedestal         = pedestal   # Hash with string keys, or nil
         @under_unit       = under_unit # Hash with string keys, or nil
+        @top_radius       = top_radius
+        @top_round_corners = top_round_corners
       end
 
       # suppress_bottom는 책상에 미적용(다리가 바닥을 대신하므로).
@@ -67,9 +70,9 @@ module Kabinet
 
         # ── 상판 ─────────────────────────────────────────────────────────
         top_local = ::Geom::Transformation.new(::Geom::Point3d.new(0, 0, leg_h))
-        Kabinet::Geometry::Builder.box(group.entities, @width, @depth, @top_thickness,
-                                       top_local, role: 'desk_top',
-                                       label: '책상_상판', material_name: 'top')
+        Kabinet::Geometry::Builder.rounded_box(group.entities, @width, @depth, @top_thickness,
+                                               top_local, radius: @top_radius, corners: @top_round_corners,
+                                               role: 'desk_top', label: '책상_상판', material_name: 'top')
 
         # ── 가림판 (모데스티 패널) ─────────────────────────────────────
         if @has_modesty_panel
@@ -140,8 +143,17 @@ module Kabinet
           leg_inset_y:       (h['leg_inset_y']      || 30).mm,
           has_modesty_panel: (h['has_modesty_panel'] == true),
           pedestal:          h['pedestal'],
-          under_unit:        h['under_unit']
+          under_unit:        h['under_unit'],
+          top_radius:        (h['top_radius'] || 0).to_f.mm,
+          top_round_corners: parse_corners(h['top_round_corners'])
         )
+      end
+
+      # 'fl,fr' 문자열 또는 배열 → ['fl','fr'] (비면 앞 양쪽)
+      def self.parse_corners(v)
+        list = v.is_a?(Array) ? v : v.to_s.split(/[,\s]+/)
+        list = list.map(&:to_s).reject(&:empty?)
+        list.empty? ? %w[fl fr] : list
       end
 
       private

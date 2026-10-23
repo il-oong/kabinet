@@ -522,6 +522,15 @@ function deskFields(m, i) {
       '<input type="number" data-mod-idx="' + i + '" data-key="top_thickness" ' +
              'value="' + top_t + '" min="15" max="60">' +
       '<span class="unit">mm</span></div>' +
+    '<div class="field-row"><label>상판 모서리 R</label>' +
+      '<input type="number" data-mod-idx="' + i + '" data-key="top_radius" ' +
+             'value="' + (m.top_radius || 0) + '" min="0" max="300">' +
+      '<span class="unit">mm (0=직각)</span></div>' +
+    '<div class="field-row"><label>둥글게 할 모서리</label>' +
+      '<select data-mod-idx="' + i + '" data-key="top_round_corners">' +
+        [['fl,fr','앞 양쪽'],['fl','앞 왼쪽'],['fr','앞 오른쪽'],['bl,br','뒤 양쪽'],['bl','뒤 왼쪽'],['br','뒤 오른쪽'],['fl,fr,bl,br','4모서리']]
+          .map(([v,l]) => '<option value="' + v + '"' + ((m.top_round_corners || 'fl,fr') === v ? ' selected' : '') + '>' + l + '</option>').join('') +
+      '</select></div>' +
     '<div class="calc-info">📏 다리 높이: <strong>' + legH + 'mm</strong></div>' +
 
     '<div class="sub-section-title" style="font-weight:600;margin:10px 0 4px;color:var(--accent)">🦵 다리</div>' +
