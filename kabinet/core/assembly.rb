@@ -141,10 +141,11 @@ module Kabinet
         tt = top_t_mm
         return unless @top_panel && tt > 0
         top_local = ::Geom::Transformation.new(::Geom::Point3d.new(x_origin, 0, top_z))
-        Kabinet::Geometry::Builder.box(entities, width_su, depth, tt.mm,
-                                       top_local,
-                                       role: 'top_panel', label: 'top_panel',
-                                       material_name: 'top')
+        Kabinet::Geometry::Builder.rounded_box(
+          entities, width_su, depth, tt.mm, top_local,
+          radius: @top_panel['corner_radius'].to_f.mm,
+          corners: Kabinet::Core::DeskModule.parse_corners(@top_panel['round_corners']),
+          role: 'top_panel', label: 'top_panel', material_name: 'top')
       end
 
       # EP는 도어/서랍 전판 전면까지 커버 (ep.cover_fronts, 기본 true).

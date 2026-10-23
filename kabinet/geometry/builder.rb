@@ -33,6 +33,53 @@ module Kabinet
         group
       end
 
+      # 모서리를 둥글게(R) 만든 판 — W는 X, D는 Y(앞면 y=0), 두께는 Z.
+      # radius: SU Length. corners: 둥글게 할 모서리 ['fl','fr','bl','br'] (앞왼/앞오/뒤왼/뒤오).
+      # 반경은 판의 짧은 변 절반을 넘지 않게 줄인다. 반경이 0이거나 corners가 비면 Builder.box와 동일.
+      ROUND_SEGMENTS = 10
+
+      def self.rounded_box(parent_entities, width, depth, thickness, transform, radius:, corners:,
+                           role: nil, label: nil, material_name: nil, locked: false, attrs: {})
+        corners = Array(corners).map(&:to_s) & %w[fl fr bl br]
+        r = [radius.to_f, [width.to_f, depth.to_f].min / 2.0].min
+        return box(parent_entities, width, depth, thickness, transform, role: role, label: label,
+                   material_name: material_name, locked: locked, attrs: attrs) if r <= 0 || corners.empty?
+
+        group = parent_entities.add_group
+        w = width.to_f
+        d = depth.to_f
+        # 반시계 방향으로 4모서리를 돌며 (코너 중심, 시작각)을 잡는다
+        spec = [['fl', r, r, Math::PI], ['fr', w - r, r, 1.5 * Math::PI],
+                ['br', w - r, d - r, 0.0], ['bl', r, d - r, 0.5 * Math::PI]]
+        pts = []
+        spec.each do |name, cx, cy, a0|
+          if corners.include?(name)
+            (0..ROUND_SEGMENTS).each do |i|
+              a = a0 + (Math::PI / 2.0) * i / ROUND_SEGMENTS
+              pts << ::Geom::Point3d.new(cx + r * Math.cos(a), cy + r * Math.sin(a), 0)
+            end
+          else
+            sx = name.end_with?('l') ? 0 : w
+            sy = name.start_with?('f') ? 0 : d
+            pts << ::Geom::Point3d.new(sx, sy, 0)
+          end
+        end
+        face = group.entities.add_face(pts)
+        face.reverse! if face.normal.z < 0
+        face.pushpull(thickness)
+
+        group.transformation = transform if transform
+        if role
+          Kabinet::Persistence::Attributes.set_role(group, role,
+                                                    width: width.to_f, depth: depth.to_f, thickness: thickness.to_f)
+        end
+        attrs.each { |k, v| Kabinet::Persistence::Attributes.set(group, k, v) }
+        group.name = label if label
+        Kabinet::Persistence::Attributes.set(group, 'material_hint', material_name.to_s) if material_name
+        group.locked = true if locked
+        group
+      end
+
       # Build a rod (cylinder) along an axis. axis: :x | :y | :z
       # 측판 — 앞면(Y=0)에서 notch_d 깊이로, 각 notch 의 [z0, z1] 구간을 따낸 판.
       # YZ 단면을 그려 +X 로 width 만큼 밀어낸다. notches: [[z0, z1], ...] (SU Length, 오름차순·겹침 없음)

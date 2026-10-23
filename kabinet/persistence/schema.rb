@@ -51,7 +51,11 @@ module Kabinet
         h['top_panel'] = if h['top_panel'].nil?
                            nil
                          else
-                           { 'thickness' => Float(h['top_panel'].fetch('thickness', Kabinet::Constants::DEFAULT_TOP_PANEL_MM)) }
+                           tp = { 'thickness' => Float(h['top_panel'].fetch('thickness', Kabinet::Constants::DEFAULT_TOP_PANEL_MM)) }
+                           # 모서리 R (선택): corner_radius mm, round_corners 'fl,fr,bl,br' 중 일부
+                           tp['corner_radius'] = Float(h['top_panel']['corner_radius']) if h['top_panel']['corner_radius'].to_f > 0
+                           tp['round_corners'] = h['top_panel']['round_corners'] if tp['corner_radius'] && h['top_panel']['round_corners']
+                           tp
                          end
 
         # 도어·서랍 간격 (없으면 기본 상수) — 모듈 기본값(door_side_gap_mm 등)도 이 값을 따른다

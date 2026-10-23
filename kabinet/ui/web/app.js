@@ -1101,7 +1101,135 @@ const FURNITURE_PRESETS = {
       }
     ],
     _info: '거실 수납 런 W2400×D450×H525 | 서랍(600)+도어수납(1200+600). 핸들리스 채널. 로우보드'
-  }
+  },
+
+  /* ── 도면 가구 (오톤도 30X33_2550 도면 기준) ─────────────────────────────
+     판재 두께는 모두 18T (뒷판만 9T). 도면 치수를 읽어 프리셋 형태에 맞게 옮김. */
+  otondo_tall: {
+    name: '도면 붙박이장 W1082 (서랍 2단 + 양개 도어)',
+    furniture_type: 'wardrobe',
+    width: 1082, max_depth: 600, base_height: 50,
+    wardrobe_layout: 'drawer_hang',
+    wardrobe_opts: { drawer_h: 700, drawer_count: 2 },
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 18, cover_fronts: false },
+    top_panel: null,
+    // 총 높이: 50(받침) + 700(서랍 2단) + 1800(도어·행거) = 2550mm
+    modules: [
+      { kind: 'drawer_module', width: 1082, depth: 600, height: 700,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        drawer_count: 2, drawer_type: 'undermount', drawer_thickness: 18,
+        door_material: 'LPM', handle_type: 'channel', material: 'LPM', edge_banding_mm: 1.0
+      },
+      { kind: 'shelf_module', width: 1082, depth: 600, height: 1800,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
+        edge_banding_mm: 1.0,
+        shelves: [{ height_from_bottom: 1452, thickness: 18, depth_inset: 20 }],
+        accessories: [{ kind: 'hanging_rod', height_from_bottom: 1382, depth_inset: 75, diameter: 32 }]
+      }
+    ],
+    _info: '도면 붙박이장 W1082×D600×H2550 | 받침50 + 서랍 2단(700) + 푸시 양개도어(537×2). 도면의 380 단은 도어 안쪽 구성으로 단순화'
+  },
+
+  otondo_upper_pair: {
+    name: '도면 상부장 W1120 (양개 = 560×2)',
+    furniture_type: 'kitchen_upper',
+    width: 1120, max_depth: 350, base_height: 0,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 18 },
+    top_panel: null,
+    modules: [
+      { kind: 'shelf_module', width: 1120, depth: 350, height: 971,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
+        edge_banding_mm: 1.0,
+        shelves: [{ height_from_bottom: 480, thickness: 18, depth_inset: 20 }],
+        accessories: []
+      }
+    ],
+    _info: '도면 상부장 W1120×D350×H971 | 푸시 양개(560×2). 도면은 3칸(560×3): 이 프리셋 + 단문 W560 을 나란히 배치. 깊이는 도면에 없어 350 가정'
+  },
+
+  otondo_upper_single: {
+    name: '도면 상부장 W560 (단문)',
+    furniture_type: 'kitchen_upper',
+    width: 560, max_depth: 350, base_height: 0,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 18 },
+    top_panel: null,
+    modules: [
+      { kind: 'shelf_module', width: 560, depth: 350, height: 971,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'single', door_type: 'swing', door_thickness: 18,
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
+        edge_banding_mm: 1.0,
+        shelves: [{ height_from_bottom: 480, thickness: 18, depth_inset: 20 }],
+        accessories: []
+      }
+    ],
+    _info: '도면 상부장 W560×D350×H971 | 푸시 단문. 깊이 350 가정'
+  },
+
+  otondo_desk: {
+    name: '도면 책상 W1768 (R100 모서리)',
+    furniture_type: 'desk_basic',
+    width: 1768, max_depth: 600, base_height: 0,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 18 },
+    top_panel: null,
+    modules: [
+      { kind: 'desk_module', width: 1768, depth: 600, height: 720,
+        top_thickness: 18, top_radius: 100, top_round_corners: 'fl',
+        leg_type: 'box', leg_w: 30, leg_d: 30, leg_inset_x: 30, leg_inset_y: 30,
+        has_modesty_panel: false, pedestal: null, under_unit: null,
+        material: 'LPM', edge_banding_mm: 1.0 }
+    ],
+    _info: '도면 책상 W1768×D600×H720 | 상판 18T, 앞 왼쪽 모서리 R100 (모서리 위치·R값은 모듈 카드에서 변경). 깊이 600 가정'
+  },
+
+  otondo_low_open: {
+    name: '도면 낮은 오픈장 W1182 (위 1칸 + 아래 2칸)',
+    furniture_type: 'open_shelf',
+    width: 1182, max_depth: 400, base_height: 50,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 18 },
+    top_panel: null,
+    // 총 높이: 50(받침) + 650 = 700mm
+    modules: [
+      { kind: 'shelf_module', width: 1182, depth: 400, height: 650,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'none', door_type: 'none', door_thickness: 18,
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
+        edge_banding_mm: 1.0,
+        shelves: [{ height_from_bottom: 321, thickness: 18, depth_inset: 0 }],
+        accessories: [],
+        vertical_dividers: [{ x: 582, thickness: 18, top: 321 }],
+        cell_shelves: [], cell_drawers: []
+      }
+    ],
+    _info: '도면 낮은 오픈장 W1182×D400×H700 | 받침50 + 위 1칸(전폭) + 아래 2칸(각 약 570). 깊이 400 가정'
+  },
+
+  otondo_low_drawer: {
+    name: '도면 낮은 서랍장 W750 (H270)',
+    furniture_type: 'drawer_low',
+    width: 750, max_depth: 400, base_height: 0,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 18 },
+    top_panel: null,
+    modules: [
+      { kind: 'drawer_module', width: 750, depth: 400, height: 270,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        drawer_count: 1, drawer_type: 'undermount', drawer_thickness: 18,
+        door_material: 'LPM', handle_type: 'channel', material: 'LPM', edge_banding_mm: 1.0
+      }
+    ],
+    _info: '도면 낮은 서랍장 W750×D400×H270 | 1단 서랍. 도면의 730/750 폭 중 750 사용. 깊이 400 가정'
+  },
+
 };
 
 /* ====================================================================== */
