@@ -118,7 +118,8 @@ const kabinetDrawingImport = (() => {
     const list = Array.isArray(data) ? data : (data && Array.isArray(data.rows) ? data.rows : null);
     if (!list || !list.length) return status('가구 목록([...])이 비어 있습니다.', true);
     const presets = (typeof FURNITURE_PRESETS !== 'undefined') ? FURNITURE_PRESETS : {};
-    const bad = list.findIndex(r => !r || !presets[r.preset]);
+    const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+    const bad = list.findIndex(r => !r || typeof r.preset !== 'string' || !own(presets, r.preset));
     if (bad >= 0) return status((bad + 1) + '번째 줄: 알 수 없는 가구 종류(preset) "' + (list[bad] && list[bad].preset) + '"', true);
     rows = list.map(r => Object.assign({ name: '', x: 0, y: 0, z: 0, width: '', height: '', depth: '', rot: 0, thickness: 18, doors: '', drawers: '' }, r));
     save(); render();

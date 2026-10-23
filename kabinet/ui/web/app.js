@@ -2884,7 +2884,7 @@ const kabinet = (() => {
   // row: { preset, name, width, height, depth, thickness, doors, drawers }  (mm, 빈 값=프리셋 값)
   // 현재 폼의 state 는 건드리지 않는다(임시로 바꿨다가 복원).
   function buildDrawingSpec(row) {
-    const preset = FURNITURE_PRESETS[row.preset];
+    const preset = Object.prototype.hasOwnProperty.call(FURNITURE_PRESETS, row.preset) ? FURNITURE_PRESETS[row.preset] : null;
     if (!preset) return { error: '프리셋을 선택하세요.' };
     const saved = { state, key: activePresetKey, id: currentEntityID };
     const pos = (v) => { const n = parseFloat(v); return n > 0 ? n : 0; };
