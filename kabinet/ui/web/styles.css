@@ -819,3 +819,7 @@ details.ep-adv > summary { cursor: pointer; font-size: 11px; color: var(--text-d
 .di-table td { padding: 2px 3px; white-space: nowrap; }
 .di-table input, .di-table select { font: inherit; font-size: 11px; padding: 3px 4px; }
 .di-actions { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 10px; }
+
+.di-paste { margin: 8px 0 12px; }
+.di-paste summary { cursor: pointer; font-size: 12px; }
+.di-paste textarea { width: 100%; box-sizing: border-box; margin: 6px 0; font: inherit; font-size: 11px; }
