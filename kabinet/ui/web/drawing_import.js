@@ -109,6 +109,23 @@ const kabinetDrawingImport = (() => {
     status('도면 예시 6줄을 불러왔습니다. 값을 고치거나 그대로 생성하세요.');
   }
 
+  // Claude 가 도면(PDF·DWG·DXF)에서 읽어 준 JSON 표를 붙여넣어 한 번에 불러오기.
+  // 형식: [{preset,name,x,y,z,width,height,depth,rot,thickness,doors,drawers}, …] 또는 {rows:[…]}
+  function importJson() {
+    const el = $('di-json');
+    let data;
+    try { data = JSON.parse((el && el.value || '').trim()); } catch (e) { return status('JSON 형식이 올바르지 않습니다: ' + e.message, true); }
+    const list = Array.isArray(data) ? data : (data && Array.isArray(data.rows) ? data.rows : null);
+    if (!list || !list.length) return status('가구 목록([...])이 비어 있습니다.', true);
+    const presets = (typeof FURNITURE_PRESETS !== 'undefined') ? FURNITURE_PRESETS : {};
+    const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+    const bad = list.findIndex(r => !r || typeof r.preset !== 'string' || !own(presets, r.preset));
+    if (bad >= 0) return status((bad + 1) + '번째 줄: 알 수 없는 가구 종류(preset) "' + (list[bad] && list[bad].preset) + '"', true);
+    rows = list.map(r => Object.assign({ name: '', x: 0, y: 0, z: 0, width: '', height: '', depth: '', rot: 0, thickness: 18, doors: '', drawers: '' }, r));
+    save(); render();
+    status('표 ' + rows.length + '줄을 불러왔습니다. 확인한 뒤 "모델에 모두 생성"을 누르세요.');
+  }
+
   function generateAll() {
     if (!rows.length) return status('가구를 한 줄 이상 입력하세요.', true);
     const items = [];
@@ -133,5 +150,5 @@ const kabinetDrawingImport = (() => {
     if (t) { t.addEventListener('change', onChange); t.addEventListener('click', onClick); }
   });
 
-  return { open, addRow, clearRows, loadExample, generateAll };
+  return { open, addRow, clearRows, loadExample, importJson, generateAll };
 })();

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabinet</title>
-  <link rel="stylesheet" href="styles.css?v=1.21.0">
+  <link rel="stylesheet" href="styles.css?v=1.21.1">
 </head>
 <body>
 
@@ -12,7 +12,7 @@
 <aside class="preset-sidebar">
   <div class="preset-sidebar-head">
     <span class="preset-sidebar-title">Kabinet</span>
-    <span class="version-badge">v1.21.0</span>
+    <span class="version-badge">v1.21.1</span>
   </div>
   <input type="search" id="preset-search" class="preset-search" placeholder="프리셋·도구 검색…"
          oninput="kabinet.renderPresetSidebar()">
@@ -429,6 +429,11 @@
       <button type="button" class="btn-inline" onclick="kabinetDrawingImport.loadExample()">예시: 오톤도 30X33 도면</button>
       <button type="button" class="btn-inline" onclick="kabinetDrawingImport.clearRows()">모두 지우기</button>
     </div>
+    <details class="di-paste">
+      <summary>표 붙여넣기 (Claude가 도면에서 읽어 준 표를 한 번에 불러오기)</summary>
+      <textarea id="di-json" rows="6" placeholder='[{"preset":"otondo_tall","name":"붙박이장","x":0,"y":0,"z":0,"width":1082,"height":2550,"depth":600}, …]'></textarea>
+      <button type="button" class="btn-inline" onclick="kabinetDrawingImport.importJson()">붙여넣은 표 불러오기 (현재 표를 바꿈)</button>
+    </details>
     <button type="button" class="btn-primary ep-big" onclick="kabinetDrawingImport.generateAll()">모델에 모두 생성 (표의 위치대로 배치)</button>
     <p class="ep-hint" id="di-status"></p>
   </div>
@@ -491,10 +496,10 @@
 
 </div><!-- /.main-col -->
 
-<script src="app.js?v=1.21.0"></script>
-<script src="modules.js?v=1.21.0"></script>
-<script src="live-preview.js?v=1.21.0"></script>
-<script src="drawing.js?v=1.21.0"></script>
-<script src="drawing_import.js?v=1.21.0"></script>
+<script src="app.js?v=1.21.1"></script>
+<script src="modules.js?v=1.21.1"></script>
+<script src="live-preview.js?v=1.21.1"></script>
+<script src="drawing.js?v=1.21.1"></script>
+<script src="drawing_import.js?v=1.21.1"></script>
 </body>
 </html>
