@@ -2909,7 +2909,16 @@ const kabinet = (() => {
       // 2) 깊이 → 3) 폭 → 4) 총 높이 (모두 기존 프리셋 보정 로직 그대로)
       if (pos(row.depth)) onField('max_depth', pos(row.depth));
       if (pos(row.width)) onField('width', pos(row.width));
-      if (pos(row.height)) onTargetHeightLive(pos(row.height));
+      if (pos(row.height)) {
+        if (state.run_mode) {      // 런 모드: 높이는 run_height 하나 (모듈이 가로로 나열됨)
+          const topT = state.top_panel ? (+state.top_panel.thickness || 0) : 0;
+          const rh = pos(row.height) - (+state.base_height || 0) - topT - _epTopT();
+          if (rh < 10) throw new Error('총 높이가 받침·상판 두께보다 작습니다.');
+          onField('run_height', Math.round(rh));
+        } else {
+          onTargetHeightLive(pos(row.height));
+        }
+      }
       // 5) 도어·서랍
       if (row.doors) {
         state.modules.forEach(m => {

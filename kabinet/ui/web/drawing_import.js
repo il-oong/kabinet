@@ -73,8 +73,11 @@ const kabinetDrawingImport = (() => {
   function presetTotals(key) {
     const p = (typeof FURNITURE_PRESETS !== 'undefined') ? FURNITURE_PRESETS[key] : null;
     if (!p) return null;
-    const mods = (p.modules || []).reduce((a, m) => a + (m.kind === 'bed_gap' ? 0 : (+m.height || 0)), 0);
-    const total = (+p.base_height || 0) + mods + (p.top_panel ? (+p.top_panel.thickness || 0) : 0);
+    // 런 모드는 모듈이 가로로 나열되므로 높이는 run_height 하나, 아니면 모듈 높이 합(세로 적층)
+    const mods = p.run_mode ? (+p.run_height || 0)
+      : (p.modules || []).reduce((a, m) => a + (m.kind === 'bed_gap' ? 0 : (+m.height || 0)), 0);
+    const epTop = p.ep && p.ep.top ? (+p.ep.thickness || 0) : 0;
+    const total = (+p.base_height || 0) + mods + (p.top_panel ? (+p.top_panel.thickness || 0) : 0) + epTop;
     return { width: p.width, height: Math.round(total), depth: p.max_depth };
   }
 

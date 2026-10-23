@@ -19,24 +19,42 @@ module Kabinet
       end
 
       # 반환: { roots: [...], warnings: [...] }
+      # 전부 먼저 검증하고, 생성 중 하나라도 실패하면 이번에 만든 가구를 모두 지운다(부분 생성 방지).
       def run(items, model: Sketchup.active_model)
         raise '생성할 가구가 없습니다.' if items.nil? || items.empty?
-        roots = []
         warnings = []
         items.each_with_index do |it, i|
           spec = it['spec']
           raise "#{i + 1}번째 가구의 설정이 비어 있습니다." unless spec.is_a?(Hash)
           begin
             norm = Kabinet::Persistence::Schema.normalize(spec)
+            Kabinet::Persistence::Schema.validate!(norm)
             warnings.concat(Kabinet::Core::Validation.warnings(norm).map { |w| "#{spec['name'] || (i + 1)}: #{w}" })
-            roots << Kabinet::Commands::Generate.run_assembly(spec, model: model, transform: transform_for(it))
           rescue StandardError => e
-            raise "#{i + 1}번째 가구(#{spec['name']}) 생성 실패: #{e.message}"
+            raise "#{i + 1}번째 가구(#{spec['name']}) 설정 오류: #{e.message}"
+          end
+        end
+
+        roots = []
+        items.each_with_index do |it, i|
+          begin
+            roots << Kabinet::Commands::Generate.run_assembly(it['spec'], model: model, transform: transform_for(it))
+          rescue StandardError => e
+            rollback(roots, model)
+            raise "#{i + 1}번째 가구(#{it['spec']['name']}) 생성 실패 — 이번에 만든 가구는 모두 취소했습니다: #{e.message}"
           end
         end
         model.selection.clear
         roots.each { |r| model.selection.add(r) }
         { roots: roots, warnings: warnings }
+      end
+
+      def rollback(roots, model)
+        model.start_operation('Kabinet — 도면 생성 취소', true)
+        roots.each { |r| r.erase! if r.respond_to?(:valid?) && r.valid? }
+        model.commit_operation
+      rescue StandardError
+        model.abort_operation
       end
     end
   end

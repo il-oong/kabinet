@@ -23,6 +23,7 @@ rows = [
   { preset: 'otondo_upper_pair', width: 1120, height: 971, depth: 350, thickness: 18 },
   { preset: 'otondo_low_open', width: 1182, height: 700, depth: 400, thickness: 18 },
   { preset: 'drawer_tower', width: 500, height: 900, depth: 450, thickness: 18, drawers: 3 },
+  { preset: 'kitchen_run', width: 1840, height: 900, depth: 580, thickness: 18 },   # 런 모드: run_height 로 높이 맞춤
   { preset: 'kitchen_upper', width: 800, height: 700, depth: 320, thickness: 18, doors: 'single', extra_h: 20 }   # 도어 하부 내림 20 은 형상 높이에 더해짐
 ]
 js = <<~JS
@@ -54,10 +55,31 @@ results.each_with_index do |res, i|
 end
 drawers = results[6]['spec']['modules'].find { |m| m['kind'] == 'drawer_module' }
 assert drawers['drawer_count'] == 3, 'drawer count override'
-door = results[7]['spec']['modules'].find { |m| m['kind'] == 'shelf_module' }
+door = results[8]['spec']['modules'].find { |m| m['kind'] == 'shelf_module' }
 assert door['door_config'] == 'single', 'door override'
 
 # 배치 변환: 숫자 파싱
 D = Kabinet::Commands::DrawingImport
 assert D.placement({ 'x' => 1082, 'y' => '900', 'z' => 1579, 'rot' => nil }) == [1082.0, 900.0, 1579.0, 0.0], 'placement'
+# 일부 실패 시 이번에 만든 가구를 모두 지움 (부분 생성 방지)
+module Kabinet; module Commands; module Generate; end; end; end
+class FakeRoot; attr_reader :erased; def initialize; @erased = false; end; def valid?; !@erased; end; def erase!; @erased = true; end; end
+class FakeModel
+  attr_reader :selection
+  def initialize; @selection = Class.new { def clear; end; def add(_); end }.new; end
+  def start_operation(*); end; def commit_operation; end; def abort_operation; end
+end
+made = []
+Kabinet::Commands::Generate.define_singleton_method(:run_assembly) do |spec, **_|
+  raise 'boom' if spec['name'] == 'bad'
+  made << FakeRoot.new; made.last
+end
+good = ->(n) { { 'spec' => results[0]['spec'].merge('name' => n), 'x' => 0 } }
+begin
+  D.run([good.('a'), good.('b'), good.('bad')], model: FakeModel.new)
+  assert false, 'should raise'
+rescue RuntimeError => e
+  assert e.message.include?('취소'), "rollback message #{e.message}"
+end
+assert made.size == 2 && made.all?(&:erased), 'earlier furniture rolled back'
 puts "drawing_import_test: OK (#{results.size} rows)"
