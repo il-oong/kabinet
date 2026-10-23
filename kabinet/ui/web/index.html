@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabinet</title>
-  <link rel="stylesheet" href="styles.css?v=1.20.0">
+  <link rel="stylesheet" href="styles.css?v=1.21.0">
 </head>
 <body>
 
@@ -12,7 +12,7 @@
 <aside class="preset-sidebar">
   <div class="preset-sidebar-head">
     <span class="preset-sidebar-title">Kabinet</span>
-    <span class="version-badge">v1.20.0</span>
+    <span class="version-badge">v1.21.0</span>
   </div>
   <input type="search" id="preset-search" class="preset-search" placeholder="프리셋·도구 검색…"
          oninput="kabinet.renderPresetSidebar()">
@@ -416,6 +416,24 @@
   </div>
 </div>
 
+<!-- ══ 도면 치수표 → 3D 가구 ═══════════════════════════════════════════ -->
+<div class="scroll-area view ep-view" id="view-dimport" hidden>
+  <div class="card">
+    <div class="card-title">도면 치수표 → 3D 가구</div>
+    <p class="ep-hint">도면에 있는 가구를 한 줄씩 입력하세요. <b>가구 종류(프리셋)</b>의 구조는 그대로 두고 폭·높이·깊이·판재 두께·도어/서랍 수만 바꿔 만듭니다.
+      비운 칸은 프리셋 값을 씁니다. <b>X</b>=왼쪽 기준 위치, <b>Y</b>=앞면 위치, <b>바닥</b>=바닥에서 띄운 높이(상부장 등), <b>방향</b>=Z축 회전(도). 단위는 모두 mm.
+      PDF 도면은 Claude에게 올려 이 표 값으로 읽어 달라고 하면 됩니다.</p>
+    <div class="di-wrap"><table class="di-table" id="di-table"></table></div>
+    <div class="di-actions">
+      <button type="button" class="btn-inline" onclick="kabinetDrawingImport.addRow()">＋ 행 추가</button>
+      <button type="button" class="btn-inline" onclick="kabinetDrawingImport.loadExample()">예시: 오톤도 30X33 도면</button>
+      <button type="button" class="btn-inline" onclick="kabinetDrawingImport.clearRows()">모두 지우기</button>
+    </div>
+    <button type="button" class="btn-primary ep-big" onclick="kabinetDrawingImport.generateAll()">모델에 모두 생성 (표의 위치대로 배치)</button>
+    <p class="ep-hint" id="di-status"></p>
+  </div>
+</div>
+
 <!-- ══ 주방 상판 설치 ══════════════════════════════════════════════════ -->
 <div class="scroll-area view ep-view" id="view-countertop" hidden>
   <div class="card">
@@ -473,9 +491,10 @@
 
 </div><!-- /.main-col -->
 
-<script src="app.js?v=1.20.0"></script>
-<script src="modules.js?v=1.20.0"></script>
-<script src="live-preview.js?v=1.20.0"></script>
-<script src="drawing.js?v=1.20.0"></script>
+<script src="app.js?v=1.21.0"></script>
+<script src="modules.js?v=1.21.0"></script>
+<script src="live-preview.js?v=1.21.0"></script>
+<script src="drawing.js?v=1.21.0"></script>
+<script src="drawing_import.js?v=1.21.0"></script>
 </body>
 </html>

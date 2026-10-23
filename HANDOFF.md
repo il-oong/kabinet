@@ -17,6 +17,9 @@
 - 공통사항 규칙은 **JS `applyCommon`과 Ruby `Core::Common.apply`가 같아야 함**(test/common_test.rb가 27개 프리셋으로 대조).
 
 ## 진행 기록
+- (v1.21.0) **도면 치수표 → 3D 가구**: `ui/web/drawing_import.js`(표 UI) + `app.js`의 `buildDrawingSpec(row)`(프리셋 구조 유지·치수만 변경, state 임시 교체 후 복원) + `commands/drawing_import.rb`(여러 가구를 위치·회전대로 생성) + `dialog.rb` 콜백 `kabinet:drawing_import`. 테스트 `test/drawing_import_test.rb`. PDF 도면은 Claude가 읽어 표 값으로 옮김(플러그인은 PDF 파싱 불가).
+- (v1.20.0) 도면 가구 프리셋 6종(`otondo_*`, 18T) · 모서리 R(`Builder.rounded_box`, 책상 `top_radius`/`top_round_corners`, `top_panel.corner_radius`) · 모든 판재는 각 그룹(테스트로 검증). 기존 프리셋 전체 18T 통일은 미실시(높이 재계산 필요).
+- (v1.19.x) 도어 열기/닫기(`commands/door_toggle.rb`, 80°), 면 클릭 두께 변경 수정(`Sketchup::Face::PointOutside`), 한 덩어리 그룹 벽 두께 변경 — SketchUp 실기 확인 대기.
 - (최신 세션) 프리셋 재구성은 사용자가 **"기존 유지 + 보강만"** 으로 결정. 27개 프리셋 전부 Schema 검증·Assembly 빌드 통과, 붙박이장 900×2300·주방 하부장 900×880 실측 일치 확인 → `test/preset_audit_test.rb` 추가. 남은 경고는 처짐 권고(18T 800mm 초과 스팬, 슬라이딩 행거봉 1524mm)뿐이며 경고로만 표시.
 
 ## 사용자가 요청했고 아직 안 한 것 (우선순위순)
