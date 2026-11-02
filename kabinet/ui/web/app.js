@@ -354,12 +354,14 @@ const FURNITURE_PRESETS = {
         door_config: 'pair', door_type: 'swing', door_thickness: 18,
         door_material: 'LPM', handle_type: 'none', material: 'LPM',
         edge_banding_mm: 1.0,
-        shelves: [{ height_from_bottom: 300, thickness: 18, depth_inset: 20 }],
+        shelves: [],
         accessories: [],
-        vertical_dividers: [{ x: 423, thickness: 18 }]
+        vertical_dividers: [{ x: 423, thickness: 18 }],
+        cell_shelves: [{ cell: 0, height_from_bottom: 300, thickness: 18, depth_inset: 20 },
+                       { cell: 1, height_from_bottom: 300, thickness: 18, depth_inset: 20 }]
       }
     ],
-    _info: '냉장고 상부장 W900×D600×H600 | 푸시 양개 + 가운데 칸막이 + 선반 1. 냉장고 윗면(약 1850) 위에 설치(바닥 띄움은 도면 치수표의 "바닥"에 입력). 폭·높이는 냉장고·천장에 맞춰 변경'
+    _info: '냉장고 상부장 W900×D600×H600 | 푸시 양개 + 가운데 칸막이 + 칸별 선반 1. 냉장고 윗면(약 1850) 위에 설치(바닥 띄움은 도면 치수표의 "바닥"에 입력). 폭·높이는 냉장고·천장에 맞춰 변경'
   },
 
   vanity: {
