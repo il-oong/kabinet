@@ -24,7 +24,7 @@ out, err, st = Open3.capture3('node', '-e', js)
 raise "node failed: #{err}" unless st.success?
 presets = JSON.parse(out)
 assert presets.size >= 12, "preset count #{presets.size}"
-expect = { 'wardrobe' => [900, 2300], 'kitchen_base' => [900, 830],
+expect = { 'wardrobe' => [900, 2300], 'kitchen_base' => [900, 830], 'fridge_upper' => [900, 600],
            # 도면(오톤도 30X33) 가구: 도면 치수 그대로
            'otondo_tall' => [1082, 2550], 'otondo_upper_pair' => [1120, 971], 'otondo_upper_single' => [560, 971],
            'otondo_desk' => [1768, 720], 'otondo_low_open' => [1182, 700], 'otondo_low_drawer' => [750, 270] }
