@@ -185,7 +185,7 @@
     byId('export').addEventListener('click', () => {
       const space = byId('space-mode').checked;
       call('ep_export', JSON.stringify({
-        title: byId('title').value.trim() || '가구 도면', internal: byId('internal').checked,
+        title: byId('title').value.trim() || '가구 도면', internal: byId('internal').checked, detail_page: byId('detail-page').checked,
         iso_direction: byId('iso-direction').value, furniture_name: byId('furniture-name').value.trim(),
         site: byId('site').value.trim(), drawing_date: byId('drawing-date').value, author: byId('author').value.trim(),
         memo: byId('memo').value.trim(), surface_left: byId('surface-left').value,
