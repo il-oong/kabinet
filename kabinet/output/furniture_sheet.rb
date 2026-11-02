@@ -8,6 +8,10 @@ module Kabinet
       module_function
 
       FRONT_AXES = { '-Y' => [0.0, -1.0], '+Y' => [0.0, 1.0], '-X' => [-1.0, 0.0], '+X' => [1.0, 0.0] }.freeze
+      # 은선(가려진 선): 연한 회색 0.3 → 진한 파랑 0.5 (인쇄해도 구분되도록)
+      HIDDEN_COLOR = '#1f5fa8'.freeze
+      HIDDEN_WEIGHT = 0.5
+      VISIBLE_COLOR = '#43483f'.freeze
       ISO_TURNS = { 'front_right' => 0, 'front_left' => 90, 'back_left' => 180, 'back_right' => -90 }.freeze
 
       def axis_from_vector(vector)
@@ -141,7 +145,7 @@ module Kabinet
           # Hide non-selected geometry only during ray tests; abort restores it.
           model.entities.each { |e| e.hidden = true if e.respond_to?(:hidden=) && !targets.include?(e) }
           visible = {}
-          %w[top side elevation].each do |name|
+          %w[top side elevation front].each do |name|
             visible[name] = classify_edges(model, segs, name, right, back, to_local)
           end
           root = model.entities.add_group
@@ -226,6 +230,7 @@ module Kabinet
           t = transform * entity.transformation
           children = entity.definition.entities
           children.each { |child| collect(child, t, segments, boxes, materials) }
+          rod_silhouette(entity, t, segments)
           unless children.grep(Sketchup::Face).empty?
             corners = (0..7).map { |i| entity.definition.bounds.corner(i).transform(t).to_a.map(&:to_mm) }
             boxes << [(0..2).map { |i| corners.map { |p| p[i] }.min }, (0..2).map { |i| corners.map { |p| p[i] }.max }]
@@ -233,6 +238,19 @@ module Kabinet
         when Sketchup::Edge
           return if entity.soft? || entity.smooth?
           segments << [entity.start.position, entity.end.position].map { |p| p.transform(transform).to_a.map(&:to_mm) }
+        end
+      end
+
+      # 옷걸이봉 같은 원통은 곡면 옆선이 soft/smooth 라 위 수집에서 빠져 은선에 안 나온다.
+      # 축(X) 방향 윤곽선 4줄(위·아래·앞·뒤)을 직접 추가해 정면·측면·평면 어디서든 보이게 한다.
+      def rod_silhouette(entity, transform, segments)
+        return unless Kabinet::Persistence::Attributes.role(entity).to_s.include?('rod')
+        bb = entity.definition.bounds
+        cy = (bb.min.y + bb.max.y) / 2.0
+        cz = (bb.min.z + bb.max.z) / 2.0
+        r = [bb.max.y - bb.min.y, bb.max.z - bb.min.z].min / 2.0
+        [[cy + r, cz], [cy - r, cz], [cy, cz + r], [cy, cz - r]].each do |y, z|
+          segments << [bb.min.x, bb.max.x].map { |x| Geom::Point3d.new(x, y, z).transform(transform).to_a.map(&:to_mm) }
         end
       end
 
@@ -361,9 +379,30 @@ module Kabinet
         text(doc, title, 271, 10, 130, 10, size: 14)
         draw_materials(doc, data[:materials])
         draw_notes(doc, title, options)
-        text(doc, "단위 mm · 정면 축척 1:#{number(1.0 / scale)} · 깊이는 사선 축약 · #{data[:internal] ? '점선: 가려진 선' : '실선: 보이는 선'}", 20, 291, 245, 6, size: 8)
+        text(doc, "단위 mm · 정면 축척 1:#{number(1.0 / scale)} · 깊이는 사선 축약 · #{data[:internal] ? '파란 점선: 가려진 선(옷걸이봉·선반·칸막이 포함)' : '실선: 보이는 선'}", 20, 291, 245, 6, size: 8)
+        compose_detail_page(doc, data, title) if options.fetch('detail_page', true) && data[:views]['front']
 
         doc
+      end
+
+      # 2장째: 정면도·측면도를 크게(실제 직교 투영) — 가려진 선(옷걸이봉·선반·칸막이)과
+      # 부품 경계 치수를 더 많이 보여 준다. 1장은 개요, 2장은 상세.
+      DETAIL_SCALE_MIN = 1.0 / 60
+
+      def compose_detail_page(doc, data, title)
+        w, d, h = data[:size]
+        scale = [315.0 / (w + d), 185.0 / h, 1.0].min
+        scale = 1.0 / (1.0 / scale).ceil
+        return if scale < DETAIL_SCALE_MIN
+        page = doc.pages.add("#{title} — 상세")
+        sheet = DetailSheet.new(page)
+        top = 50.0
+        front_x = 35.0
+        side_x = front_x + w * scale + 60
+        sheet.draw_view(doc, data, 'front', 0, 2, front_x, top, scale, top + h * scale + 22, 'FRONT VIEW 정면도')
+        sheet.draw_view(doc, data, 'side', 1, 2, side_x, top, scale, top + h * scale + 22, 'RIGHT SIDE VIEW 우측면도')
+        sheet.text(doc, "#{title} — 상세 도면", 35, 10, 250, 10, size: 14)
+        sheet.text(doc, "단위 mm · 축척 1:#{number(1.0 / scale)} · #{data[:internal] ? '파란 점선: 가려진 선(옷걸이봉·선반·칸막이 포함) · 실선: 보이는 선' : '실선: 보이는 선'}", 35, 280, 360, 6, size: 8)
       end
 
       # Measure the actual projected corners, rather than assuming an ideal
@@ -398,7 +437,7 @@ module Kabinet
           px, py, pz = point.zip(data[:lo]).map { |a, b| a - b }
           [x + (px + py * 0.45) * scale, bottom - (pz + py * 0.3) * scale]
         end
-        before_geometry = doc.pages.first.entities.to_a
+        before_geometry = page_of(doc).entities.to_a
         [:hidden, :visible].each do |kind|
           next if kind == :hidden && !data[:internal]
           seen = {}
@@ -407,7 +446,7 @@ module Kabinet
             key = [p.map { |v| v.round(4) }, q.map { |v| v.round(4) }].sort
             next if seen[key]
             seen[key] = true
-            line(doc, *p, *q, dashed: kind == :hidden, color: kind == :hidden ? '#92968c' : '#43483f', weight: kind == :hidden ? 0.3 : 0.5)
+            line(doc, *p, *q, dashed: kind == :hidden, color: kind == :hidden ? HIDDEN_COLOR : VISIBLE_COLOR, weight: kind == :hidden ? HIDDEN_WEIGHT : 0.5)
           end
         end
         scaled_geometry(doc, before_geometry, scale, 'ELEVATION')
@@ -446,14 +485,14 @@ module Kabinet
       def draw_view(doc, data, name, ai, bi, x, y, scale, caption_y, label)
         width = data[:size][ai] * scale
         height = data[:size][bi] * scale
-        before_geometry = doc.pages.first.entities.to_a
+        before_geometry = page_of(doc).entities.to_a
         [:hidden, :visible].each do |kind|
           next if kind == :hidden && !data[:internal]
           segments = GroupProjection.project(data[:views][name][kind], ai, bi, data[:lo][ai], data[:lo][bi])
           segments.each do |s|
             line(doc, x + s[:x1] * scale, y + height - s[:y1] * scale,
                  x + s[:x2] * scale, y + height - s[:y2] * scale,
-                 dashed: kind == :hidden, color: kind == :hidden ? '#92968c' : '#43483f', weight: kind == :hidden ? 0.3 : 0.5)
+                 dashed: kind == :hidden, color: kind == :hidden ? HIDDEN_COLOR : VISIBLE_COLOR, weight: kind == :hidden ? HIDDEN_WEIGHT : 0.5)
           end
         end
         scaled_geometry(doc, before_geometry, scale, label)
@@ -491,7 +530,7 @@ module Kabinet
       end
 
       def scaled_geometry(doc, before, scale, name)
-        paths = doc.pages.first.entities.to_a.reject { |entity| before.any? { |old| old == entity } }
+        paths = page_of(doc).entities.to_a.reject { |entity| before.any? { |old| old == entity } }
         group = Layout::Group.new(paths)
         group.set_scale_factor(scale, Layout::Document::DECIMAL_MILLIMETERS, Layout::Group::RESIZE_BEHAVIOR_NONE)
         group.scale_precision = 1.0
@@ -615,8 +654,13 @@ module Kabinet
         Geom::Bounds2d.new(x / 25.4, y / 25.4, w / 25.4, h / 25.4)
       end
 
+      # 그릴 페이지: 상세 도면(DetailPage)은 @page 를 지정, 그 외에는 첫 페이지
+      def page_of(doc)
+        @page || doc.pages.first
+      end
+
       def add(doc, entity)
-        doc.add_entity(entity, doc.layers.first, doc.pages.first)
+        doc.add_entity(entity, doc.layers.first, page_of(doc))
         entity
       end
 
@@ -642,6 +686,16 @@ module Kabinet
         style.text_alignment = Layout::Style::ALIGN_CENTER if center
         entity.apply_style(style)
         add(doc, entity)
+      end
+    end
+
+    # 2장째(상세 도면)가 그릴 페이지를 지정하는 그리기 도우미. 모든 그리기 메서드를 그대로 재사용한다.
+    class DetailSheet
+      include FurnitureSheet
+      public :draw_view, :line, :text
+
+      def initialize(page)
+        @page = page
       end
     end
   end

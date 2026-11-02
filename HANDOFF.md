@@ -17,6 +17,7 @@
 - 공통사항 규칙은 **JS `applyCommon`과 Ruby `Core::Common.apply`가 같아야 함**(test/common_test.rb가 27개 프리셋으로 대조).
 
 ## 진행 기록
+- (v1.21.1) 도면 치수표에 JSON 붙여넣기(`importJson`). **DWG 읽기 메모**: DWG(AC1021)는 플러그인이 직접 못 읽음. 클라우드에서는 `pip install aspose-cad ezdxf` 후 `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` 로 DWG→DXF 변환 가능(평가판). 오톤도 DWG는 치수·문자가 폴리라인으로 분해돼 있고(텍스트/DIMENSION 0개), 레이어 `DS-定制柜体`(몸통)·`DS-定制柜门`(도어)·`DS-定制台面`(상판)·`SH-尺寸标注`(치수)로 나뉨. 좌표 스케일 ≈ 25.5mm/단위(3400×2550 입면이 133.2×99.9). 입면 뷰별 도어 사각형으로 위치·폭을 얻을 수 있음을 확인했으나 자동 변환은 미구현.
 - (v1.21.0) **도면 치수표 → 3D 가구**: `ui/web/drawing_import.js`(표 UI) + `app.js`의 `buildDrawingSpec(row)`(프리셋 구조 유지·치수만 변경, state 임시 교체 후 복원) + `commands/drawing_import.rb`(여러 가구를 위치·회전대로 생성) + `dialog.rb` 콜백 `kabinet:drawing_import`. 테스트 `test/drawing_import_test.rb`. PDF 도면은 Claude가 읽어 표 값으로 옮김(플러그인은 PDF 파싱 불가).
 - (v1.20.0) 도면 가구 프리셋 6종(`otondo_*`, 18T) · 모서리 R(`Builder.rounded_box`, 책상 `top_radius`/`top_round_corners`, `top_panel.corner_radius`) · 모든 판재는 각 그룹(테스트로 검증). 기존 프리셋 전체 18T 통일은 미실시(높이 재계산 필요).
 - (v1.19.x) 도어 열기/닫기(`commands/door_toggle.rb`, 80°), 면 클릭 두께 변경 수정(`Sketchup::Face::PointOutside`), 한 덩어리 그룹 벽 두께 변경 — SketchUp 실기 확인 대기.
