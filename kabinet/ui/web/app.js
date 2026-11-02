@@ -339,6 +339,29 @@ const FURNITURE_PRESETS = {
     _info: '주방 상부장 W900×D320×H700 | 바닥 설치 높이 1500mm 위 권장'
   },
 
+  fridge_upper: {
+    name: '냉장고 상부장',
+    furniture_type: 'fridge_upper',
+    width: 900, max_depth: 600, base_height: 0,
+    material: 'LPM',
+    ep: { left: false, right: false, thickness: 18 },
+    top_panel: null,
+    // 냉장고 위 수납장: 냉장고 윗면(높이 약 1800~1900)에서 천장까지. 폭은 냉장고 폭 + 여유로 맞춤.
+    // 가운데 칸막이(양개 도어 사이)로 선반 처짐을 막음 — 처짐은 경고로만 표시.
+    modules: [
+      { kind: 'shelf_module', width: 900, depth: 600, height: 600,
+        body_thickness: 18, back_thickness: 9, has_back: true,
+        door_config: 'pair', door_type: 'swing', door_thickness: 18,
+        door_material: 'LPM', handle_type: 'none', material: 'LPM',
+        edge_banding_mm: 1.0,
+        shelves: [{ height_from_bottom: 300, thickness: 18, depth_inset: 20 }],
+        accessories: [],
+        vertical_dividers: [{ x: 423, thickness: 18 }]
+      }
+    ],
+    _info: '냉장고 상부장 W900×D600×H600 | 푸시 양개 + 가운데 칸막이 + 선반 1. 냉장고 윗면(약 1850) 위에 설치(바닥 띄움은 도면 치수표의 "바닥"에 입력). 폭·높이는 냉장고·천장에 맞춰 변경'
+  },
+
   vanity: {
     name: '화장대',
     furniture_type: 'vanity',
