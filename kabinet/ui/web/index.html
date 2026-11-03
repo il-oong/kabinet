@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabinet</title>
-  <link rel="stylesheet" href="styles.css?v=1.22.1">
+  <link rel="stylesheet" href="styles.css?v=1.23.0">
 </head>
 <body>
 
@@ -12,7 +12,7 @@
 <aside class="preset-sidebar">
   <div class="preset-sidebar-head">
     <span class="preset-sidebar-title">Kabinet</span>
-    <span class="version-badge">v1.22.1</span>
+    <span class="version-badge">v1.23.0</span>
   </div>
   <input type="search" id="preset-search" class="preset-search" placeholder="프리셋·도구 검색…"
          oninput="kabinet.renderPresetSidebar()">
@@ -469,6 +469,44 @@
   </div>
 </div>
 
+<!-- ══ 도면 시트 (DXF) ═══════════════════════════════════════════════════ -->
+<div class="scroll-area view ep-view" id="view-sheet" hidden>
+  <div class="card">
+    <div class="card-title">도면 시트 — 제작도면 DXF (A3 가로, 1단위 = 1mm)</div>
+    <p class="ep-hint">선택한 Kabinet 가구(없으면 모델 안 마지막 가구)로 현장사진 · 상담 3D · 평면도 · 가구 시트 · 측면/단면 · 상세 · 생산 확인표를 한 DXF에 시트별로 나란히 만듭니다.
+      아래 목록에서 <b>순서(▲▼ 또는 끌어서)·숨김·제목·SHEET NO.·SCALE</b>을 바꾸세요. 구성은 이 모델에 저장됩니다.</p>
+    <p class="ep-hint" id="sh-furniture-info"></p>
+    <div class="ep-grid">
+      <label class="ep-field">현장명 (SITE LOCATION)<input id="sh-site" oninput="kabinetSheet.onField('site', this.value)" placeholder="예: 판교 푸르지오 그랑블"></label>
+      <label class="ep-field">가구명 (PROJECT TITLE)<input id="sh-furniture_name" oninput="kabinetSheet.onField('furniture_name', this.value)" placeholder="비우면 가구 이름"></label>
+      <label class="ep-field">DATE<input id="sh-date" oninput="kabinetSheet.onField('date', this.value)" placeholder="2026.04.10"></label>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">페이지 구성 <span class="dim-note" id="sh-export-count"></span></div>
+    <div id="sh-pages" class="sh-pages"></div>
+    <div class="di-actions">
+      <select id="sh-add-type"></select>
+      <button type="button" class="btn-inline" onclick="kabinetSheet.add()">＋ 페이지 추가</button>
+      <button type="button" class="btn-inline" onclick="kabinetSheet.resetPages()">기본 구성으로</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">내보내기 옵션</div>
+    <div class="ep-grid2">
+      <label class="ep-field">배경<select id="sh-bg" onchange="kabinetSheet.onField('bg', this.value)">
+        <option value="white">흰 배경 (검정 선 · 종이처럼)</option>
+        <option value="dark">어두운 배경 (밝은 선)</option>
+        <option value="none">자동 (배경 없음, CAD 배경에 맞춤)</option></select></label>
+      <label class="ep-field">글자 스타일 폰트 이름<input id="sh-style_name" oninput="kabinetSheet.onField('style_name', this.value)" placeholder="MALGUN"></label>
+    </div>
+    <p class="ep-hint">글자는 맑은 고딕(malgun.ttf) 스타일로 들어갑니다. CAD 에 맑은 고딕이 없으면 다른 글꼴로 보일 수 있습니다.</p>
+    <p class="ep-hint"><b>이미지가 있는 도면</b>: DXF 는 이미지를 파일로 <u>참조</u>합니다. 저장하면 <code>&lt;이름&gt;_images/</code> 폴더가 DXF 옆에 만들어지니
+      <b>DXF 파일과 그 폴더를 함께</b> 옮기세요(폴더째 복사하면 됩니다). 이미지가 없어도 도곽은 열립니다.</p>
+    <button type="button" class="btn-primary ep-big" onclick="kabinetSheet.exportDxf()">DXF 내보내기 (저장 위치 선택)</button>
+  </div>
+</div>
+
 <!-- ══ EP 판재 한 장 ══════════════════════════════════════════════════════ -->
 <div class="scroll-area view ep-view" id="view-ep" hidden>
   <div class="card">
@@ -498,10 +536,11 @@
 
 </div><!-- /.main-col -->
 
-<script src="app.js?v=1.22.1"></script>
-<script src="modules.js?v=1.22.1"></script>
-<script src="live-preview.js?v=1.22.1"></script>
-<script src="drawing.js?v=1.22.1"></script>
-<script src="drawing_import.js?v=1.22.1"></script>
+<script src="app.js?v=1.23.0"></script>
+<script src="modules.js?v=1.23.0"></script>
+<script src="live-preview.js?v=1.23.0"></script>
+<script src="drawing.js?v=1.23.0"></script>
+<script src="drawing_import.js?v=1.23.0"></script>
+<script src="sheet.js?v=1.23.0"></script>
 </body>
 </html>
