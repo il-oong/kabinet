@@ -9,8 +9,11 @@ module Kabinet
       #   'furniture_name' =>, 'overall' => {'W','H','D','top_thickness','kick'},
       #   'ep' => {'left','right','top','thickness'},
       #   'modules' => [{'name','x','z','w','h','d','type'(doors|drawers|open),
-      #                   'doors'(0..2),'drawers'(n),'shelves'=>[z...],'rods'=>[z...],'flags'=>[]}],
+      #                   'doors'(0..2),'drawers'(n),'shelves'=>[z...],'rods'=>[z...],'flags'=>[],'label'=>'짧은 표기'}],
+      #   'type'(appliance 모듈 = 가전 자리), 'channel'(목찬넬 손잡이 → 상세 쪽), 'sink' => {'x','y','w','d'}(평면 싱크 컷),
+      #   'cut_x' => 단면 1 절단 X(평면 좌표) 또는 'cuts' => [x1, x2](단면 1~2), 'table_rows' => [[항목, 가정값, 확인]...],
       #   'notes' => {'DOOR','BODY','handle'}, 'room' => {'W','D','name'}, 'flags' => []
+      # (tools/sheet/build_generic.py 의 furniture.json 스키마와 같은 모양이라 같은 JSON 을 Ruby/Python 양쪽에 넣을 수 있다)
       # }
       module Model
         module_function
@@ -53,7 +56,8 @@ module Kabinet
             end
           end
           h = mods.map { |m| m['z'] + m['h'] }.max.to_f + top
-          normalize('furniture_name' => furniture_name || spec['name'] || 'Furniture',
+          channel = (spec['modules'] || []).any? { |m| m['handle_type'].to_s == 'channel' }
+          normalize('furniture_name' => furniture_name || spec['name'] || 'Furniture', 'channel' => channel,
                     'overall' => { 'W' => w, 'H' => h, 'D' => d, 'top_thickness' => top, 'kick' => base },
                     'ep' => { 'left' => ep['left'], 'right' => ep['right'], 'top' => ep['top'], 'thickness' => num(ep['thickness'], 20) },
                     'modules' => mods, 'flags' => flags,
@@ -100,6 +104,10 @@ module Kabinet
             'ep' => { 'left' => !!(s['ep'] || {})['left'], 'right' => !!(s['ep'] || {})['right'],
                       'top' => !!(s['ep'] || {})['top'], 'thickness' => num((s['ep'] || {})['thickness'], 20) },
             'modules' => (s['modules'] || []).map { |m| module_defaults(m, o) },
+            'type' => (s['type'] || '가구').to_s, 'channel' => !!s['channel'],
+            'sink' => s['sink'].is_a?(Hash) ? %w[x y w d].each_with_object({}) { |k, h| h[k] = num(s['sink'][k]) } : nil,
+            'cuts' => cuts_from(s),
+            'table_rows' => (s['table_rows'] || []).select { |r| r.is_a?(Array) && r.size >= 3 },
             'notes' => DEFAULT_NOTES.merge((s['notes'] || {}).select { |_k, v| v.to_s != '' }),
             'room' => { 'W' => num((s['room'] || {})['W'], 5200), 'D' => num((s['room'] || {})['D'], 3400),
                         'name' => ((s['room'] || {})['name'] || '공간').to_s },
@@ -109,9 +117,15 @@ module Kabinet
           out
         end
 
+        # 절단 위치 목록(최대 2). 지정이 없으면 빈 배열(= 페이지 쪽에서 가운데 모듈로 자동)
+        def cuts_from(s)
+          list = s['cuts'].is_a?(Array) ? s['cuts'] : (s['cut_x'].nil? ? [] : [s['cut_x']])
+          list.map { |v| num(v, nil) }.compact.first(2)
+        end
+
         def module_defaults(m, o)
           {
-            'name' => (m['name'] || 'M').to_s, 'x' => num(m['x']), 'z' => num(m['z']),
+            'name' => (m['name'] || 'M').to_s, 'label' => (m['label'] || m['name'] || 'M').to_s, 'x' => num(m['x']), 'z' => num(m['z']),
             'w' => num(m['w'], num(o['W'], 900)), 'h' => num(m['h'], num(o['H'], 900)), 'd' => num(m['d'], num(o['D'], 600)),
             'type' => (m['type'] || 'open').to_s, 'doors' => m['doors'].to_i, 'drawers' => m['drawers'].to_i,
             'shelves' => (m['shelves'] || []).map { |v| num(v) }, 'rods' => (m['rods'] || []).map { |v| num(v) },
