@@ -1,9 +1,9 @@
-# Kabinet 인수인계 (v1.17.0 기준)
+# Kabinet 인수인계 (v1.22.1 기준)
 
 새 세션에서 이 파일부터 읽고 이어서 작업하세요. 사용자 선호: **한국어로 답변, 코드는 항상 PR 먼저 만든 뒤 머지, Railway 사용(이 저장소는 SketchUp 플러그인이라 해당 없음)**, 컨텍스트 70% 넘으면 중단하고 정리.
 
 ## 현재 상태
-- master = v1.17.0 (PR #16~#22 머지됨). 설치 파일 `kabinet.rbz`(루트)는 항상 최신으로 재빌드해 커밋: `python3 build/package.py && cp build/kabinet-<버전>.rbz kabinet.rbz`
+- master = v1.22.1 (PR #32까지 머지됨). 변경 이력 상세는 `INSTALL.md` 맨 위부터. 설치 파일 `kabinet.rbz`(루트)는 항상 최신으로 재빌드해 커밋: `python3 build/package.py && cp build/kabinet-<버전>.rbz kabinet.rbz`
 - 사용자 PC는 v1.8 → 수동 설치 필요했음. 이후 창의 **더보기 > GitHub에서 업데이트**로 갱신(master의 kabinet.rbz를 받아 설치).
 - 테스트: `for t in test/*_test.rb; do ruby $t; done` + 브라우저 `test/live_preview_browser.js`(playwright, /opt/pw-browsers/chromium). SketchUp 실기 테스트는 한 번도 못 함 — 사용자가 사진으로 피드백.
 - 버전 올릴 때 `kabinet/version.rb` + `kabinet/ui/web/index.html`(`?v=` 캐시 파라미터, 상단 v표시)를 같이 바꾸고 `INSTALL.md` 맨 위에 변경 기록 추가.
@@ -17,6 +17,9 @@
 - 공통사항 규칙은 **JS `applyCommon`과 Ruby `Core::Common.apply`가 같아야 함**(test/common_test.rb가 27개 프리셋으로 대조).
 
 ## 진행 기록
+- (v1.22.1) 냉장고 상부장 프리셋(W900×D600×H600, 푸시 양개 + 가운데 칸막이 + 칸별 선반, 18T). 도면 치수표의 「바닥」에 냉장고 높이(≈1850)를 넣어 사용.
+- (v1.22.0) LayOut 도면: 은선 진한 파랑 0.5, 옷걸이봉 은선 윤곽선 4줄, 「2장째 상세 도면」(정면·우측면 확대 + 부품 경계 치수, 기본 켜짐).
+- (v1.21.x 이전 요약) v1.18 찬넬·주방 하부장·붙박이장 구성 확장·손잡이 위치, v1.19 EP 기본 꺼짐·도어 열기/닫기(80°)·면 클릭 두께 수정, v1.20 도면 가구 프리셋 6종·모서리 R, v1.21 도면 치수표→3D 가구·표 붙여넣기.
 - (v1.21.1) 도면 치수표에 JSON 붙여넣기(`importJson`). **DWG 읽기 메모**: DWG(AC1021)는 플러그인이 직접 못 읽음. 클라우드에서는 `pip install aspose-cad ezdxf` 후 `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` 로 DWG→DXF 변환 가능(평가판). 오톤도 DWG는 치수·문자가 폴리라인으로 분해돼 있고(텍스트/DIMENSION 0개), 레이어 `DS-定制柜体`(몸통)·`DS-定制柜门`(도어)·`DS-定制台面`(상판)·`SH-尺寸标注`(치수)로 나뉨. 좌표 스케일 ≈ 25.5mm/단위(3400×2550 입면이 133.2×99.9). 입면 뷰별 도어 사각형으로 위치·폭을 얻을 수 있음을 확인했으나 자동 변환은 미구현.
 - (v1.21.0) **도면 치수표 → 3D 가구**: `ui/web/drawing_import.js`(표 UI) + `app.js`의 `buildDrawingSpec(row)`(프리셋 구조 유지·치수만 변경, state 임시 교체 후 복원) + `commands/drawing_import.rb`(여러 가구를 위치·회전대로 생성) + `dialog.rb` 콜백 `kabinet:drawing_import`. 테스트 `test/drawing_import_test.rb`. PDF 도면은 Claude가 읽어 표 값으로 옮김(플러그인은 PDF 파싱 불가).
 - (v1.20.0) 도면 가구 프리셋 6종(`otondo_*`, 18T) · 모서리 R(`Builder.rounded_box`, 책상 `top_radius`/`top_round_corners`, `top_panel.corner_radius`) · 모든 판재는 각 그룹(테스트로 검증). 기존 프리셋 전체 18T 통일은 미실시(높이 재계산 필요).
