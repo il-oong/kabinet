@@ -1,5 +1,16 @@
 # Kabinet — 설치 및 검증 가이드
 
+## v1.25.0 — 제작도면 DXF: CAD 호환 골격·1:1 실치수·뷰 블록·HATCH·Ruby/Python 동등성
+
+- **DXF 호환(최우선)**: 한글 CAD 에서 `Press ENTER to continue:` 만 뜨고 안 열리던 원본 Ruby DXF 의 구조 결함(OBJECTS 에 DICTIONARY 2개뿐, LAYOUT/ACAD_GROUP/MATERIAL 없음, CLASSES 3개, `$HANDSEED FFFFF`, BLOCK_RECORD 레이아웃 핸들 없음, DIMSTYLE 비어 있음, 한글·공백·괄호 이미지 경로)를 제거했습니다. `output/sheet/dxf_skeleton.rb`(ezdxf 가 쓰는 R2004 파일을 그대로 옮긴 골격 — `python3 tools/sheet/gen_dxf_skeleton.py` 로 재생성)에 레이어·엔티티·IMAGEDEF 만 끼웁니다. 구조 검사: `python3 -I tools/sheet/verify_dxf.py 파일.dxf --structure-only`(핸들 중복·미해결 참조·$HANDSEED·LAYOUT/CLASSES/DIMSTYLE). 비교는 `SHEET_FORMAT_ANALYSIS.md` §14.
+- **사진**: 이미지는 `<영문이름>_images/img_01.jpg …`(ASCII)로 복사·참조하고 사용자 파일명은 캡션 글자로만 남깁니다. 사이드바 「도면 시트」 > 내보내기 옵션 **「사진 포함」**(기본 켜짐)을 끄면 IMAGE 없이 틀·캡션만 저장 — **CAD 에서 안 열리면 이 옵션을 끄고 다시 내보내세요.**
+- **실치수 1:1**(기본 켜짐): 가구가 실제 mm 좌표, 도곽은 축척 배수만큼 크게(1/25 → 10,500×7,425), 글자·치수 간격·해칭 패턴도 배수 적용. 끄면 종이 420×297. 상세 쪽(EP 1/5·목찬넬 1/2 확대)은 별도 배율이라 실물과 다를 수 있음.
+- **뷰를 블록으로**(기본 켜짐): TOP VIEW·정면 DOOR/BODY·측면·단면·상세·NOTE·도곽(`FRAME_SHEET1`)이 이름 있는 블록 + INSERT 1개 — 한 번에 선택·이동. **블록 안을 고치려면 분해(EXPLODE) 또는 REFEDIT**. 낱개가 필요하면 끄세요. 해칭(EP·벽 띠 등)은 영역마다 HATCH(ANSI31) 1개(낱개 사선 선 아님).
+- **내용 동등성**: Ruby 시트에 키플랜, 절단선+번호 마커 양끝, 단면 1~2, 목찬넬 상세, 가전/싱크, 확인표 flags 를 Python(`build_generic.py`)과 맞춤. 같은 `furniture.json` 비교: `python3 -I tools/sheet/compare_ruby_python.py output_samples/___-1/furniture.json …`.
+- **Ruby 2.7 문법 검사 통과**(SketchUp 2017~2023). 새 코드에서도 Ruby 3 전용 문법 금지.
+- **실기 확인 항목(사용자 CAD, 한글 AutoCAD 계열)**: ① 새 Ruby DXF 가 `Press ENTER` 없이 열리는가(사진 포함/제외 각각) ② 열렸을 때 도곽 크기(1:1 → 시트 폭 10,500 등)와 가구 치수 일치 ③ 뷰 블록 선택·EXPLODE 동작, HATCH 해칭 표시 ④ 한글 글자(맑은 고딕) ⑤ 사진이 보이는가(DXF 옆 `_images` 폴더 함께 복사).
+- 이 환경에서는 ezdxf audit 0 + 자체 구조 검사 + dxfgrabber 로만 확인했고 AutoCAD 로 열어 보지는 못했습니다(한계).
+
 ## v1.24.1 — SketchUp 2022(Ruby 2.7)에서 플러그인이 로드되지 않던 문제 수정
 
 - **증상**: `main.rb 파일 로드 오류 ... dxf_reader.rb:14: syntax error, unexpected '='` (v1.24.0 설치 후 Kabinet 메뉴가 안 보임).

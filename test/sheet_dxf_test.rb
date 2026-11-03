@@ -180,7 +180,7 @@ def structure_problems(path)
   while pairs[k][0] != '0' do names << pairs[k][1] if pairs[k][0] == '3'; k += 1 end
   %w[ACAD_GROUP ACAD_LAYOUT ACAD_MLINESTYLE ACAD_PLOTSETTINGS ACAD_PLOTSTYLENAME ACAD_MATERIAL ACAD_COLOR ACAD_VISUALSTYLE].each { |n| probs << "root dict #{n}" unless names.include?(n) }
   br = pairs.each_index.select { |i| pairs[i] == %w[0 BLOCK_RECORD] }.map { |i| pairs[i + 1, 14] }
-  probs << 'BLOCK_RECORD 340' unless br.size == 2 && br.all? { |b| b.any? { |c, v| c == '340' && v != '0' } }
+  probs << 'BLOCK_RECORD 340' unless br.size >= 2 && br.first(2).all? { |b| b.any? { |c, v| c == '340' && v != '0' } }
   probs
 end
 
@@ -220,6 +220,39 @@ Dir.mktmpdir do |dir|
   end
   widths = xs.map { |a, b| (b - a).round(1) }
   assert widths.include?(1800.0), "furniture outline width 1800 mm in real scale: #{widths.uniq.first(8)}"
+end
+
+# ── 뷰를 이름 있는 BLOCK + INSERT 로, 해칭은 영역당 HATCH 1개 ───────────────────────────────────────
+Dir.mktmpdir do |dir|
+  path = File.join(dir, 'blk.dxf')
+  S::Builder.export(cfg.merge('blocks' => true, 'real_scale' => true), model, path)
+  sec = parse_dxf(path)
+  assert structure_problems(path).empty?, "block structure #{structure_problems(path)}"
+  bnames = []
+  sec['BLOCKS'].each_with_index { |(c, v), i| bnames << sec['BLOCKS'][(i + 1)..-1].find { |cc, _| cc == 2 }[1] if c == 0 && v == 'BLOCK' }
+  user = bnames.reject { |n| n.start_with?('*') }
+  assert user.include?('FRAME_SHEET1') && user.any? { |n| n =~ /\AVIEW_TOP_S\d+\z/ } && user.any? { |n| n =~ /\AVIEW_FRONT_DOOR_S\d+\z/ } &&
+         user.any? { |n| n =~ /\ASECTION_1_S\d+\z/ } && user.any? { |n| n =~ /\ANOTE_S\d+\z/ }, "block names #{user}"
+  ents = entities(sec['ENTITIES'])
+  inserts = ents.select { |e| e[:type] == 'INSERT' }
+  assert inserts.size == user.size, "INSERT #{inserts.size} == blocks #{user.size}"
+  assert ents.none? { |e| %w[LINE LWPOLYLINE TEXT CIRCLE].include?(e[:type]) && e[:layer] != 'SHEET_FRAME_INFO' }, 'only INSERT/BG/info in model space'
+  inner = entities(sec['BLOCKS'])
+  hatches = inner.select { |e| e[:type] == 'HATCH' }
+  assert hatches.size >= 4, "HATCH per area #{hatches.size}"
+  assert hatches.all? { |e| e[:pairs].include?([2, 'ANSI31']) }, 'ANSI31 pattern'
+  # 해칭 낱개 선 없음: THIN 레이어의 회색 45° LINE 이 반복되지 않는다
+  diag = inner.select do |e|
+    next false unless e[:type] == 'LINE' && e[:layer] == 'THIN'
+    v = e[:pairs].to_h { |c, q| [c, q] }
+    (v[10].to_f - v[11].to_f).abs > 1e-6 && ((v[10].to_f - v[11].to_f).abs - (v[20].to_f - v[21].to_f).abs).abs < 1e-3
+  end
+  assert diag.size < 8, "loose hatch lines #{diag.size}"
+  # 블록 정의 안 좌표는 실치수(시트 원점 기준) — 도곽 외곽이 10,500 근처까지
+  # blocks:false 면 낱개 + 블록 정의 없음
+  p2 = File.join(dir, 'flat.dxf'); S::Builder.export(cfg.merge('blocks' => false), model, p2)
+  s2 = parse_dxf(p2)
+  assert entities(s2['ENTITIES']).none? { |e| e[:type] == 'INSERT' } && s2['BLOCKS'].none? { |c, v| c == 2 && v =~ /_S\d+\z|FRAME_SHEET/ }, 'blocks off'
 end
 
 puts 'sheet_dxf_test OK'

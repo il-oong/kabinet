@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabinet</title>
-  <link rel="stylesheet" href="styles.css?v=1.24.1">
+  <link rel="stylesheet" href="styles.css?v=1.25.0">
 </head>
 <body>
 
@@ -12,7 +12,7 @@
 <aside class="preset-sidebar">
   <div class="preset-sidebar-head">
     <span class="preset-sidebar-title">Kabinet</span>
-    <span class="version-badge">v1.24.1</span>
+    <span class="version-badge">v1.25.0</span>
   </div>
   <input type="search" id="preset-search" class="preset-search" placeholder="프리셋·도구 검색…"
          oninput="kabinet.renderPresetSidebar()">
@@ -502,6 +502,8 @@
     </div>
     <label class="ep-check"><input type="checkbox" id="sh-images" onchange="kabinetSheet.onField('images', this.checked)"> 사진 포함 (현장사진·상담 3D 를 DXF 이미지로 넣기)</label>
     <label class="ep-check"><input type="checkbox" id="sh-real_scale" onchange="kabinetSheet.onField('real_scale', this.checked)"> 실치수 1:1 (가구가 실제 mm 좌표, 도곽은 축척 배수만큼 크게 — 끄면 종이 크기 420×297)</label>
+    <label class="ep-check"><input type="checkbox" id="sh-blocks" onchange="kabinetSheet.onField('blocks', this.checked)"> 뷰를 블록으로 (TOP VIEW·정면·측면·단면·상세·도곽을 이름 있는 블록 1개씩 — 한 번에 선택·이동)</label>
+    <p class="ep-hint">블록 안을 고치려면 분해(EXPLODE) 하거나 REFEDIT(블록 편집)을 쓰세요. 낱개로 받으려면 「뷰를 블록으로」를 끄세요. 해칭은 영역마다 HATCH 1개입니다.</p>
     <p class="ep-hint">사진이 CAD 에서 안 열리거나 필요 없으면 「사진 포함」을 끄세요(틀과 캡션만 남고 IMAGE 가 빠집니다).</p>
     <p class="ep-hint">글자는 맑은 고딕(malgun.ttf) 스타일로 들어갑니다. CAD 에 맑은 고딕이 없으면 다른 글꼴로 보일 수 있습니다.</p>
     <p class="ep-hint"><b>이미지가 있는 도면</b>: DXF 는 이미지를 파일로 <u>참조</u>합니다. 저장하면 <code>&lt;영문이름&gt;_images/</code>(img_01.jpg …, 한글·공백 없는 이름) 폴더가 DXF 옆에 만들어지니
@@ -540,11 +542,11 @@
 
 </div><!-- /.main-col -->
 
-<script src="app.js?v=1.24.1"></script>
-<script src="modules.js?v=1.24.1"></script>
-<script src="live-preview.js?v=1.24.1"></script>
-<script src="drawing.js?v=1.24.1"></script>
-<script src="drawing_import.js?v=1.24.1"></script>
-<script src="sheet.js?v=1.24.1"></script>
+<script src="app.js?v=1.25.0"></script>
+<script src="modules.js?v=1.25.0"></script>
+<script src="live-preview.js?v=1.25.0"></script>
+<script src="drawing.js?v=1.25.0"></script>
+<script src="drawing_import.js?v=1.25.0"></script>
+<script src="sheet.js?v=1.25.0"></script>
 </body>
 </html>
