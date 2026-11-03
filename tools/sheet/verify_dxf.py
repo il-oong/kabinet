@@ -133,7 +133,13 @@ def main():
         print("RESULT:", "PASS" if ok else "FAIL"); sys.exit(0 if ok else 1)
     print("INSUNITS:", d.header.get("$INSUNITS"), "layers:", sorted(l.dxf.name for l in d.layers))
     msp = d.modelspace()
-    ents = list(msp)
+    def _flat(it):
+        for e in it:
+            if e.dxftype() == "INSERT":
+                yield from _flat(e.virtual_entities())
+            else:
+                yield e
+    ents = list(_flat(msp))      # 뷰 블록(INSERT)은 풀어서 검사
     # 시트 도곽: FRAME 레이어 lineweight 100 사각
     frames = []
     for e in ents:

@@ -18,9 +18,18 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 NUM = re.compile(r"^-?[\d,]+(\.\d+)?$")
 
 
+def flat(msp):
+    """INSERT(뷰 블록)는 내용을 풀어(virtual_entities) 낱개 엔티티처럼 비교한다."""
+    for e in msp:
+        if e.dxftype() == "INSERT":
+            yield from flat(e.virtual_entities())
+        else:
+            yield e
+
+
 def sheets_of(path):
     d = ezdxf.readfile(path)
-    msp = d.modelspace()
+    msp = list(flat(d.modelspace()))
     infos = []
     for e in msp:
         if e.dxftype() == "TEXT" and e.dxf.layer == "SHEET_FRAME_INFO":

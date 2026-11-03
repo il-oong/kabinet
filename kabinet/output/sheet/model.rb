@@ -149,7 +149,7 @@ module Kabinet
         end
 
         # 일반 가구에서 자동 선택하는 축척 분모 (한 시트 내 모든 뷰 동일)
-        def pick_scale(m, max_w: 140.0, max_h: 92.0, max_d: 44.0)
+        def pick_scale(m, max_w: 140.0, max_h: 88.0, max_d: 44.0)
           o = m['overall']
           [20, 25, 30, 40, 50, 60, 80, 100].find do |den|
             o['W'] / den <= max_w && o['H'] / den <= max_h && o['D'] / den <= max_d

@@ -51,14 +51,13 @@ module Kabinet
           c.dim_v(ox - 5.5, [oy, oy + d * s], [f(d)], ref: ox)
         end
 
-        # 단면 절단 위치(평면 X) 1~2개. 지정(cuts)이 없으면 문/서랍 모듈 종류별 가운데(종류가 2가지 이상이면 2개)
+        # 단면 절단 위치(평면 X) 1~2개. 지정(cuts)이 없으면 문/서랍 모듈 중 가운데 1개(Python 과 동일)
         def cut_list(m)
           return m['cuts'] unless m['cuts'].nil? || m['cuts'].empty?
           mods = m['modules'].select { |md| %w[doors drawers].include?(md['type']) }
           mods = m['modules'] if mods.empty?
-          by_type = mods.group_by { |md| md['type'] }.values
-          picks = by_type.size >= 2 ? by_type.first(2).map { |g| g[g.size / 2] } : [mods[mods.size / 2]]
-          picks.map { |md| md['x'] + md['w'] / 2.0 }.sort
+          md = mods[mods.size / 2]
+          [md['x'] + md['w'] / 2.0]
         end
 
         def cut_x(m)
@@ -271,19 +270,25 @@ module Kabinet
           c.meta[:den] = den
           Frame.furniture(c, info)
           o = m['overall']
-          keyplan(c, m)
+          c.group('KEYPLAN') { keyplan(c, m) }
           ox = 50.0; oy = 50.0
-          draw_plan(c, m, ox, oy, s)
-          plan_dims(c, m, ox, oy, s)
-          plan_markers(c, m, ox, oy, s)
-          note_block(c, m, default_notes(m))
+          c.group('VIEW_TOP') do
+            draw_plan(c, m, ox, oy, s)
+            plan_dims(c, m, ox, oy, s)
+            plan_markers(c, m, ox, oy, s)
+          end
+          c.group('NOTE') { note_block(c, m, default_notes(m)) }
           gy = [124.2 + 26.0 + o['H'] * s, 262.0].min
-          draw_door_view(c, m, 30.0, gy, s)
-          c.marker(30.0 + o['W'] * s / 2, gy + 10.0, 'A', :up)
-          draw_body_view(c, m, 240.0, gy, s)
-          c.marker(240.0 + o['W'] * s / 2, gy + 10.0, 'A', :up)
-          c.text(30.0, gy + 19.0, '도어 20T / 전판 간격 3 / 걸레받이 (추정)', 2.0, 'b')
-          c.text(240.0, gy + 19.0, '몸통 18T · 칸막이 18T · 선반 18T · 뒷판 9T (추정)', 2.0, 'b')
+          c.group('VIEW_FRONT_DOOR') do
+            draw_door_view(c, m, 30.0, gy, s)
+            c.marker(30.0 + o['W'] * s / 2, gy + 10.0, 'A', :up)
+            c.text(30.0, gy + 19.0, '도어 20T / 전판 간격 3 / 걸레받이 (추정)', 2.0, 'b')
+          end
+          c.group('VIEW_FRONT_BODY') do
+            draw_body_view(c, m, 240.0, gy, s)
+            c.marker(240.0 + o['W'] * s / 2, gy + 10.0, 'A', :up)
+            c.text(240.0, gy + 19.0, '몸통 18T · 칸막이 18T · 선반 18T · 뒷판 9T (추정)', 2.0, 'b')
+          end
           c
         end
 
@@ -299,11 +304,12 @@ module Kabinet
           c.meta[:den] = den_top
           Frame.furniture(c, info, hdr: 'SIDE VIEW (LEFT / RIGHT)',
                           hdr2: cuts.size > 1 ? ['SECTION 1  (단면)', 'SECTION 2  (단면)'] : ['SECTION 1  (단면)', 'SECTION 1  (구성)'])
-          note_block(c, m, [['*C = 좌측면 / D = 우측면 (전면 = 오른쪽/왼쪽 화살표)', 'k'],
-                            ["*단면 #{cuts.size > 1 ? '1~2' : '1'} : TOP VIEW · 정면 BODY 절단선과 연결", 'k']] + default_notes(m).drop(1).first(3))
+          c.group('NOTE') { note_block(c, m, [['*C = 좌측면 / D = 우측면 (전면 = 오른쪽/왼쪽 화살표)', 'k'],
+                            ["*단면 #{cuts.size > 1 ? '1~2' : '1'} : TOP VIEW · 정면 BODY 절단선과 연결", 'k']] + default_notes(m).drop(1).first(3)) }
           gy = 30.0 + o['H'] * s + 12.0
           body = o['H'] - o['top_thickness']
           [[48.0, false], [140.0, true]].each_with_index do |(ox, flip), idx|
+           c.group(flip ? 'VIEW_SIDE_RIGHT' : 'VIEW_SIDE_LEFT') do
             yx = ->(v) { flip ? ox + (d - v) * s : ox + v * s }
             zz = ->(v) { gy - v * s }
             a, b = [yx.call(0), yx.call(d)].sort
@@ -320,13 +326,14 @@ module Kabinet
             # 전면 방향: 도면 정면(앞)은 평면 아래쪽 = 측면도에서 오른쪽(좌측면) / 왼쪽(우측면)
             c.block_arrow(flip ? a + 2 : b - 2, gy + 9.0, 7.0, flip ? :left : :right)
             c.shaded_label(flip ? a + 9.0 : b - 9.0, gy + 10.0, '전면', 2.2, flip ? 'l' : 'r')
+           end
           end
           if cuts.size > 1
-            draw_section(c, m, 70.0, 222.0, s, cuts[0], 1)
-            draw_section(c, m, 270.0, 222.0, s, cuts[1], 2)
+            c.group('SECTION_1') { draw_section(c, m, 70.0, 222.0, s, cuts[0], 1) }
+            c.group('SECTION_2') { draw_section(c, m, 270.0, 222.0, s, cuts[1], 2) }
           else
-            draw_section(c, m, 70.0, 222.0, s, cuts[0], 1)
-            section_spec(c, m, 240.0, 150.0)
+            c.group('SECTION_1') { draw_section(c, m, 70.0, 222.0, s, cuts[0], 1) }
+            c.group('SECTION_1_SPEC') { section_spec(c, m, 240.0, 150.0) }
           end
           c
         end
@@ -379,18 +386,24 @@ module Kabinet
           info = info.merge(scale: nil)
           c = Canvas.new('detail', title: info[:subject])
           Frame.furniture(c, info, hdr: 'DETAIL', hdr2: ['DETAIL', 'DETAIL'])
-          note_block(c, m, [["*EP = 마감판 #{m['ep']['thickness'].round}T / 몸통 18T / 도어 20T", 'b']] +
-                           (m['channel'] ? [['*목찬넬 60*40 = 손잡이 (확인필요, 기본값)', 'r']] : []))
-          c.text(17.0, 28.0, "※ EP 위치는 도면의 'EP 판넬 [..T]' 라벨 기준(추정)", 2.6, 'r')
-          c.detail_title(17.0, 139.0, 1, '측판 EP 상세 - 평면 (1/5)')
-          edge_ep_plan(c, m, 60.0, 160.0, 0.2)
+          c.group('NOTE') do
+            note_block(c, m, [["*EP = 마감판 #{m['ep']['thickness'].round}T / 몸통 18T / 도어 20T", 'b']] +
+                             (m['channel'] ? [['*목찬넬 60*40 = 손잡이 (확인필요, 기본값)', 'r']] : []))
+            c.text(17.0, 28.0, "※ EP 위치는 도면의 'EP 판넬 [..T]' 라벨 기준(추정)", 2.6, 'r')
+          end
+          c.group('DETAIL_1') do
+            c.detail_title(17.0, 139.0, 1, '측판 EP 상세 - 평면 (1/5)')
+            edge_ep_plan(c, m, 60.0, 160.0, 0.2)
+          end
           if m['channel']
+           c.group('DETAIL_2') do
             c.detail_title(218.3, 139.0, 2, '목찬넬 상세 - 측면 (1/2)')
             edge_section(c, 262.0, 178.0, 0.5, 60, 62, true)
             c.shaded_label(240.0, 232.0, '전면 (도어 쪽)', 2.4)
             c.shaded_label(330.0, 232.0, '후면 (벽 쪽)', 2.4, 'r')
             c.text(232.0, 244.0, '파랑 치수 : 25 = 천판 하단~도어 상단 / 60 = 찬넬 높이', 2.0, 'b')
             c.text(232.0, 248.0, '40 = 도어 뒷면~찬넬 뒷면 / 20 = 도어 두께 / 손 진입 : 도어 위 25 틈', 2.0, 'b')
+           end
           else
             c.text(218.3, 145.0, '목찬넬 없음 (지정 손잡이 사양은 NOTE 참조)', 3.0, 'g')
           end
@@ -460,6 +473,7 @@ module Kabinet
           c = Canvas.new('floor', title: info[:subject])
           c.meta[:den] = den
           Frame.plan(c, info, room['name'], "#{room['name']} #{m['furniture_name']} 평면도")
+          c.group('VIEW_PLAN') do
           wt = 150.0
           ox = 62.0; oy = 62.0
           x = ->(v) { ox + v * s }
@@ -479,6 +493,7 @@ module Kabinet
           c.marker(x.call(ix) - 22.0, y.call(o['D'] / 2), 'C', :right)
           c.marker(x.call(ix + o['W']) + 22.0, y.call(o['D'] / 2), 'D', :left)
           c.text(x.call(room['W']) - 3, y.call(room['D']) - 3, '※ 공간 규격은 가정(확인필요)', 2.2, 'r', 'r')
+          end
           c
         end
 

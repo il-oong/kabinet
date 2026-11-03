@@ -68,6 +68,7 @@ def main():
     setval('12', '@@VPCX@@', vp); setval('22', '@@VPCY@@', vp); setval('40', '@@VPH@@', vp)
 
     def table_hook(tname, token):
+        s, e = sec_range('TABLES')
         t = next(j for j in range(s, e) if P[j] == ('2', tname) and P[j - 1] == ('0', 'TABLE'))
         # 개수(70)
         k = next(j for j in range(t, e) if P[j][0] == '70')
@@ -78,6 +79,11 @@ def main():
         return base
     base_layers = table_hook('LAYER', 'LAYERS')
     base_styles = table_hook('STYLE', 'STYLES')
+    table_hook('BLOCK_RECORD', 'BLOCKRECS')
+    n = len(P)
+    # BLOCKS: 사용자 정의 블록 훅(ENDSEC 직전)
+    bs_, be_ = sec_range('BLOCKS')
+    P[be_:be_] = [('@@', 'BLOCKS')]
     n = len(P)
 
     # OBJECTS: IMAGEDEF/REACTOR 제거, ACAD_IMAGE_DICT 항목 훅

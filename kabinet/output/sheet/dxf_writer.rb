@@ -16,6 +16,7 @@ module Kabinet
       #   bg: 'white'|'dark'|'none', style_name:, font_file:
       #   image_paths: {원본경로 => DXF 에 적을 경로}, image_sizes: {원본경로 => [px_w, px_h]}
       #   images: false 면 IMAGE/IMAGEDEF 를 쓰지 않는다(사진 자리는 IMAGE_FRAME 사각형만 남는다)
+      #   blocks: true(기본)면 뷰(Canvas#group)·도곽을 이름 있는 BLOCK(+INSERT 1개)으로 묶는다. 수정은 분해(EXPLODE)/REFEDIT.
       #   real_scale: true 면 시트별 축척 분모(canvas.meta[:den] 또는 default_den)만큼 모든 좌표·글자·간격을 키워
       #               가구 형상이 실제 mm 좌표가 되게 한다(도곽은 420xden × 297xden).
       class DxfWriter
@@ -26,7 +27,8 @@ module Kabinet
         attr_reader :ents_count
 
         def initialize(pages, bg: 'white', style_name: 'MALGUN', font_file: 'malgun.ttf', image_paths: {}, image_sizes: {},
-                       images: true, real_scale: false, default_den: nil)
+                       images: true, real_scale: false, default_den: nil, blocks: true)
+          @blocks_on = blocks ? true : false
           @pages = pages
           @bg = %w[white dark none].include?(bg.to_s) ? bg.to_s : 'white'
           @style = Text.utf8(style_name).empty? ? 'MALGUN' : Text.utf8(style_name)
@@ -83,14 +85,54 @@ module Kabinet
 
         # ── 엔티티 ───────────────────────────────────────────────────────
         def build_entities
+          @block_recs = +''
+          @block_defs = +''
+          @block_count = 0
           out = []
           out << bg_solids if %w[white dark].include?(@bg)
           @pages.each_with_index do |pg, i|
             ox = @offsets[i]; k = @dens[i]
-            pg.items.each { |it| out << entity(it, ox, k) }
+            if @blocks_on && pg.respond_to?(:item_groups)
+              out << block_page(pg, i, ox, k)
+            else
+              pg.items.each { |it| out << entity(it, ox, k) }
+            end
             out << info_text(pg, i, ox, k)
           end
           out.flatten.compact
+        end
+
+        # 뷰별 BLOCK 정의 + 시트 원점에 INSERT 1개씩. 사진(IMAGE)은 블록 밖(모델 공간)에 둔다.
+        def block_page(pg, i, ox, k)
+          groups = {}
+          loose = []
+          pg.items.each_with_index do |it, idx|
+            if it[0] == :I
+              loose << entity(it, ox, k)
+            else
+              (groups[pg.item_groups[idx] || :frame] ||= []) << it
+            end
+          end
+          inserts = []
+          groups.each do |g, its|
+            name = g == :frame ? "FRAME_SHEET#{i + 1}" : "#{g.to_s.upcase.gsub(/[^A-Z0-9_]/, '_')}_S#{i + 1}"
+            rec = h
+            saved = @model_rec
+            @model_rec = rec
+            body = its.map { |it| entity(it, 0.0, k) }.flatten.compact
+            @model_rec = saved
+            bh = h; eh = h
+            @block_recs << pair(0, 'BLOCK_RECORD') + pair(5, rec) + pair(330, '9') + pair(100, 'AcDbSymbolTableRecord') +
+                           pair(100, 'AcDbBlockTableRecord') + pair(2, name) + pair(340, 0)
+            @block_defs << pair(0, 'BLOCK') + pair(5, bh) + pair(330, rec) + pair(100, 'AcDbEntity') + pair(8, '0') +
+                           pair(100, 'AcDbBlockBegin') + pair(2, name) + pair(70, 0) + pair(10, 0) + pair(20, 0) + pair(30, 0) + pair(3, name) + pair(1, '') +
+                           body.join +
+                           pair(0, 'ENDBLK') + pair(5, eh) + pair(330, rec) + pair(100, 'AcDbEntity') + pair(8, '0') + pair(100, 'AcDbBlockEnd')
+            @block_count += 1
+            inserts << (pair(0, 'INSERT') + pair(5, h) + pair(330, @model_rec) + pair(100, 'AcDbEntity') + pair(8, '0') +
+                        pair(100, 'AcDbBlockReference') + pair(2, name) + pair(10, fx(ox)) + pair(20, 0) + pair(30, 0))
+          end
+          inserts + loose
         end
 
         def bg_solids
@@ -226,7 +268,8 @@ module Kabinet
           image_dict, image_objs = image_objects
           cx = @offsets.empty? ? 0.0 : PW_ * @dens.first / 2.0
           vals = {
-            'ENTITIES' => ents.join,
+            'ENTITIES' => ents.join, 'BLOCKS' => @block_defs, 'BLOCKRECS' => @block_recs,
+            'BLOCKRECS_COUNT' => (2 + @block_count).to_s,
             'LAYERS' => layer_text, 'LAYERS_COUNT' => (DxfSkeleton::BASE_LAYER_COUNT + layers.keys.reject { |n| %w[0 Defpoints].include?(n) }.size).to_s,
             'STYLES' => style_text, 'STYLES_COUNT' => (DxfSkeleton::BASE_STYLE_COUNT + 1).to_s,
             'IMAGE_DICT_ENTRIES' => image_dict, 'IMAGE_OBJECTS' => image_objs,

@@ -10,25 +10,49 @@ module Kabinet
         attr_reader :name, :items, :meta
         attr_accessor :title
 
+        attr_reader :item_groups
+
         def initialize(name, title: nil)
           @name = name
           @title = title || name
           @items = []
+          @item_groups = []   # items 와 같은 길이: 블록(뷰) 이름. nil = 도곽/표제란(FRAME)
+          @cur_group = nil
           @meta = {}
         end
 
-        def line(x1, y1, x2, y2, st = 'OUT'); @items << [:L, x1, y1, x2, y2, st]; end
-        def poly(pts, st = 'OUT', closed = false); @items << [:P, pts, st, closed]; end
+        def add_item(it)
+          @items << it
+          @item_groups << @cur_group
+        end
+
+        def remove_items
+          keep = (0...@items.size).reject { |i| yield(@items[i]) }
+          @items = keep.map { |i| @items[i] }
+          @item_groups = keep.map { |i| @item_groups[i] }
+        end
+
+        # 이 블록 안에서 그리는 항목을 하나의 뷰(DXF BLOCK)로 묶는다. 예: c.group('VIEW_TOP') { ... }
+        def group(name)
+          prev = @cur_group
+          @cur_group = name
+          yield
+        ensure
+          @cur_group = prev
+        end
+
+        def line(x1, y1, x2, y2, st = 'OUT'); add_item [:L, x1, y1, x2, y2, st]; end
+        def poly(pts, st = 'OUT', closed = false); add_item [:P, pts, st, closed]; end
         def rect(x1, y1, x2, y2, st = 'OUT'); poly([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], st, true); end
-        def circ(cx, cy, r, st = 'OUT'); @items << [:C, cx, cy, r, st]; end
-        def fill(pts, rgb); @items << [:F, pts, rgb]; end
+        def circ(cx, cy, r, st = 'OUT'); add_item [:C, cx, cy, r, st]; end
+        def fill(pts, rgb); add_item [:F, pts, rgb]; end
         def text(x, y, str, size = 2.4, c = 'k', a = 'l', rot = 0)
           str = Text.utf8(str)
-          @items << [:T, x, y, str, size, c, a, rot] unless str.empty?
+          add_item [:T, x, y, str, size, c, a, rot] unless str.empty?
         end
         # 이미지 자리(DXF IMAGE 로 출력). (x,y)=좌상단, w,h mm
         def image(x, y, w, h, path)
-          @items << [:I, x, y, w, h, path]
+          add_item [:I, x, y, w, h, path]
         end
 
         def dashed(x1, y1, x2, y2, st = 'THIN', d = 1.6, g = 0.9)
@@ -69,7 +93,7 @@ module Kabinet
 
         # 닫힌 사각 안을 45° 해칭 — DXF 에서는 HATCH(ANSI31) 엔티티. step = 종이 mm 간격
         def hatch_rect(x1, y1, x2, y2, step = 1.6, st = 'HATCH')
-          @items << [:H, [[x1, y1], [x2, y1], [x2, y2], [x1, y2]], st, step]
+          add_item [:H, [[x1, y1], [x2, y1], [x2, y2], [x1, y2]], st, step]
         end
 
         # EP 20T 판 — 해칭 + 외곽

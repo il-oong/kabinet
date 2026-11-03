@@ -8,14 +8,16 @@ S = Kabinet::Output::Sheet
 args = ARGV.dup
 flag = ->(k) { args.delete(k) ? true : false }
 opt = ->(k, d) { (i = args.index(k)) ? args.slice!(i, 2)[1] : d }
-paper = flag.call('--paper'); no_img = flag.call('--no-images')
+paper = flag.call('--paper'); no_img = flag.call('--no-images'); no_blocks = flag.call('--no-blocks')
 bg = opt.call('--bg', 'white'); scale = opt.call('--scale', nil); site = opt.call('--site', nil)
 src, out = args
 abort 'usage: export_sheet.rb furniture.json out.dxf' unless src && out
 data = JSON.parse(File.read(src, encoding: 'UTF-8'))
-cfg = { 'bg' => bg, 'real_scale' => !paper, 'images' => !no_img, 'site' => site || data['site'].to_s,
+cfg = { 'bg' => bg, 'real_scale' => !paper, 'images' => !no_img, 'blocks' => !no_blocks, 'site' => site || data['site'].to_s,
         'furniture_name' => data['furniture_name'].to_s,
-        'pages' => [%w[floor 평면도], %w[furniture 가구\ 시트], %w[side 측면·단면], %w[detail 상세], %w[table 생산\ 확인표]].map do |t, n|
+        'pages' => [%w[floor 평면도], %w[furniture 가구\ 시트], %w[side 측면·단면], %w[detail 상세], %w[table 생산\ 확인표]].select do |t, _n|
+          t != 'detail' || data['channel'] || %w[left right top].any? { |k| (data['ep'] || {})[k] }
+        end.map do |t, n|
           S::Builder.page(t, n, 'scale' => scale.to_s)
         end }
 r = S::Builder.export(cfg, data, out)

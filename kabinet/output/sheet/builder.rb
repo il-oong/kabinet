@@ -31,7 +31,7 @@ module Kabinet
         def default_config
           {
             'site' => '', 'furniture_name' => '', 'date' => Time.now.strftime('%Y.%m.%d'),
-            'bg' => 'white', 'style_name' => 'MALGUN', 'font_file' => 'malgun.ttf', 'images' => true, 'real_scale' => true,
+            'bg' => 'white', 'style_name' => 'MALGUN', 'font_file' => 'malgun.ttf', 'images' => true, 'real_scale' => true, 'blocks' => true,
             'pages' => default_pages
           }
         end
@@ -57,6 +57,7 @@ module Kabinet
           c['pages'] = default_pages if c['pages'].empty?
           c['images'] = c['images'] != false
           c['real_scale'] = c['real_scale'] != false
+          c['blocks'] = c['blocks'] != false
           c
         end
 
@@ -171,14 +172,14 @@ module Kabinet
               end
             end
             # 복사된 사진만 IMAGE 로 쓴다(없는 파일을 가리키는 IMAGE 방지)
-            canvases.each { |c| c.items.reject! { |it| it[0] == :I && !paths.key?(it[5]) } }
+            canvases.each { |c| c.remove_items { |it| it[0] == :I && !paths.key?(it[5]) } }
           end
           w = DxfWriter.new(canvases, bg: cfg['bg'], style_name: cfg['style_name'], font_file: cfg['font_file'],
-                            image_paths: paths, image_sizes: sizes, images: cfg['images'], real_scale: cfg['real_scale'])
+                            image_paths: paths, image_sizes: sizes, images: cfg['images'], real_scale: cfg['real_scale'], blocks: cfg['blocks'])
           FileUtils.mkdir_p(dir_native)
           w.write(native_path)
           { path: Text.utf8(native_path), pages: canvases.size, images_dir: (copied.empty? ? nil : Text.utf8(images_dir_native)), copied: copied,
-            real_scale: cfg['real_scale'], images: cfg['images'] }
+            real_scale: cfg['real_scale'], images: cfg['images'], blocks: cfg['blocks'] }
         end
 
         # 한글·공백·특수문자를 뺀 ASCII 이름. 뺀 문자가 있으면 원래 이름의 CRC 6자리를 붙여 DXF 마다 폴더가 겹치지 않게 한다.

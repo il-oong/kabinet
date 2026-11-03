@@ -36,7 +36,7 @@ model = {
     { 'name' => '서랍', 'x' => 900, 'z' => 60, 'w' => 900, 'h' => 2240, 'type' => 'drawers', 'drawers' => 4 }
   ]
 }
-cfg = { 'site' => '판교 푸르지오 그랑블', 'furniture_name' => '__-1' }
+cfg = { 'site' => '판교 푸르지오 그랑블', 'furniture_name' => '__-1', 'blocks' => false }
 
 Dir.mktmpdir do |dir|
   path = File.join(dir, 'out.dxf')
