@@ -86,6 +86,7 @@ class Sheet:
     def __init__(self, name):
         self.name = name
         self.items = []
+        self.den = None        # 이 시트의 축척 분모(예 25 -> 1/25). DXF 는 이 값만큼 키워 실치수(1:1)로 낸다
 
     def line(self, x1, y1, x2, y2, st="OUT"):
         self.items.append(("L", x1, y1, x2, y2, st))
@@ -1052,7 +1053,7 @@ NOTE_A = [("*EP = 마감판 20T (측판 양단·천판) / 몸통 18T / 서랍 �
 
 # ----------------------------------------------------------------- 페이지 조립
 def page_floor(m, scale_den):
-    sh = Sheet("floor")
+    sh = Sheet("floor"); sh.den = scale_den
     rd = m.d["room_assumed"]
     plan_frame(sh, rd["name"], f"{rd['name']} 아일랜드 평면도", scale_den)
     s = 1.0 / scale_den
@@ -1088,7 +1089,7 @@ def page_floor(m, scale_den):
 
 
 def page_b(m, scale_den, sheet_no, title):
-    sh = Sheet("furniture_B")
+    sh = Sheet("furniture_B"); sh.den = scale_den
     furniture_frame(sh, title, "싱크면(B) 정면 / 평면", sheet_no, scale_den, ("TOP VIEW",))
     s = 1.0 / scale_den
     draw_keyplan(sh, m, "B")
@@ -1115,7 +1116,7 @@ def page_b(m, scale_den, sheet_no, title):
 
 
 def page_a(m, scale_den, sheet_no, title):
-    sh = Sheet("furniture_A")
+    sh = Sheet("furniture_A"); sh.den = scale_den
     furniture_frame(sh, title, "서랍면(A) 정면 / 평면", sheet_no, scale_den, ("TOP VIEW",), hdr2=("FRONT VIEW_ DOOR (A면)", "FRONT VIEW_ BODY (A면)"))
     s = 1.0 / scale_den
     draw_keyplan(sh, m, "A")
@@ -1145,7 +1146,7 @@ def front_labels_row(sh, xl, xr, y, left, right, size=2.0):
 
 
 def page_side(m, scale_den, sheet_no, title):
-    sh = Sheet("side")
+    sh = Sheet("side"); sh.den = scale_den
     furniture_frame(sh, title, "좌·우 측면 / 단면 1·2", sheet_no, scale_den, ("SIDE VIEW (LEFT / RIGHT)",),
                     hdr2=("SECTION 1  (단면)", "SECTION 2  (단면)"))
     s = 1.0 / scale_den
@@ -1180,7 +1181,7 @@ def page_side(m, scale_den, sheet_no, title):
 
 
 def page_detail(m, scale_den, sheet_no, title):
-    sh = Sheet("detail")
+    sh = Sheet("detail"); sh.den = scale_den
     furniture_frame(sh, title, "상판 / EP / 목찬넬 상세", sheet_no, scale_den, ("COUNTERTOP",),
                     hdr2=("DETAIL", "DETAIL"))
     s = 1.0 / scale_den
@@ -1255,7 +1256,7 @@ def wrap(text, size, width):
 
 
 def page_table(m):
-    sh = Sheet("table")
+    sh = Sheet("table"); sh.den = SCALE_DEN
     sh.rect(4.5, 3.2, 415.5, 293.9, "FR")
     sh.text(17.0, 21.0, "생산 확인표", 8.5)
     sh.text(19.0, 277.0, SITE_LOCATION, 4.9)
@@ -1359,11 +1360,25 @@ def dxf_color(rgb, bg):
     return {"color": v} if isinstance(v, int) else {"true_color": ezdxf.colors.rgb2int(v)}
 
 
-def render_dxf(sheets, path, bg="white"):
+def render_dxf(sheets, path, bg="white", real=True, default_den=None):
+    """DXF 출력. real=True(기본): 1 단위 = 1mm 실치수. 시트 도곽·글자·치수 간격·마커를 시트 축척 배수(den)만큼 키워
+    모델 공간에 놓으므로 가구 형상은 실제 mm 좌표다. 시트는 X 방향으로 폭의 10% 간격으로 나란히 배치.
+    real=False: 예전 방식(종이 mm 좌표, 시트 간격 80)."""
+    dens = [((getattr(sh, "den", None) or default_den or SCALE_DEN) if real else 1) for sh in sheets]
+    offs, x = [], 0.0
+    for k in dens:
+        offs.append(x)
+        x += PW * k * 1.1 if real else PW + 80.0
     doc = ezdxf.new("R2010", setup=False)
     doc.units = ezdxf.units.MM
     doc.header["$INSUNITS"] = 4
     doc.header["$LWDISPLAY"] = 1
+    doc.header["$LTSCALE"] = float(dens[0])
+    doc.header["$DIMSCALE"] = float(dens[0])
+    doc.header["$LIMMIN"] = (0.0, 0.0)
+    doc.header["$LIMMAX"] = (offs[-1] + PW * dens[-1], PH * max(dens))
+    doc.header["$EXTMIN"] = (0.0, 0.0, 0.0)
+    doc.header["$EXTMAX"] = (offs[-1] + PW * dens[-1], PH * max(dens) + 10 * max(dens), 0.0)
     doc.styles.add("MALGUN", font=DXF_FONT_FILE)
     layer_rgb = {}
     for st, (lay, w, rgb) in STY.items():
@@ -1384,16 +1399,18 @@ def render_dxf(sheets, path, bg="white"):
         L.dxf.lineweight = min(DXF_LW, key=lambda q: abs(q - w * PT * 100))
     doc.layers.add("SHEET_FRAME_INFO").color = 8
     msp = doc.modelspace()
+    k0 = dens[0]
+    doc.set_modelspace_vport(height=PH * k0 * 1.1, center=(PW * k0 / 2, PH * k0 / 2))     # 첫 시트 전체가 보이게
     if bg in _BG:                                       # 맨 뒤 배경(시트 크기 SOLID 채움)
-        for i in range(len(sheets)):
-            ox = i * (PW + 80.0)
+        for i, k in enumerate(dens):
+            ox = offs[i]
             h = msp.add_hatch(dxfattribs={"layer": "BG", "true_color": ezdxf.colors.rgb2int(_BG[bg])})
             h.set_solid_fill()
-            h.paths.add_polyline_path([(ox, 0), (ox + PW, 0), (ox + PW, PH), (ox, PH)], is_closed=True)
+            h.paths.add_polyline_path([(ox, 0), (ox + PW * k, 0), (ox + PW * k, PH * k), (ox, PH * k)], is_closed=True)
     for i, sh in enumerate(sheets):
-        ox = i * (PW + 80.0)
-        Xf = lambda x: ox + x
-        Yf = lambda y: PH - y
+        ox = offs[i]; kk = dens[i]
+        Xf = lambda x: ox + x * kk
+        Yf = lambda y: (PH - y) * kk
         for it in sh.items:
             k = it[0]
             if k == "L":
@@ -1404,7 +1421,7 @@ def render_dxf(sheets, path, bg="white"):
                 msp.add_lwpolyline([(Xf(x), Yf(y)) for x, y in pts], close=cl, dxfattribs=_attr(st, bg))
             elif k == "C":
                 _, cx, cy, r, st = it
-                msp.add_circle((Xf(cx), Yf(cy)), r, dxfattribs=_attr(st, bg))
+                msp.add_circle((Xf(cx), Yf(cy)), r * kk, dxfattribs=_attr(st, bg))
             elif k == "F":
                 _, pts, col = it
                 at = {"layer": "FRAME" if col == (85, 85, 85) else "OUTLINE"}
@@ -1416,11 +1433,15 @@ def render_dxf(sheets, path, bg="white"):
                 lay, rgb = TXT[col]
                 at = {"layer": lay, "style": "MALGUN"}
                 at.update(dxf_color(rgb, bg))
-                t = msp.add_text(s, height=size * 0.72, rotation=rot, dxfattribs=at)
+                t = msp.add_text(s, height=size * 0.72 * kk, rotation=rot, dxfattribs=at)
                 al = {"l": TextEntityAlignment.BOTTOM_LEFT, "c": TextEntityAlignment.BOTTOM_CENTER, "r": TextEntityAlignment.BOTTOM_RIGHT}[a]
                 t.set_placement((Xf(x), Yf(y)), align=al)
         at = {"layer": "SHEET_FRAME_INFO", "style": "MALGUN"}
-        msp.add_text(f"[{i + 1}] {sh.name}", height=3, dxfattribs=at).set_placement((ox + 4.5, PH + 4), align=TextEntityAlignment.BOTTOM_LEFT)
+        label = f"[{i + 1}] {sh.name}" + (f"  (1/{kk}, 1:1 실치수)" if real else "")
+        msp.add_text(label, height=5 * kk, dxfattribs=at).set_placement((ox + 4.5 * kk, (PH + 4) * kk), align=TextEntityAlignment.BOTTOM_LEFT)
+    ext_w = offs[-1] + PW * dens[-1]
+    msp.reset_extents((0.0, 0.0, 0.0), (ext_w, PH * max(dens) + 10 * max(dens), 0.0))   # $EXTMIN/$EXTMAX
+    msp.reset_limits((0.0, 0.0), (ext_w, PH * max(dens)))                                # $LIMMIN/$LIMMAX
     doc.saveas(path)
 
 
@@ -1450,6 +1471,7 @@ def main():
     ap.add_argument("--site", default=None)
     ap.add_argument("--scale", type=int, default=None)
     ap.add_argument("--font", default=None)
+    ap.add_argument("--paper", action="store_true", help="DXF 를 예전 종이 mm 좌표(축소)로 출력 (기본: 1:1 실치수)")
     ap.add_argument("--dxf-bg", choices=["none", "white", "dark"], default="white",
                     help="DXF 배경: white(기본, 흰 종이+검정 선) / dark(어두운 배경+밝은 선) / none(배경 없음, 검정=ACI7 자동 반전)")
     a = ap.parse_args()
@@ -1462,9 +1484,9 @@ def main():
     sheets = build_sheets(m)
     os.makedirs(a.out, exist_ok=True)
     render_pdf(sheets, os.path.join(a.out, "test_sheet.pdf"))
-    render_dxf(sheets, os.path.join(a.out, "test_sheet.dxf"), a.dxf_bg)
+    render_dxf(sheets, os.path.join(a.out, "test_sheet.dxf"), a.dxf_bg, real=not a.paper)
     if a.dxf_bg == "white":                                   # 어두운 CAD 테마용 보조 파일
-        render_dxf(sheets, os.path.join(a.out, "test_sheet_dark.dxf"), "dark")
+        render_dxf(sheets, os.path.join(a.out, "test_sheet_dark.dxf"), "dark", real=not a.paper)
     print("font:", FONT_USED["path"], "| name:", FURNITURE_NAME, "| scale 1/%d" % SCALE_DEN, "| pages", len(sheets))
 
 
