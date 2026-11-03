@@ -149,4 +149,78 @@ Dir.mktmpdir do |dir|
   assert e2.none? { |e| e[:type] == 'IMAGE' } && e2.any? { |e| e[:layer] == 'FRAME' }, 'empty photo page frame only'
 end
 
+# ── (v1.25) ezdxf 형 골격 구조 검사: 핸들 유일·참조 해소·LAYOUT/DICTIONARY/DIMSTYLE/CLASSES ─────────────
+def structure_problems(path)
+  lines = File.binread(path).force_encoding(Encoding::CP949).encode('UTF-8').split(/\r?\n/)
+  pairs = lines.each_slice(2).map { |c, v| [c.strip, v.to_s.strip] }
+  sec = nil; defs = Hash.new(0); refs = []; cur0 = nil; seed = nil; objs = Hash.new(0); classes = 0
+  pairs.each_with_index do |(c, v), i|
+    sec = pairs[i + 1][1] if c == '0' && v == 'SECTION'
+    if c == '0'
+      cur0 = v
+      objs[v] += 1 if sec == 'OBJECTS'
+      classes += 1 if sec == 'CLASSES' && v == 'CLASS'
+    end
+    seed = pairs[i + 1][1] if c == '9' && v == '$HANDSEED'
+    next unless %w[TABLES BLOCKS ENTITIES OBJECTS].include?(sec)
+    defs[v.upcase] += 1 if %w[5 105].include?(c)
+    refs << [v.upcase, c, cur0] if %w[330 340 350 360 390].include?(c) && v != '0' && !v.empty?
+  end
+  probs = []
+  probs << "dup handles #{defs.select { |_, n| n > 1 }.keys.first(3)}" if defs.any? { |_, n| n > 1 }
+  miss = refs.reject { |h, _, _| defs.key?(h) }
+  probs << "unresolved refs #{miss.first(3)}" unless miss.empty?
+  probs << "HANDSEED #{seed} <= max" if seed.nil? || seed.to_i(16) <= defs.keys.map { |h| h.to_i(16) }.max
+  probs << "LAYOUT #{objs['LAYOUT']}" if objs['LAYOUT'] < 2
+  probs << "DICTIONARY #{objs['DICTIONARY']}" if objs['DICTIONARY'] < 10
+  probs << "CLASSES #{classes}" if classes < 10
+  probs << 'DIMSTYLE Standard' unless pairs.each_cons(8).any? { |a| a[0] == %w[0 DIMSTYLE] && a.include?(%w[2 Standard]) }
+  names = []
+  k = pairs.index(%w[0 DICTIONARY]) + 1
+  while pairs[k][0] != '0' do names << pairs[k][1] if pairs[k][0] == '3'; k += 1 end
+  %w[ACAD_GROUP ACAD_LAYOUT ACAD_MLINESTYLE ACAD_PLOTSETTINGS ACAD_PLOTSTYLENAME ACAD_MATERIAL ACAD_COLOR ACAD_VISUALSTYLE].each { |n| probs << "root dict #{n}" unless names.include?(n) }
+  br = pairs.each_index.select { |i| pairs[i] == %w[0 BLOCK_RECORD] }.map { |i| pairs[i + 1, 14] }
+  probs << 'BLOCK_RECORD 340' unless br.size == 2 && br.all? { |b| b.any? { |c, v| c == '340' && v != '0' } }
+  probs
+end
+
+Dir.mktmpdir do |dir|
+  path = File.join(dir, 's.dxf')
+  S::Builder.export(cfg, model, path)
+  probs = structure_problems(path)
+  assert probs.empty?, "structure: #{probs}"
+  # 이미지가 있어도 구조 유지 + images:false 는 IMAGE/IMAGEDEF 를 쓰지 않는다
+  png = File.join(dir, '사진 (1).png'); File.binwrite(png, make_png(40, 30))
+  imgcfg = S::Builder.normalize_config(cfg)
+  imgcfg['pages'] = [S::Builder.page('photos', '현장사진', 'images' => [{ 'path' => png, 'caption' => '사진 (1)' }])]
+  p1 = File.join(dir, 'with.dxf'); r1 = S::Builder.export(imgcfg, model, p1)
+  assert r1[:copied].size == 1 && structure_problems(p1).empty?, "image structure #{structure_problems(p1)}"
+  p2 = File.join(dir, 'without.dxf'); r2 = S::Builder.export(imgcfg.merge('images' => false), model, p2)
+  s2 = parse_dxf(p2)
+  assert r2[:copied].empty? && entities(s2['ENTITIES']).none? { |e| e[:type] == 'IMAGE' }, 'images:false -> no IMAGE'
+  assert s2['OBJECTS'].none? { |c, v| c == 0 && v == 'IMAGEDEF' } && structure_problems(p2).empty?, 'images:false -> no IMAGEDEF'
+  assert entities(s2['ENTITIES']).any? { |e| e[:layer] == 'IMAGE_FRAME' }, 'frame kept without images'
+  assert !File.directory?(File.join(dir, 'sheet_images')) || Dir.children(File.join(dir, 'sheet_images')).size == 1, 'only the with-images export copied a file'
+end
+
+# ── 1:1 실치수: 도곽 = 420x297 × 축척 배수, 가구 외곽 폭 = 입력 W ────────────────────────────────────────
+Dir.mktmpdir do |dir|
+  c = S::Builder.normalize_config(cfg)
+  c['pages'] = [S::Builder.page('furniture', '가구', 'scale' => '25')]
+  pr = File.join(dir, 'paper.dxf'); S::Builder.export(c.merge('real_scale' => false), model, pr)
+  rl = File.join(dir, 'real.dxf'); S::Builder.export(c.merge('real_scale' => true), model, rl)
+  def frame_w(path)
+    es = entities(parse_dxf(path)['ENTITIES']).select { |e| e[:type] == 'SOLID' && e[:layer] == 'BG' }
+    pts = es.first[:pairs].select { |c, _| c == 11 }.map { |_, v| v.to_f }
+    pts.first
+  end
+  assert (frame_w(pr) - 420.0).abs < 0.01, 'paper frame 420'
+  assert (frame_w(rl) - 10_500.0).abs < 0.01, "real frame #{frame_w(rl)}"      # 420 x 25
+  xs = entities(parse_dxf(rl)['ENTITIES']).select { |e| e[:type] == 'LWPOLYLINE' && e[:layer] == 'OUTLINE' }.map do |e|
+    v = e[:pairs].select { |cc, _| cc == 10 }.map { |_, q| q.to_f }; [v.min, v.max]
+  end
+  widths = xs.map { |a, b| (b - a).round(1) }
+  assert widths.include?(1800.0), "furniture outline width 1800 mm in real scale: #{widths.uniq.first(8)}"
+end
+
 puts 'sheet_dxf_test OK'
