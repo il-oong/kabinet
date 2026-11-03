@@ -18,9 +18,15 @@ module Kabinet
         LABEL_RE = /\(\s*\d+\s*(?:D|d|단)\s*\)|(?:식기세척기|오븐|쿡탑|냉장고|세탁기|건조기)\s*장|^\s*OPEN|오픈장/
         Dim = Struct.new(:vertical, :a0, :a1, :pos, :meas)
         Chain = Struct.new(:tiles, :y) do
-          def x0 = tiles.first[0]
-          def x1 = tiles.last[1]
-          def span = x1 - x0
+          def x0
+            tiles.first[0]
+          end
+          def x1
+            tiles.last[1]
+          end
+          def span
+            x1 - x0
+          end
         end
 
         def from_file(path, site: '')

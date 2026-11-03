@@ -11,7 +11,9 @@ module Kabinet
         KEEP = %w[LINE ARC CIRCLE LWPOLYLINE POLYLINE VERTEX SEQEND INSERT MTEXT TEXT DIMENSION].freeze
 
         Doc = Struct.new(:entities, :blocks, :insunits) do
-          def of(type) = entities.select { |e| e[:type] == type }
+          def of(type)
+            entities.select { |e| e[:type] == type }
+          end
         end
 
         def read(path)

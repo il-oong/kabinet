@@ -4,11 +4,15 @@ require_relative '../kabinet/output/sheet'
 S = Kabinet::Output::Sheet
 def assert(v, m); raise m unless v; end
 
-def pairs(*kv) = kv.each_slice(2).map { |c, v| "#{c}\n#{v}" }.join("\n")
+def pairs(*kv)
+  kv.each_slice(2).map { |c, v| "#{c}\n#{v}" }.join("\n")
+end
 def dim(x, y, x3, y3, x4, y4, meas, rot = 0)
   pairs(0, 'DIMENSION', 8, 'SH-DIM', 10, x, 20, y, 13, x3, 23, y3, 14, x4, 24, y4, 70, 0, 50, rot, 42, meas)
 end
-def mtext(x, y, h, t) = pairs(0, 'MTEXT', 8, 'TXT', 10, x, 20, y, 40, h, 1, t)
+def mtext(x, y, h, t)
+  pairs(0, 'MTEXT', 8, 'TXT', 10, x, 20, y, 40, h, 1, t)
+end
 
 # 주방 하부장 모양: 평면(위) 900+652 / 깊이 600, 정면(아래) 높이 912 = 900 + 상판 12, 걸레받이 100
 body = [
