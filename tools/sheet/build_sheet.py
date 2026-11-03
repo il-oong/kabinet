@@ -367,6 +367,7 @@ def ep_plan_rects(m):
     return [(0, m.dB, EP, m.D), (m.ovl, 0, m.ovl + EP, m.dB), (m.W - EP, 0, m.W, m.D)]
 
 
+@view("VIEW_TOP")
 def draw_plan(sh, m, ox, oy, s, labels=True, size=1.8):
     """평면(TOP VIEW). plan x: 좌->우, y: 0=싱크면(B) 앞 -> D=서랍면(A) 앞."""
     X = lambda x: ox + x * s
@@ -396,6 +397,7 @@ def draw_plan(sh, m, ox, oy, s, labels=True, size=1.8):
     return X, Y
 
 
+@view("VIEW_TOP")
 def plan_dims(sh, m, ox, oy, s):
     X = lambda x: ox + x * s
     edges = [0, m.ovl] + [md["x"] + md["w"] for md in m.bm]
@@ -411,6 +413,7 @@ def plan_dims(sh, m, ox, oy, s):
     sh.text(ex + 19.5, oy - 16.0, "측판 EP 20T (양단·추정) / 도어 20T", 1.7, "b", "l")
 
 
+@view("VIEW_TOP")
 def plan_markers(sh, m, ox, oy, s):
     """B(위)·A(아래) 정면 방향 + C(좌)·D(우) 측면 방향 마커."""
     cy = oy + m.D * s / 2
@@ -428,6 +431,7 @@ def plan_markers(sh, m, ox, oy, s):
         marker(sh, x, yb, num, "right")
 
 
+@view("KEYPLAN")
 def draw_keyplan(sh, m, face, x0=12.0, y0=19.5, w=26.0):
     rd = m.d["room_assumed"]
     s = w / rd["W"]
@@ -589,6 +593,7 @@ def mods_sink_vx(m):
     return m.W - (sx + sw)
 
 
+@view("VIEW_FRONT_DOOR")
 def draw_b_door(sh, m, ox, gy, s):
     X, Z = elev_frame(sh, m, ox, gy, s)
     mods = b_view_modules(m)
@@ -620,6 +625,7 @@ def draw_b_door(sh, m, ox, gy, s):
     return X, Z
 
 
+@view("VIEW_FRONT_BODY")
 def draw_b_body(sh, m, ox, gy, s):
     X, Z = elev_frame(sh, m, ox, gy, s)
     mods = b_view_modules(m)
@@ -767,6 +773,7 @@ def channel_poly(sh, X, Z, xb, zc, sign=1):
     sh.poly([(X(x), Z(z)) for x, z in pts], "OUT", True)
 
 
+@view("VIEW_SIDE")
 def draw_end_view(sh, m, ox, gy, s, side):
     """좌측면도(C, side='L') / 우측면도(D, side='R'). 가로축=깊이."""
     k, h = m.kick, m.body_H
@@ -807,6 +814,7 @@ def draw_end_view(sh, m, ox, gy, s, side):
     return Y, Z
 
 
+@view("SECTION")
 def draw_section(sh, m, ox, gy, s, xc):
     """절단면(정면 마커 1·2): 평면 x=xc 에서 깊이 방향으로 자른 단면. B(싱크면) 좌 / A(서랍면) 우."""
     X = lambda y: ox + y * s
@@ -927,6 +935,7 @@ def front_back(sh, xf, xb, y, front="전면 (도어 쪽)", back="후면 (벽 쪽
     shaded_label(sh, tb, y + 0.9, back, size, "r" if xf < xb else "l")
 
 
+@view("DETAIL_CHANNEL")
 def edge_section(sh, X0, Y0, sc, door_len, xmax=70, counter_h=0, dims=True, hand=True):
     """③ 목찬넬 측면 단면: 앞(전면)=왼쪽, 뒤(후면)=오른쪽. z 는 천판 EP 하단(0)에서 아래로.
     샘플(33~38쪽 SIDE VIEW 상세)과 같은 구조: 천판 EP 해칭 아래 25 지점에 도어 상단, 찬넬 ㄴ형(수직 다리 18T 는 뒤쪽 천판 아래,
@@ -983,6 +992,7 @@ def callout(sh, x, y, num, tx=None, ty=None):
         sh.line(x, y, tx, ty, "BLUE")
 
 
+@view("DETAIL_COUNTERTOP")
 def draw_countertop_plan(sh, m, ox, oy, s):
     X = lambda x: ox + x * s
     Y = lambda y: oy + y * s
@@ -1039,6 +1049,7 @@ def arrow(sh, x1, y1, x2, y2, label, size=2.2, a="l", dx=1.5, dy=0.8):
     sh.text(x2 + dx, y2 + dy, label, size, "k", a)
 
 
+@view("DETAIL_EP")
 def edge_ep_plan(sh, m, X0, Y0, sc=0.2):
     """② 측판 EP 상세 - 평면(1/5): 우단 앞쪽(싱크면) 모서리. EP 20T / 몸통 측판 18T / 도어 20T."""
     xr = 3600
@@ -1072,6 +1083,7 @@ def edge_ep_plan(sh, m, X0, Y0, sc=0.2):
 
 
 # ----------------------------------------------------------------- NOTE
+@view("NOTE")
 def note_block(sh, d, lines):
     n = d["note"]
     sh.text(218.3, 26.6, "DOOR : " + n["DOOR"], 3.9)
@@ -1175,11 +1187,13 @@ def page_a(m, scale_den, sheet_no, title):
     plan_markers(sh, m, ox, oy, s)
     note_block(sh, m.d, NOTE_A)
     gy = 222.0
-    X, Z = draw_a_elev(sh, m, 30.0, gy, s, False)
+    with sh.group("VIEW_FRONT_DOOR"):
+        X, Z = draw_a_elev(sh, m, 30.0, gy, s, False)
     a_dims(sh, m, X, Z)
     marker(sh, X(3450), gy + 10.0, "A", "up")
     sh.text(X(0), gy + 21.0, "서랍 전판 20T (363 x 2단, 추정) / 측판 EP 20T / OPEN 베이 선반 18T", 2.0, "b", "l")
-    X, Z = draw_a_elev(sh, m, 240.0, gy, s, True)
+    with sh.group("VIEW_FRONT_BODY"):
+        X, Z = draw_a_elev(sh, m, 240.0, gy, s, True)
     a_dims(sh, m, X, Z)
     marker(sh, X(3450), gy + 10.0, "A", "up")
     sh.text(X(0), gy + 21.0, "목찬넬 60*40 (서랍 전판 상단·중간) / 서랍통 레일 13*2(추정)", 2.0, "b", "l")
@@ -1414,10 +1428,12 @@ def dxf_color(rgb, bg):
     return {"color": v} if isinstance(v, int) else {"true_color": ezdxf.colors.rgb2int(v)}
 
 
-def render_dxf(sheets, path, bg="white", real=True, default_den=None):
+def render_dxf(sheets, path, bg="white", real=True, default_den=None, blocks=True):
     """DXF 출력. real=True(기본): 1 단위 = 1mm 실치수. 시트 도곽·글자·치수 간격·마커를 시트 축척 배수(den)만큼 키워
     모델 공간에 놓으므로 가구 형상은 실제 mm 좌표다. 시트는 X 방향으로 폭의 10% 간격으로 나란히 배치.
-    real=False: 예전 방식(종이 mm 좌표, 시트 간격 80)."""
+    real=False: 예전 방식(종이 mm 좌표, 시트 간격 80).
+    blocks=True(기본): 뷰(TOP VIEW/FRONT/SIDE/상세…)·도곽을 이름 있는 BLOCK + INSERT 1개로 낸다(수정은 EXPLODE/REFEDIT).
+    해칭은 항상 영역당 HATCH 1개."""
     dens = [((getattr(sh, "den", None) or default_den or SCALE_DEN) if real else 1) for sh in sheets]
     offs, x = [], 0.0
     for k in dens:
@@ -1461,35 +1477,56 @@ def render_dxf(sheets, path, bg="white", real=True, default_den=None):
             h = msp.add_hatch(dxfattribs={"layer": "BG", "true_color": ezdxf.colors.rgb2int(_BG[bg])})
             h.set_solid_fill()
             h.paths.add_polyline_path([(ox, 0), (ox + PW * k, 0), (ox + PW * k, PH * k), (ox, PH * k)], is_closed=True)
+    def draw_item(tgt, it, Xf, Yf, kk):
+        k = it[0]
+        if k == "L":
+            _, x1, y1, x2, y2, st = it
+            tgt.add_line((Xf(x1), Yf(y1)), (Xf(x2), Yf(y2)), dxfattribs=_attr(st, bg))
+        elif k == "P":
+            _, pts, st, cl = it
+            tgt.add_lwpolyline([(Xf(x), Yf(y)) for x, y in pts], close=cl, dxfattribs=_attr(st, bg))
+        elif k == "C":
+            _, cx, cy, r, st = it
+            tgt.add_circle((Xf(cx), Yf(cy)), r * kk, dxfattribs=_attr(st, bg))
+        elif k == "H":                                   # 해칭 영역마다 HATCH 1개(ANSI31). 패턴 배율 = 간격 x 시트 배수
+            _, pts, st, step = it
+            h = tgt.add_hatch(dxfattribs=_attr(st, bg))
+            h.set_pattern_fill("ANSI31", scale=max(step * kk / 3.175 / 0.70710678, 1e-6), angle=0)
+            h.paths.add_polyline_path([(Xf(x), Yf(y)) for x, y in pts], is_closed=True)
+        elif k == "F":
+            _, pts, col = it
+            at = {"layer": "FRAME" if col == (85, 85, 85) else "OUTLINE"}
+            at.update(dxf_color(col, bg))
+            h = tgt.add_hatch(dxfattribs=at)
+            h.set_solid_fill(); h.paths.add_polyline_path([(Xf(x), Yf(y)) for x, y in pts], is_closed=True)
+        elif k == "T":
+            _, x, y, s, size, col, a, rot = it
+            lay, rgb = TXT[col]
+            at = {"layer": lay, "style": "MALGUN"}
+            at.update(dxf_color(rgb, bg))
+            t = tgt.add_text(s, height=size * 0.72 * kk, rotation=rot, dxfattribs=at)
+            al = {"l": TextEntityAlignment.BOTTOM_LEFT, "c": TextEntityAlignment.BOTTOM_CENTER, "r": TextEntityAlignment.BOTTOM_RIGHT}[a]
+            t.set_placement((Xf(x), Yf(y)), align=al)
+
     for i, sh in enumerate(sheets):
         ox = offs[i]; kk = dens[i]
-        Xf = lambda x: ox + x * kk
         Yf = lambda y: (PH - y) * kk
-        for it in sh.items:
-            k = it[0]
-            if k == "L":
-                _, x1, y1, x2, y2, st = it
-                msp.add_line((Xf(x1), Yf(y1)), (Xf(x2), Yf(y2)), dxfattribs=_attr(st, bg))
-            elif k == "P":
-                _, pts, st, cl = it
-                msp.add_lwpolyline([(Xf(x), Yf(y)) for x, y in pts], close=cl, dxfattribs=_attr(st, bg))
-            elif k == "C":
-                _, cx, cy, r, st = it
-                msp.add_circle((Xf(cx), Yf(cy)), r * kk, dxfattribs=_attr(st, bg))
-            elif k == "F":
-                _, pts, col = it
-                at = {"layer": "FRAME" if col == (85, 85, 85) else "OUTLINE"}
-                at.update(dxf_color(col, bg))
-                h = msp.add_hatch(dxfattribs=at)
-                h.set_solid_fill(); h.paths.add_polyline_path([(Xf(x), Yf(y)) for x, y in pts], is_closed=True)
-            elif k == "T":
-                _, x, y, s, size, col, a, rot = it
-                lay, rgb = TXT[col]
-                at = {"layer": lay, "style": "MALGUN"}
-                at.update(dxf_color(rgb, bg))
-                t = msp.add_text(s, height=size * 0.72 * kk, rotation=rot, dxfattribs=at)
-                al = {"l": TextEntityAlignment.BOTTOM_LEFT, "c": TextEntityAlignment.BOTTOM_CENTER, "r": TextEntityAlignment.BOTTOM_RIGHT}[a]
-                t.set_placement((Xf(x), Yf(y)), align=al)
+        if blocks:
+            # 뷰마다 이름 있는 BLOCK(좌표는 시트 원점 기준 실치수 mm) + 시트 원점에 INSERT 1개. 도곽/표제란 = FRAME_SHEET{n}
+            Xl = lambda x: x * kk
+            by_name = {}
+            for it, g in zip(sh.items, sh.groups):
+                by_name.setdefault(g, []).append(it)
+            for g, its in by_name.items():
+                name = f"FRAME_SHEET{i + 1}" if g is None else f"{g}_S{i + 1}"
+                blk = doc.blocks.new(name=name)
+                for it in its:
+                    draw_item(blk, it, Xl, Yf, kk)
+                msp.add_blockref(name, (ox, 0), dxfattribs={"layer": "0"})
+        else:
+            Xf = lambda x: ox + x * kk
+            for it in sh.items:
+                draw_item(msp, it, Xf, Yf, kk)
         at = {"layer": "SHEET_FRAME_INFO", "style": "MALGUN"}
         label = f"[{i + 1}] {sh.name}" + (f"  (1/{kk}, 1:1 실치수)" if real else "")
         msp.add_text(label, height=5 * kk, dxfattribs=at).set_placement((ox + 4.5 * kk, (PH + 4) * kk), align=TextEntityAlignment.BOTTOM_LEFT)
@@ -1525,6 +1562,7 @@ def main():
     ap.add_argument("--site", default=None)
     ap.add_argument("--scale", type=int, default=None)
     ap.add_argument("--font", default=None)
+    ap.add_argument("--no-blocks", action="store_true", help="뷰를 BLOCK 으로 묶지 않고 낱개 엔티티로 출력 (기본: 뷰/도곽을 이름 있는 BLOCK+INSERT)")
     ap.add_argument("--paper", action="store_true", help="DXF 를 예전 종이 mm 좌표(축소)로 출력 (기본: 1:1 실치수)")
     ap.add_argument("--dxf-bg", choices=["none", "white", "dark"], default="white",
                     help="DXF 배경: white(기본, 흰 종이+검정 선) / dark(어두운 배경+밝은 선) / none(배경 없음, 검정=ACI7 자동 반전)")
@@ -1538,9 +1576,9 @@ def main():
     sheets = build_sheets(m)
     os.makedirs(a.out, exist_ok=True)
     render_pdf(sheets, os.path.join(a.out, "test_sheet.pdf"))
-    render_dxf(sheets, os.path.join(a.out, "test_sheet.dxf"), a.dxf_bg, real=not a.paper)
+    render_dxf(sheets, os.path.join(a.out, "test_sheet.dxf"), a.dxf_bg, real=not a.paper, blocks=not a.no_blocks)
     if a.dxf_bg == "white":                                   # 어두운 CAD 테마용 보조 파일
-        render_dxf(sheets, os.path.join(a.out, "test_sheet_dark.dxf"), "dark", real=not a.paper)
+        render_dxf(sheets, os.path.join(a.out, "test_sheet_dark.dxf"), "dark", real=not a.paper, blocks=not a.no_blocks)
     print("font:", FONT_USED["path"], "| name:", FURNITURE_NAME, "| scale 1/%d" % SCALE_DEN, "| pages", len(sheets))
 
 

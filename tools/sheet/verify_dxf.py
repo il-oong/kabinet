@@ -140,6 +140,15 @@ def main():
             else:
                 yield e
     ents = list(_flat(msp))      # 뷰 블록(INSERT)은 풀어서 검사
+    # 해칭/블록: 영역당 HATCH 1개 — 낱개 45° 해칭 선이 남아 있으면 실패
+    pat = [e for e in ents if e.dxftype() == "HATCH" and not e.dxf.solid_fill]
+    loose = [e for e in ents if e.dxftype() == "LINE" and e.dxf.layer == "THIN" and e.dxf.hasattr("true_color")
+             and ezdxf.colors.int2rgb(e.dxf.true_color) in ((165, 165, 165), (120, 120, 120), (130, 130, 130))      # 'HATCH' 스타일 색(해칭 선)
+             and abs(abs(e.dxf.end.x - e.dxf.start.x) - abs(e.dxf.end.y - e.dxf.start.y)) < 1e-3 * max(1.0, abs(e.dxf.end.x - e.dxf.start.x))
+             and abs(e.dxf.end.x - e.dxf.start.x) > 1e-6]
+    nins = sum(1 for e in msp if e.dxftype() == "INSERT")
+    print(f"해칭: 패턴 HATCH {len(pat)}개, 낱개 45° 해칭 의심 LINE {len(loose)}개; 블록 정의 {len([b for b in d.blocks if not b.name.startswith('*')])}개 / INSERT {nins}개")
+    ok &= len(loose) < 8
     # 시트 도곽: FRAME 레이어 lineweight 100 사각
     frames = []
     for e in ents:
@@ -211,7 +220,7 @@ def main():
             if not any(abs(v - seg) <= TOL for v in cand):
                 bad += 1
                 if bad <= 8:
-                    print(f"  MISMATCH {sname}: 측정 {seg:.1f} mm, 근처 문자 {cand[:5]}")
+                    print(f"  MISMATCH {sname}: 측정 {seg:.1f} mm @({x1:.0f},{y1:.0f})-({x2:.0f},{y2:.0f}), 근처 문자 {cand[:5]}")
     print(f"치수 문자 검사: {checked} 구간, 불일치 {bad}")
     ok &= bad == 0
     if fj:

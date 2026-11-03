@@ -23,7 +23,7 @@ import argparse, json, os, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_sheet as bs   # noqa: E402
-from build_sheet import Sheet, fmt  # noqa: E402
+from build_sheet import Sheet, fmt, view  # noqa: E402
 
 EP, BT, DT, CH_H, CH_GAP = 20, 18, 20, 60, 25
 
@@ -66,6 +66,7 @@ def fronts(d, md):
 
 
 # ------------------------------------------------------------------ 뷰
+@view("VIEW_TOP")
 def draw_plan(sh, d, ox, oy, s, labels=True):
     o = d["overall"]; W, D = o["W"], o["D"]
     for md in d["modules"]:
@@ -85,6 +86,7 @@ def draw_plan(sh, d, ox, oy, s, labels=True):
         sh.rrect(ox + sk["x"] * s, oy + sk["y"] * s, ox + (sk["x"] + sk["w"]) * s, oy + (sk["y"] + sk["d"]) * s, max(25 * s, 0.4), "OUT")
 
 
+@view("VIEW_TOP")
 def plan_dims(sh, d, ox, oy, s):
     o = d["overall"]; W, D = o["W"], o["D"]
     xs = sorted({0, W} | {round(m["x"]) for m in d["modules"]} | {round(m["x"] + m["w"]) for m in d["modules"]})
@@ -102,6 +104,7 @@ def cut_x(d):
     return m["x"] + m["w"] / 2.0
 
 
+@view("VIEW_TOP")
 def plan_markers(sh, d, ox, oy, s):
     o = d["overall"]; W, D = o["W"], o["D"]
     cy = oy + D * s / 2
@@ -115,6 +118,7 @@ def plan_markers(sh, d, ox, oy, s):
     bs.marker(sh, x, yt, "1", "right"); bs.marker(sh, x, yb, "1", "right")
 
 
+@view("KEYPLAN")
 def keyplan(sh, d, x0=12.0, y0=19.5, w=26.0):
     rd = d["room"]; s = w / rd["W"]; h = rd["D"] * s
     sh.rect(x0, y0, x0 + w, y0 + h, "OUT")
@@ -156,6 +160,7 @@ def ep_strips(sh, d, X, Z, body, k):
     if ep.get("top"): bs.ep_rect(sh, X(0), Z(body), X(o["W"]), Z(body - t), 0.5)
 
 
+@view("VIEW_FRONT_DOOR")
 def door_view(sh, d, ox, gy, s):
     o = d["overall"]; X, Z = elev_frame(sh, d, ox, gy, s)
     body = o["H"] - o["top_thickness"]; k = o["kick"]
@@ -192,6 +197,7 @@ def door_view(sh, d, ox, gy, s):
     return X, Z
 
 
+@view("VIEW_FRONT_BODY")
 def body_view(sh, d, ox, gy, s):
     o = d["overall"]; X, Z = elev_frame(sh, d, ox, gy, s)
     body = o["H"] - o["top_thickness"]; k = o["kick"]
@@ -227,6 +233,7 @@ def body_view(sh, d, ox, gy, s):
     return X, Z
 
 
+@view("NOTE")
 def note_block(sh, d, lines):
     n = d["notes"]
     sh.text(218.3, 26.6, "DOOR : " + n["DOOR"], 3.9)
@@ -277,6 +284,7 @@ def page_side(d, den, no):
     sh.den = den_top
     gy = 30.0 + o["H"] * s + 12.0
     for idx, (ox, flip) in enumerate(((48.0, False), (140.0, True))):
+      with sh.group("VIEW_SIDE_RIGHT" if flip else "VIEW_SIDE_LEFT"):
         Y = (lambda v, ox=ox: ox + (D - v) * s) if flip else (lambda v, ox=ox: ox + v * s)
         Z = lambda v: gy - v * s
         a, b = sorted((Y(0), Y(D)))
@@ -295,6 +303,7 @@ def page_side(d, den, no):
     return sh
 
 
+@view("SECTION")
 def draw_section(sh, d, ox, gy, s):
     o = d["overall"]; D = o["D"]; k = o["kick"]; body = o["H"] - o["top_thickness"]
     X = lambda v: ox + v * s
@@ -408,6 +417,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("json"); ap.add_argument("--out", default=None); ap.add_argument("--name", default=None)
     ap.add_argument("--site", default=None); ap.add_argument("--scale", type=int, default=None); ap.add_argument("--font", default=None)
+    ap.add_argument("--no-blocks", action="store_true", help="뷰를 BLOCK 으로 묶지 않고 낱개 엔티티로 출력")
     ap.add_argument("--paper", action="store_true", help="DXF 를 예전 종이 mm 좌표(축소)로 출력 (기본: 1:1 실치수)")
     a = ap.parse_args()
     d = json.load(open(a.json, encoding="utf-8"))
@@ -420,8 +430,8 @@ def main():
     os.makedirs(out, exist_ok=True)
     bs.SCALE_DEN = den
     bs.render_pdf(pages, os.path.join(out, "sheet.pdf"))
-    bs.render_dxf(pages, os.path.join(out, "sheet.dxf"), "white", real=not a.paper)
-    bs.render_dxf(pages, os.path.join(out, "sheet_dark.dxf"), "dark", real=not a.paper)
+    bs.render_dxf(pages, os.path.join(out, "sheet.dxf"), "white", real=not a.paper, blocks=not a.no_blocks)
+    bs.render_dxf(pages, os.path.join(out, "sheet_dark.dxf"), "dark", real=not a.paper, blocks=not a.no_blocks)
     print("ok", d["furniture_name"], "scale 1/%d" % den, "pages", len(pages), "font", bs.FONT_USED["name"])
 
 
