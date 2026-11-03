@@ -101,6 +101,22 @@ module Kabinet
         sheet::Builder.export(cfg, data, path, only_ids: only_ids)
       end
 
+      # 입력 CAD DXF 한 개 → 면별 시트 DXF 들을 같은 폴더에 저장.
+      # 반환: { name:, files: [UTF-8 경로...], report: [...] }
+      def import_cad(src_path, cfg)
+        cfg = text.deep_utf8(cfg)
+        r = sheet::DxfImport.from_file(src_path, site: cfg['site'].to_s)
+        dir_native = File.dirname(src_path)
+        base = File.basename(utf8(src_path), '.*')
+        files = r[:models].map do |m|
+          name = "#{base}_#{sheet::Text.safe_name(m['furniture_name'])}_시트.dxf"
+          native = File.join(dir_native, text.native(name, dir_native))
+          sheet::Builder.export(cfg.merge('furniture_name' => m['furniture_name']), m, native)
+          utf8(native)
+        end
+        { name: r[:name], files: files, report: r[:report] }
+      end
+
       # 모델 장면 이름 목록
       def scene_names(model)
         model.pages.to_a.map { |pg| utf8(pg.name) }

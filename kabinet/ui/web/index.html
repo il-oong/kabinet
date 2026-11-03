@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabinet</title>
-  <link rel="stylesheet" href="styles.css?v=1.23.1">
+  <link rel="stylesheet" href="styles.css?v=1.24.0">
 </head>
 <body>
 
@@ -12,7 +12,7 @@
 <aside class="preset-sidebar">
   <div class="preset-sidebar-head">
     <span class="preset-sidebar-title">Kabinet</span>
-    <span class="version-badge">v1.23.1</span>
+    <span class="version-badge">v1.24.0</span>
   </div>
   <input type="search" id="preset-search" class="preset-search" placeholder="프리셋·도구 검색…"
          oninput="kabinet.renderPresetSidebar()">
@@ -504,6 +504,7 @@
     <p class="ep-hint"><b>이미지가 있는 도면</b>: DXF 는 이미지를 파일로 <u>참조</u>합니다. 저장하면 <code>&lt;이름&gt;_images/</code> 폴더가 DXF 옆에 만들어지니
       <b>DXF 파일과 그 폴더를 함께</b> 옮기세요(폴더째 복사하면 됩니다). 이미지가 없어도 도곽은 열립니다.</p>
     <button type="button" class="btn-primary ep-big" onclick="kabinetSheet.exportDxf()">DXF 내보내기 (저장 위치 선택)</button>
+    <button type="button" class="ep-big" onclick="kabinetSheet.importCad()" title="다른 CAD 에서 받은 가구 도면 DXF(평면·정면·치수 포함)를 읽어 이 양식의 제작도면 시트로 다시 만듭니다">CAD 도면 DXF 불러와 재구성</button>
   </div>
 </div>
 
@@ -536,11 +537,11 @@
 
 </div><!-- /.main-col -->
 
-<script src="app.js?v=1.23.1"></script>
-<script src="modules.js?v=1.23.1"></script>
-<script src="live-preview.js?v=1.23.1"></script>
-<script src="drawing.js?v=1.23.1"></script>
-<script src="drawing_import.js?v=1.23.1"></script>
-<script src="sheet.js?v=1.23.1"></script>
+<script src="app.js?v=1.24.0"></script>
+<script src="modules.js?v=1.24.0"></script>
+<script src="live-preview.js?v=1.24.0"></script>
+<script src="drawing.js?v=1.24.0"></script>
+<script src="drawing_import.js?v=1.24.0"></script>
+<script src="sheet.js?v=1.24.0"></script>
 </body>
 </html>

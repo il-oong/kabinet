@@ -3,7 +3,7 @@ require_relative 'styles'
 module Kabinet
   module Output
     module Sheet
-      # AC1015(R2000) ASCII DXF 작성기 — LINE/LWPOLYLINE/CIRCLE/TEXT/SOLID/IMAGE, 레이어 선굵기·TrueColor,
+      # AC1018(R2004) ASCII DXF 작성기 — LINE/LWPOLYLINE/CIRCLE/TEXT/SOLID/IMAGE, 레이어 선굵기·TrueColor,
       # 시트별 BG(배경) 채움. 한글은 CP949(ANSI_949)로 인코딩. 순수 Ruby.
       #
       # pages: [Canvas], 시트는 X 방향으로 (PW + gap) 간격으로 배치(1단위 = 1mm).
@@ -171,7 +171,7 @@ module Kabinet
           # 핸들 사전 할당(테이블/블록/객체)
           out = +''
           out << section('HEADER',
-                         pair(9, '$ACADVER') + pair(1, 'AC1015') +
+                         pair(9, '$ACADVER') + pair(1, 'AC1018') +
                          pair(9, '$HANDSEED') + pair(5, 'FFFFF') +
                          pair(9, '$INSUNITS') + pair(70, 4) +
                          pair(9, '$LWDISPLAY') + pair(290, 1) +

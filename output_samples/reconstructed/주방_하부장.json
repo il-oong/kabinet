@@ -1,0 +1,78 @@
+{
+  "site": "",
+  "furniture_name": "주방 하부장",
+  "overall": {
+    "W": 1552.0,
+    "H": 912.0,
+    "D": 600.0,
+    "top_thickness": 12.0,
+    "kick": 100.0
+  },
+  "ep": {
+    "left": false,
+    "right": false,
+    "top": false,
+    "thickness": 20.0
+  },
+  "modules": [
+    {
+      "name": "조리장(2D)B",
+      "x": 0.0,
+      "z": 100.0,
+      "w": 899.9999999999999,
+      "h": 800.0,
+      "d": 600.0,
+      "type": "doors",
+      "doors": 2,
+      "drawers": 0,
+      "shelves": [
+
+      ],
+      "rods": [
+
+      ],
+      "dividers": [
+
+      ],
+      "flags": [
+
+      ]
+    },
+    {
+      "name": "서랍장(2단)M",
+      "x": 900.0002441406249,
+      "z": 100.0,
+      "w": 651.9997558593752,
+      "h": 800.0,
+      "d": 600.0,
+      "type": "drawers",
+      "doors": 0,
+      "drawers": 2,
+      "shelves": [
+
+      ],
+      "rods": [
+
+      ],
+      "dividers": [
+
+      ],
+      "flags": [
+
+      ]
+    }
+  ],
+  "notes": {
+    "DOOR": "주방장 도어^J공용 부엌 도어 - KK DR 112",
+    "BODY": "목림 지정 자재 (확인필요)",
+    "handle": "지정 손잡이 (확인필요)"
+  },
+  "room": {
+    "W": 5200,
+    "D": 3400,
+    "name": "공간"
+  },
+  "flags": [
+    "도면(DXF)에서 자동 재구성 - 치수·구성 확인필요"
+  ]
+}

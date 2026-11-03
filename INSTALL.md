@@ -1,5 +1,12 @@
 # Kabinet — 설치 및 검증 가이드
 
+## v1.24.0 — CAD 도면(DXF) 불러와 제작도면 시트로 재구성
+
+- 사이드바 「도면 시트 (DXF)」 > **CAD 도면 DXF 불러와 재구성**. 다른 CAD(중국계 가구 CAD 등)에서 받은 가구 도면 DXF(평면·정면 + 치수 엔티티 + `서랍장(2단)M`·`조리장(1D)L/R` 같은 모듈 라벨)를 고르면, 읽은 치수로 가구 모델을 만들어 이 양식의 시트 DXF 를 **원본 파일과 같은 폴더**에 저장합니다. 평면 양쪽 면(A/B)이 있으면 면마다 한 파일(`<원본>_<가구명 A면>_시트.dxf`).
+- 읽는 값: 전체 폭(모듈 폭 치수 행의 합), 깊이·높이(세로 치수), 상판 두께(높이 끝 ≤60 치수)·걸레받이(바닥 50~200 치수), 모듈 이름·문 수(`(2D)`)·서랍 단(`(2단)`), EP 두께(`[20T]`), 도어 문구. 못 읽은 값은 기본값 + 시트 확인표/flags 에 `확인필요`.
+- 코드: `output/sheet/dxf_reader.rb`(순수 Ruby DXF 리더) · `dxf_import.rb`(재구성) · `ui/sheet_bridge.rb#import_cad` · 콜백 `kabinet:sheet_import_cad`. CLI: `ruby tools/sheet/import_dxf.rb 입력.dxf... --out 폴더`. 테스트 `test/sheet_import_test.rb`. 샘플 결과 `output_samples/reconstructed/`.
+- **알려진 한계**: 아일랜드장처럼 모듈 폭 치수 행이 끊겨(가전 구간 치수 없음) 모듈이 누락되는 경우, 라벨 없는 도면(현관장)은 모듈 1개로 처리, EP 위치는 양측 추정. 실기(SketchUp) 확인 전.
+
 ## v1.23.1 — 도면 시트: 한글(CP949) 경로 오류 수정
 
 - **증상**: 한글 Windows 에서 도면 시트의 `＋ 이미지 파일…`이 안 되고 `incompatible character encodings: UTF-8 and CP949` 오류. **원인**: `UI.openpanel`/`savepanel`/`Dir`/`File.basename` 이 돌려준 경로가 CP949 태그 문자열인데 UTF-8 한글 문자열(메시지·`_images` 폴더명·캡션·JSON)과 이어 붙일 때 Ruby 가 거부. 재현 테스트 `test/sheet_encoding_test.rb` 로 같은 오류를 재현한 뒤 수정함(오류 발생 지점: 내보내기 메시지/`_images` 경로 조합/캡처 완료 메시지/JSON 생성 등).

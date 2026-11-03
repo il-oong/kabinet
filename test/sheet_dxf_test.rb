@@ -45,7 +45,7 @@ Dir.mktmpdir do |dir|
   assert r[:pages] == 7, "pages #{r[:pages]}"            # 기본 구성: 사진·3D·평면도·가구·측면·상세·확인표
   sec = parse_dxf(path)
   assert %w[HEADER CLASSES TABLES BLOCKS ENTITIES OBJECTS].all? { |n| sec.key?(n) }, "sections #{sec.keys}"
-  assert sec['HEADER'].include?([1, 'AC1015']), 'version'
+  assert sec['HEADER'].include?([1, 'AC1018']), 'version'
   ents = entities(sec['ENTITIES'])
   types = ents.map { |e| e[:type] }.tally
   assert types['LINE'] > 500 && types['TEXT'] > 100 && types['LWPOLYLINE'] > 50 && types['CIRCLE'] > 3, "types #{types}"

@@ -2,6 +2,14 @@
 
 새 세션에서 이 파일부터 읽고 이어서 작업하세요. 사용자 선호: **한국어로 답변, 코드는 항상 PR 먼저 만든 뒤 머지, Railway 사용(이 저장소는 SketchUp 플러그인이라 해당 없음)**, 컨텍스트 70% 넘으면 중단하고 정리.
 
+## (v1.24.0) CAD 도면 DXF → 시트 재구성 — 최신 인계 (맨 앞 절보다 최신)
+- 브랜치 `claude/tender-darwin-852d8m`. 사용자가 올린 CAD 도면 DXF 5개(아일랜드장·홈바장·냉장고장 데코·현관장·주방 하부장; 각 파일 = 몸통/도어/상판 3장 도곽)를 **치수(DIMENSION)+라벨(MTEXT)** 로 읽어 시트로 재구성하는 Ruby 기능 추가. 결과 `output_samples/reconstructed/*.dxf,json`.
+- **(미해결, 최우선) 사용자 CAD 에서 생성 DXF 가 안 열림**: 화면에 `Press ENTER to continue:` 만 뜨고 도면이 안 나옴(AC1015·AC1018 모두 동일). ezdxf 는 오류 0 으로 읽음. 가장 유력한 원인 = `output/sheet/dxf_writer.rb` 의 OBJECTS 가 빈 루트 DICTIONARY 하나뿐(LAYOUT/ACAD_LAYOUT/ACAD_GROUP/MATERIAL 등 없음)이고 CLASSES·DIMSTYLE Standard 도 비어 있음. 같은 파일을 ezdxf 로 재저장(`readfile→saveas`, LAYOUT 2개·딕셔너리 12개 생성)한 v2 를 사용자에게 보내 열리는지 확인 요청함. v2 가 열리면: Ruby 작성기에 LAYOUT(Model/Layout1)·ACAD_LAYOUT/ACAD_GROUP/ACAD_MATERIAL 딕셔너리·DIMSTYLE Standard·CLASSES 를 추가(ezdxf 재저장본 OBJECTS 를 참고). 안 열리면 사용자에게 CAD 이름과 Enter 전 오류 문구를 받아야 함.
+- 구현: `output/sheet/dxf_reader.rb`, `dxf_import.rb`(DxfImport.from_file → {name, models, report}), UI 버튼/콜백(`sheet.js#importCad`, `dialog.rb kabinet:sheet_import_cad`, `sheet_bridge.rb#import_cad`), CLI `tools/sheet/import_dxf.rb`, 테스트 `test/sheet_import_test.rb`(합성 DXF).
+- 입력 DXF 특징: mm 단위(INSUNITS 4), UTF-8, 레이어 `DS-定制柜体/台面/五金`, `SH-尺寸标注`(DIMENSION, 실측값 group 42), 도곽 INSERT `_Frame*`(레이어 `图框`). 모듈 라벨은 평면도 안(면별 y 밴드), 큰 제목 MTEXT(h≥60)가 가구명.
+- **남은 일(우선순위)**: ① 끊긴 치수 행 처리 — 아일랜드장은 B면 326|900|300|474|614|486|500 인데 현재 2개만 읽음(`chains_of` 가 끝점이 이어진 행만 인식; 라벨 x 위치+가전 구간 갭 보간 필요) ② 라벨 없는 도면(현관장) 모듈 분할을 정면도 선(몸통 세로선)에서 추출 ③ 홈바장 첫 모듈 라벨 없음(M1) 확인 ④ 상판 도곽(3번째)에서 싱크 컷·상판 분할 읽기 ⑤ 도어 도곽에서 도어 분할 ⑥ SketchUp 실기 확인(openpanel 한글 경로) ⑦ 필요 시 master 로 머지(PR 먼저).
+- 분석 도구 메모: 이 컨테이너에 `pip install ezdxf matplotlib` 후 `ezdxf.addons.drawing` 으로 PNG 렌더해 육안 확인 가능.
+
 ## 제작도면(시트) 기능 — 최신 인계 (이 절이 가장 최신)
 - **브랜치/버전**: 작업 브랜치 `claude/dazzling-babbage-v46o8h`(master 에는 아직 머지 안 됨 — 사용자가 요청할 때만 PR). 이 브랜치 = **v1.23.1**(`kabinet/version.rb`, `index.html ?v=`), `kabinet.rbz` 재빌드 완료(`python3 build/package.py && cp build/kabinet-1.23.1.rbz kabinet.rbz`). v1.23.0 은 master 에 머지됨(PR #34).
 - **Python 프로토타입(완성, PDF+DXF)**: `tools/sheet/build_sheet.py` → `output_samples/test_sheet.pdf/.dxf/_dark.dxf`, `furniture.json`, `preview-*.png`. 양식 분석·결정사항·테스트 결과·개정 이력은 `SHEET_FORMAT_ANALYSIS.md` (§2~§8 양식 좌표, §12 입력 DWG 분석, §13.x 테스트 결과). 주방 아일랜드(싱크면+서랍면) 1건 전용 페이지(평면 / NO.001~003 / 상세 / 확인표)까지.
