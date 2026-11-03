@@ -245,3 +245,55 @@
 
 ### 13.7 Ruby 이식 (SketchUp 플러그인 v1.23.0)
 - Python 프로토타입의 양식·선 규칙·DXF 배경 옵션을 순수 Ruby(`kabinet/output/sheet/*`)로 이식하고 플러그인 UI(「도면 시트 (DXF)」)·현장사진/상담 3D 쪽·IMAGE 삽입을 추가. 상세·진행 상황·실기 확인 항목은 HANDOFF.md 맨 위 절과 INSTALL.md v1.23.0 항목 참고. Ruby 가구 시트는 일렬 모듈 일반형이며 아일랜드 양면 세부는 이 문서의 Python 결과에만 있음.
+
+## 14. Ruby 플러그인 출력 vs Python 출력 비교 (DXF 2건 실측) 와 해소 계획
+
+비교 파일: Ruby(플러그인) = `A_no_images.dxf`(원본 `sheet_도면시트.dxf` 에서 IMAGE 만 뺀 것, ezdxf 로 재저장본), Python = 주방 아일랜드 `5______.dxf`(build_sheet.py). ezdxf 1.4.5 로 모델 공간을 직접 측정(`tools/sheet/compare_ruby_python.py`·본 절 스크립트). "해소" 열은 v1.25.0 에서의 처리.
+
+### 14.1 정량 비교
+
+| 항목 | Ruby(v1.24 이하) | Python | 해소(v1.25.0) |
+|---|---|---|---|
+| DXF 버전 | AC1018(R2004) | AC1024(R2010) | R2004 유지(ezdxf 골격 이식), 구조는 ezdxf 와 동일 |
+| 엔티티 합계 | 2,816 | 5,790 | 같은 모델 입력 시 비교 스크립트로 종류·텍스트·치수·시트 수 대조 |
+| 엔티티 종류 | LINE 2381 · TEXT 233 · SOLID 73 · LWPOLYLINE 120 · CIRCLE 9 | LINE 4703 · TEXT 610 · LWPOLYLINE 272 · CIRCLE 104 · HATCH 101(전부 SOLID: 배경 6 + 채움 95) | EP 해칭을 HATCH(ANSI31)로 출력(Python 은 45° 선) — 허용 차이로 분류 |
+| 레이어 | BG·FRAME·TEXT·OUTLINE·IMAGE_FRAME·SHEET_FRAME_INFO·THIN·DIM·NOTE_RED·NOTE_BLUE (+IMAGE 8) | IMAGE_FRAME/IMAGE 없음, 나머지 동일 | 동일 레이어 체계 유지 |
+| 시트 수 | 8 (사진 2쪽[8장÷6장/쪽] + 상담3D + 평면도 + 가구 + 측면·단면 + 상세 + 확인표) | 6 (평면도 + 싱크면 + 서랍면 + 측면·단면 + 상세 + 확인표) | 가구 시트 구성·측면·상세·확인표 이식 (§14.3) |
+| 좌표 범위 | 3920 × 304 (종이 mm 축척 좌표, 시트 8장 × (420+80)) | 2920 × 305 (동일 방식) | 기본값 1:1 실치수 — 시트마다 도곽을 축척 배수(1/25→10,500×7,425)로 키움 |
+| TEXT | 233(고유 133, 숫자형 54) | 610(고유 272, 숫자형 217) | Ruby 쪽 치수·라벨 보강 |
+| 치수 표기 | DIMENSION 엔티티 없음, DIM 레이어 LINE+TEXT, 숫자 대부분 일반 모듈(1800/600/5200/3400/2300…) | 동일 방식(DIMENSION 엔티티 0), 모듈별 3단 치수 481개 DIM 엔티티 | 3단 치수(모듈별/전체/높이) 규칙 §6 대로 |
+| NOTE_BLUE / NOTE_RED | 텍스트 23·15 | 텍스트 73·39 | 힌지 표기 없음·NOTE 3줄+핵심 사양 이식 |
+| HATCH | 0 | 101 (SOLID) | EP 해칭 = HATCH 엔티티 |
+| 비축각(사선) LINE | 2,182(대부분 해칭 선) | 3,847(해칭 선) | HATCH 로 대체되어 LINE 수는 줄어듦 |
+
+### 14.2 시트 구성·내용 차이
+
+| 항목 | Ruby(이전) | Python | 해소 |
+|---|---|---|---|
+| TOP VIEW / NOTE / FRONT VIEW_ DOOR·BODY | 있음(가구 시트 1장) | 가구 면(A/B)마다 1장 | 동일 헤더, 모듈 정규화 스펙에서 생성 |
+| 평면도 + 키플랜 | 평면도만(공간+가구) | 평면도 + 시트마다 키플랜(면 표시) | 키플랜 추가(§14.3) |
+| 좌·우 측면도 | 있음(단순 외곽) | 있음(깊이 분할·상판 반영) | 단순 외곽 유지 + 좌/우 EP·전면 화살표 |
+| 단면 | 단면 1(마커 1개, 한쪽만) | 단면 1~2 + 절단선 + 번호 마커 양끝 + 전면 방향 | 절단선·양끝 마커·전면 방향 표기 추가 |
+| EP 20T | 선 해칭 | 선 해칭 | HATCH 엔티티 |
+| 목찬넬 상세 | 있음(단순) | 샘플 32쪽 구조(손 진입 화살표) | 이식 |
+| 생산 확인표 | 있음(별도 쪽) | 있음 | 유지 |
+| 도어 사선·힌지 | 사선·힌지 없음 | 사선·힌지 없음 | 동일(힌지 표기 없음) |
+| 현장사진·상담 3D 쪽 | 있음(IMAGE) | 없음 | 옵션 '사진 포함' |
+
+### 14.3 DXF 구조 결함(사용자 CAD 에서 `Press ENTER to continue:` 만 뜨고 안 열린 원인 후보)
+
+원본 Ruby 출력(`sheet_도면시트.dxf`)을 원시 그룹코드로 분석한 결과(`tools/sheet/verify_dxf.py` 구조 검사로 재현):
+
+| 결함 | 원본 Ruby | ezdxf 가 쓰는 R2004 | 해소 |
+|---|---|---|---|
+| OBJECTS | DICTIONARY 2개(루트 + ACAD_IMAGE_DICT)뿐 | 루트 + ACAD_LAYOUT/GROUP/MATERIAL/MLINESTYLE/PLOTSETTINGS/PLOTSTYLENAME/COLOR/VISUALSTYLE/SCALELIST/TABLESTYLE/MLEADERSTYLE 등 13개 + LAYOUT 2 + MATERIAL 3 + MLINESTYLE + … | 골격을 ezdxf 출력에서 그대로 이식 |
+| LAYOUT | 없음 | Model / Layout1 | 이식 |
+| BLOCK_RECORD 340(레이아웃 핸들) | 없음 | *Model_Space·*Paper_Space 에 있음 | 이식 |
+| CLASSES | 3개(IMAGE 류) | 16~18개 | 이식 |
+| $HANDSEED | FFFFF(고정) | 최대 핸들 + 1 | 계산해서 기록 |
+| DIMSTYLE | 'Standard' 비어 있음 | Standard 레코드(ISO 규격 변수) | 이식 |
+| APPID | ACAD 1개 | ACAD·HATCHBACKGROUNDCOLOR·EZDXF | 이식 |
+| IMAGE 경로 | `sheet_도면시트_images/부엌 (1).jpg`(한글·공백·괄호) | — | `sheet_images/img_01.jpg`(ASCII), 사용자 이름은 캡션 TEXT 로만 보존 |
+| 헤더 변수 | 6개 정도 | 전체(약 280개) | 이식 |
+
+참고: ezdxf 로 재저장한 A 파일이 사용자 CAD 에서 열렸다고 이해되나 **확정 아님** — 열림 여부를 가정하지 않고 구조적 차이를 모두 제거하는 방향으로 처리했다(INSTALL.md 실기 확인 항목).
