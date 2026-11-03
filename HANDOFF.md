@@ -3,17 +3,18 @@
 새 세션에서 이 파일부터 읽고 이어서 작업하세요. 사용자 선호: **한국어로 답변, 코드는 항상 PR 먼저 만든 뒤 머지, Railway 사용(이 저장소는 SketchUp 플러그인이라 해당 없음)**, 컨텍스트 70% 넘으면 중단하고 정리.
 
 ## 제작도면(시트) 기능 — 최신 인계 (이 절이 가장 최신)
-- **브랜치**: `claude/dazzling-babbage-v46o8h` (master 와 별개, PR 은 사용자가 따로 요청할 때만). 플러그인 버전은 아직 v1.22.1 — Ruby 이식이 끝나면 올림.
-- **Python 프로토타입(완성)**: `tools/sheet/build_sheet.py` → `output_samples/test_sheet.pdf/.dxf/_dark.dxf`, `furniture.json`, 미리보기 PNG. 양식 분석·결정사항·테스트 결과는 `SHEET_FORMAT_ANALYSIS.md` (§2~§8 양식 좌표, §12 입력 DWG 분석, **§13.x 테스트 결과·개정 이력**). 입력 샘플은 주방 아일랜드(싱크면+서랍면 양면) 1건 전용 페이지(평면/NO.001~005)까지 구현됨.
-- **Ruby 이식(진행 중, 단계별 커밋)** — SketchUp 의존 없는 순수 Ruby `kabinet/output/sheet/*` + `kabinet/output/sheet.rb`:
-  - ① **완료**: DXF 생성기(AC1015, CP949, LINE/LWPOLYLINE/CIRCLE/TEXT/SOLID/IMAGE, BG 레이어 white/dark/none), 페이지 빌더(`Pages`: floor/furniture/side/detail/table/photos/view3d 격자), 모델 정규화(`Model.from_spec` = Schema.normalize 결과 → 시트 모델), 구성 `Builder`(config → 캔버스 → DXF, 이미지 `<이름>_images/` 복사). 테스트 `test/sheet_dxf_test.rb`. python 교차검증 `tools/sheet/verify_dxf.py`(수동).
-  - ② 페이지 구성 편집 UI(HtmlDialog '도면 시트') / ③ 현장사진·상담3D UI + IMAGE / ④ rbz·버전·INSTALL.md — **아래 '진행 기록'에서 완료 여부 갱신**.
-- **한계**: Ruby 시트는 일반 가구(일렬 모듈: 도어/서랍/선반)용. 주방 아일랜드 양면(싱크면/서랍면·단면 1·2·EP/찬넬 세부)은 Python 프로토타입에만 있음. PDF 는 이번 범위 아님(Python `build_sheet.py` 로만).
-- **옛 기록 표시**: 아래 `현재 상태`·`진행 기록`의 버전 표기(v1.17 등)는 작성 당시 기준. 실제 최신 버전은 `kabinet/version.rb`.
-
+- **브랜치/버전**: 작업 브랜치 `claude/dazzling-babbage-v46o8h`(master 에는 아직 머지 안 됨 — 사용자가 요청할 때만 PR). 이 브랜치 = **v1.23.0**(`kabinet/version.rb`, `index.html ?v=`), `kabinet.rbz` 재빌드 완료(`python3 build/package.py && cp build/kabinet-1.23.0.rbz kabinet.rbz`). master 는 v1.22.1.
+- **Python 프로토타입(완성, PDF+DXF)**: `tools/sheet/build_sheet.py` → `output_samples/test_sheet.pdf/.dxf/_dark.dxf`, `furniture.json`, `preview-*.png`. 양식 분석·결정사항·테스트 결과·개정 이력은 `SHEET_FORMAT_ANALYSIS.md` (§2~§8 양식 좌표, §12 입력 DWG 분석, §13.x 테스트 결과). 주방 아일랜드(싱크면+서랍면) 1건 전용 페이지(평면 / NO.001~003 / 상세 / 확인표)까지.
+- **Ruby 이식(DXF만, 4단계 모두 커밋됨)**:
+  - ① 생성기 — `kabinet/output/sheet/*`(순수 Ruby: styles/canvas/frame/model/pages/dxf_writer(AC1015, CP949, IMAGE)/builder/image_info) + `output/sheet.rb`. 테스트 `test/sheet_dxf_test.rb`(레이어·시트 수·배경 옵션·IMAGE/IMAGEDEF·상대경로·한글), 교차검증(수동) `tools/sheet/verify_dxf.py`(ezdxf audit 0 확인).
+  - ② 페이지 구성 UI — 사이드바 「도면 시트 (DXF)」(`ui/web/sheet.js`, `index.html #view-sheet`): 순서(▲▼·드래그)·추가/삭제·숨김·제목/SHEET NO./SCALE, 가구명/현장명/DATE, 배경·폰트 스타일. 모델 attribute `kabinet_sheet/config_json` 저장(`ui/sheet_bridge.rb`). 테스트 `test/sheet_bridge_test.rb`, 브라우저 `node test/sheet_ui_browser.js`(스크린샷 `test/sheet-ui.png`).
+  - ③ 현장사진(맨 앞)·상담 3D 쪽 — 파일 추가(UI.openpanel)/폴더 추가/현재 화면·장면 캡처(`SheetBridge.capture`, view.write_image), 격자 1/2/4/6, 캡션, DXF `<이름>_images/` 복사·상대경로.
+  - ④ 버전/문서 — INSTALL.md 맨 위 v1.23.0 항목(사용법 + **실기 확인 항목 6개**).
+- **남은 일**: ⓐ SketchUp 실기 테스트(위 6개) ⓑ Ruby 시트에 주방 아일랜드 양면/단면 2개/EP·목찬넬 세부를 일반화해 이식(현재 Ruby 가구 시트는 일렬 모듈 일반형) ⓒ PDF 시트 Ruby 이식(미착수 — Python 만 가능) ⓓ 이미지 자동 리사이즈(현재 원본 복사) ⓔ `drawing_import.js` 의 `window.kabinetDrawingImport` 미노출(사이드바 `open()` 호출이 무효일 수 있음, 확인 필요) ⓕ 필요 시 master 로 PR.
+- **옛 기록 표시**: 아래 `현재 상태`·`진행 기록`의 v1.17~v1.21 표기와 "DXF/CAD UI는 제거함" 등은 작성 당시 기준 — 지금은 위 시트 기능이 DXF 출력의 최신입니다. 실제 버전은 `kabinet/version.rb`.
 
 ## 현재 상태
-- master = v1.17.0 (PR #16~#22 머지됨). 설치 파일 `kabinet.rbz`(루트)는 항상 최신으로 재빌드해 커밋: `python3 build/package.py && cp build/kabinet-<버전>.rbz kabinet.rbz`
+- (옛 기록, 작성 당시) master = v1.17.0 (PR #16~#22 머지됨; 이후 v1.22.1 까지 진행, 위 최신 절 참조). 설치 파일 `kabinet.rbz`(루트)는 항상 최신으로 재빌드해 커밋: `python3 build/package.py && cp build/kabinet-<버전>.rbz kabinet.rbz`
 - 사용자 PC는 v1.8 → 수동 설치 필요했음. 이후 창의 **더보기 > GitHub에서 업데이트**로 갱신(master의 kabinet.rbz를 받아 설치).
 - 테스트: `for t in test/*_test.rb; do ruby $t; done` + 브라우저 `test/live_preview_browser.js`(playwright, /opt/pw-browsers/chromium). SketchUp 실기 테스트는 한 번도 못 함 — 사용자가 사진으로 피드백.
 - 버전 올릴 때 `kabinet/version.rb` + `kabinet/ui/web/index.html`(`?v=` 캐시 파라미터, 상단 v표시)를 같이 바꾸고 `INSTALL.md` 맨 위에 변경 기록 추가.
@@ -23,7 +24,7 @@
 - `kabinet/commands/*` SketchUp 명령(generate, regenerate, face_panel, space_divide, **countertop**, **common**, **slab_thickness**)
 - `kabinet/ui/dialog.rb` HtmlDialog 콜백 전부, `panel_tools.rb`(면→패널/공간분할 도구), `place_tool.rb`(생성 위치 클릭), `front_view_tool.rb`(도면 정면 방향 표시), `live_preview.rb`
 - `kabinet/ui/web/app.js`(상태·사이드바·프리셋 `FURNITURE_PRESETS`·공통사항·붙박이장 내부구성), `modules.js`(모듈 카드), `drawing.js`(도면·보관함 화면), `index.html`, `styles.css`
-- 도면 출력은 LayOut(`output/furniture_sheet.rb`, `space_sheet.rb`) — DXF/CAD UI는 제거함(코드는 남아 있음).
+- 도면 출력은 LayOut(`output/furniture_sheet.rb`, `space_sheet.rb`) — 옛 DXF/CAD UI는 제거함(코드는 남아 있음). **새 제작도면 시트 DXF 는 `output/sheet/*` + 사이드바 「도면 시트 (DXF)」**(위 최신 절).
 - 공통사항 규칙은 **JS `applyCommon`과 Ruby `Core::Common.apply`가 같아야 함**(test/common_test.rb가 27개 프리셋으로 대조).
 
 ## 진행 기록

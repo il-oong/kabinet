@@ -1,5 +1,23 @@
 # Kabinet — 설치 및 검증 가이드
 
+## v1.23.0 — 도면 시트(DXF): 현장사진 · 상담 3D · 평면도 · 가구 시트 · 단면 · 확인표
+
+- 사이드바 「도면·출력 > **도면 시트 (DXF)**」. 선택한 Kabinet 가구(없으면 모델 안 마지막 가구)로 A3 가로 시트를 한 DXF에 나란히(시트 간격 500mm, 1단위=1mm) 만듭니다. 글자는 맑은 고딕(malgun.ttf) 스타일, 선굵기·색·양식 틀은 샘플 PDF 규칙(`SHEET_FORMAT_ANALYSIS.md`).
+- **페이지 구성 편집**: ▲▼ 버튼 또는 **끌어서** 순서 변경, 페이지 추가/삭제, **숨김**·**내보내기** 체크, 쪽별 제목(SUBJECT TITLE)·SHEET NO.(비우면 NO.001 자동)·SCALE(분모, 비우면 자동). 현장명·가구명·DATE 입력. 구성은 **모델에 저장**(attribute `kabinet_sheet`)되어 다시 열어도 유지됩니다.
+- **현장사진 쪽(맨 앞)**: 이미지 파일을 `＋ 이미지 파일…`(파일 선택 창, 한 장씩) 또는 `＋ 폴더의 이미지 모두…`로 추가, 장별 캡션. 장수에 따라 1/2/4/6칸 격자(6장 초과 시 다음 쪽 자동). 헤더 `SITE PHOTO`.
+- **상담 3D 쪽(그다음)**: 이미지 추가 또는 **SketchUp 현재 화면 캡처 추가 / 장면 선택 후 캡처 추가**(PNG 로 자동 저장·추가). 1~4장 격자. 헤더 `3D VIEW`. 캡처 파일은 저장된 모델 옆 `kabinet_sheet_images/`(저장 전이면 임시 폴더)에 생깁니다.
+- **DXF 이미지 사용법**: DXF 는 이미지를 파일로 **참조**합니다. 내보내면 `<이름>_images/` 폴더가 DXF 옆에 만들어지고(이미지 복사) 상대경로로 참조하므로 **DXF 파일과 그 폴더를 함께(폴더째) 옮기세요.** 이미지 파일이 없어도 도곽·글자는 열립니다(이미지 자리만 비어 보임). 큰 이미지의 자동 축소는 하지 않으니(DXF 용량이 커짐) 필요하면 미리 줄여 넣으세요.
+- **내보내기 옵션**: 배경 `흰색`(기본, 종이처럼 검정 선) / `어두운 배경`(밝은 선) / `자동`(배경 없음, 검정=ACI7 반전), 글자 스타일 이름(기본 MALGUN), 페이지 선택(숨김·내보내기 체크). PDF 는 이번 범위 아님 — LayOut 출력은 그대로, PDF 시트는 `tools/sheet/build_sheet.py`(Python)로만 만들 수 있습니다.
+- 한계: 가구 시트는 일렬(런/적층) 가구용 일반 도면(평면·도어 뷰·몸통 뷰·측면·중앙 단면·EP/목찬넬 상세·확인표)이며, 주방 아일랜드 양면 세부(싱크면/서랍면·단면 2개)는 Python 프로토타입 전용입니다.
+- 코드: `kabinet/output/sheet/*`(순수 Ruby: styles·canvas·frame·model·pages·dxf_writer·builder·image_info), `kabinet/ui/sheet_bridge.rb`(모델 저장·캡처), `kabinet/ui/web/sheet.js`. 테스트: `test/sheet_dxf_test.rb`, `test/sheet_bridge_test.rb`, 브라우저 `node test/sheet_ui_browser.js`(playwright). 수동 교차검증: `python3 -I tools/sheet/verify_dxf.py out.dxf`(ezdxf).
+- **실기 확인 항목 (SketchUp 에서 아직 실행해 보지 못함)**:
+  1. `UI.openpanel` 필터 문자열 `Images|*.jpg;*.jpeg;*.png||` 로 파일 선택이 되는지, `UI.select_directory(title:, directory:)`(SketchUp 2018+)가 있는지.
+  2. `view.write_image(filename:, width:, height:, antialias:, transparent:)` 가 png 를 만드는지, 장면 선택(`pages.selected_page=`) 후 전환 애니메이션이 끝난 뒤 캡처되는지(장면 전환 시간이 있으면 이전 시점이 찍힐 수 있음 → 그 장면의 전환 시간을 0 으로).
+  3. `HtmlDialog` 안에서 HTML5 드래그 앤 드롭(페이지 순서 끌기)이 동작하는지(안 되면 ▲▼ 버튼 사용).
+  4. 모델 attribute(`kabinet_sheet/config_json`) 저장·복원, 저장 전 모델에서 `model.path` 가 빈 문자열일 때의 캡처 폴더(임시).
+  5. DXF(AC1015, CP949)를 실제 CAD(AutoCAD/LibreCAD/CADian)에서 열었을 때: 이미지(IMAGE/IMAGEDEF) 표시, 한글 글자, 배경(흰/어둠), 선굵기, 상대경로 해석. 맑은 고딕이 없는 CAD 의 글꼴 대체.
+  6. 가구 spec → 시트 모델 변환(`Model.from_spec`)이 실제 가구(모듈 수 많음·런 모드·책상)에서 의도대로 나오는지.
+
 ## v1.22.1 — 냉장고 상부장 프리셋
 
 - 「주방/거실 > 냉장고 상부장」 추가: W900×D600×H600, 푸시 양개 도어 + 가운데 칸막이 + 칸별 선반 1, 판재 18T. 냉장고 윗면 위에 설치하므로 도면 치수표의 「바닥」에 냉장고 높이(약 1850)를 넣고, 폭·높이는 냉장고·천장에 맞춰 변경.
