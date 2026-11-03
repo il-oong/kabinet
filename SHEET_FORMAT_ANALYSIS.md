@@ -199,3 +199,22 @@
 1. DWG->DXF: `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 python3 -I conv.py in.dwg out.dxf` (aspose-cad `DxfOptions`). 이 환경에서는 `libssl.so.1.1` 이 없어 `No usable version of libssl` 오류 -> libssl1.1 deb 를 풀어 `LD_LIBRARY_PATH` 로 지정하니 약 40초에 변환됨.
 2. 렌더: `python3 -I tools/sheet/build_sheet.py --json output_samples/furniture.json --out output_samples [--name 가구명] [--scale 25] [--font malgun.ttf경로]`
 3. 미리보기: `pdftoppm -r 60 -png output_samples/test_sheet.pdf output_samples/preview`
+
+### 13.2 개정 (사용자 피드백 반영: 5쪽 구성)
+- 쪽 구성: 1 평면도 / 2 NO.001 싱크면(B) TOP·NOTE·FRONT DOOR·BODY / 3 NO.002 서랍면(A) DOOR·BODY / 4 NO.003 SIDE VIEW 좌측면도(C)·우측면도(D) + 단면 5·6·7·8 / 5 NO.004 상판 TOP VIEW·EP 상세·목찬넬 상세(돋보기 원).
+- 마커: TOP VIEW 에 B(위)/A(아래)/C(좌)/D(우) 마커, 정면 BODY 하단에 단면 5~8 번호 마커와 절단선(상단 굵은 바 + 점선) -> NO.003 단면과 연결(X=600/1,900/2,300/2,900 추정).
+- EP = 마감판 20T: 측판 양단(서랍면 좌단, 싱크면 좌단 326 후퇴, 우단 전체 깊이) + 천판 EP(상판 아래 880~900)를 해칭 20T 로 표현, 몸통 18T·도어 20T·뒷판 9T 와 구분, 파란 `측판 EP 20T` 주석, EP 상세(1/5) 포함. 위치는 도면의 `EP 판넬/벽장용 [20T]` 라벨만 확인 -> **추정**.
+- 목찬넬 60*40: 단면(ㄴ형 실선)을 SIDE 단면 도어 상단·서랍면 서랍 상단·중간에 표시, NO.004 에 미니 단면 + 돋보기 원 + 확대(1/2, 25/60/40 파란 치수). NOTE 손잡이 `목찬넬 (확인필요)`.
+- 디테일: 칸막이·상/하판 18T, 선반 18T + 선반핀(96 간격), 칸 내부 높이(373 등), 서랍 전판 395x2단·서랍통·레일 13*2, 도어 힌지(상하 100), 걸레받이 H100, 상판 T120·이음 1,800·싱크 컷 850*450 R25·수전 Φ35·하부 보강대 60*18, 가전 여유(식세기 W600 H820 상 45 후 49), 배수·급수 타공.
+- DXF: 기본 `white`(BG 레이어 흰 SOLID + 검정 TrueColor 선), `--dxf-bg dark`(밝은 선, test_sheet_dark.dxf 추가 생성), `--dxf-bg none`(검정=ACI7 자동 반전, 회색·밝은 파랑 TrueColor, 빨강 ACI1). ezdxf audit 오류 0, PIL 로 흰/어두운 배경 렌더 확인(`dxf_preview_*`).
+
+### 13.3 추정/확인필요 목록 (생산 시 재구성 필요)
+1. 상판 이음 1,800 및 싱크 컷 이음 회피 / 싱크 컷 850*450 R25, 수전 홀 Φ35 위치
+2. 상판 하부 보강대 60*18 (싱크 컷 좌우·앞뒤)
+3. 가전 여유: 식기세척기 W598*H815*D572 -> 설치 W600 / H820 / 상부 45 / 후면 49, 로봇청소기 수납 높이, 쿡탑 4구 JJ-HI01 위치(상판에 컷 미확인)
+4. 서랍 레일: 좌우 13 여유, 싱크면 L500 / 서랍면 L400, 서랍 전판 395x2단, 서랍통 높이 150
+5. 뒷판 9T(등 맞댐 면 후면 마감), 선반 높이·핀 간격(96), OPEN 베이 선반 357
+6. EP 20T 위치(양단·천판), 싱크면 좌단 326 후퇴(상판 돌출), 도어 20T/간격 3~4/힌지 위치
+7. 목찬넬 60*40(손잡이 종류 미확정, 기본값), 콘센트·배선 타공 Φ60~80 위치, 단면 5~8 절단 위치
+8. 방 평면 5,200x3,400 / 출입구, DOOR·BODY 재질, 가구명 `__-1`
+- 실행: `python3 -I tools/sheet/build_sheet.py [--dxf-bg white|dark|none]` (기본 출력: test_sheet.pdf, test_sheet.dxf, test_sheet_dark.dxf).
