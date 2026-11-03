@@ -183,7 +183,7 @@ Dir.mktmpdir do |root|
     txt = File.binread(dxf).force_encoding('CP949').encode('UTF-8')
     assert txt.include?('판교 푸르지오 그랑블') && txt.include?('현장 사진1'), 'korean text in dxf'
     assert txt.include?('콜백 결과_images/'), 'relative image path with korean folder'
-    assert txt.include?('AC1015') && txt.include?('ANSI_949'), 'codepage'
+    assert txt.include?('AC1018') && txt.include?('ANSI_949'), 'codepage'
   end
 
   check.call('이미지 헤더 읽기: 바이너리 문자열 결합 없음') do
