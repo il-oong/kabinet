@@ -1,3 +1,4 @@
+require_relative 'sheet_bridge'
 module Kabinet
   module UI
     module Dialog
