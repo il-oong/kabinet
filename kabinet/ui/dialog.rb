@@ -556,6 +556,20 @@ module Kabinet
           end
         end
 
+        # 입력 CAD 도면 DXF 를 골라 → 가구별/면별 제작도면 시트 DXF 로 재구성 (같은 폴더에 저장)
+        d.add_action_callback('kabinet:sheet_import_cad') do |_ctx, raw|
+          bridge.guard(d, 'CAD 도면 재구성') do
+            req = JSON.parse(bridge.utf8(raw))
+            cfg = bridge.save_config(Sketchup.active_model, req['config'] || {})
+            src = ::UI.openpanel('재구성할 CAD 도면 DXF 선택', home.call, 'DXF|*.dxf||')
+            if src
+              r = bridge.import_cad(src, cfg)
+              msg = "재구성 완료: #{r[:files].size}개 시트 저장 — #{r[:files].map { |f| File.basename(f) }.join(', ')} / " + r[:report].join(' · ')
+              d.execute_script("kabinet.onSuccess(#{bridge.js(msg)})")
+            end
+          end
+        end
+
         d.add_action_callback('kabinet:sheet_export') do |_ctx, raw|
           bridge.guard(d, 'DXF 내보내기') do
             req = JSON.parse(bridge.utf8(raw))

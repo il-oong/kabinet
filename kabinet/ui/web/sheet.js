@@ -238,10 +238,17 @@ const kabinetSheet = (() => {
     kabinet.callSketchup('kabinet:sheet_export', JSON.stringify({ config: cfg, page_ids: ids }));
   }
 
+  // 입력 CAD 도면(DXF) → 이 양식의 시트 DXF 재구성 (Ruby: Output::Sheet::DxfImport)
+  function importCad() {
+    ensure();
+    kabinet.setStatus('CAD 도면 DXF 읽는 중…', '');
+    kabinet.callSketchup('kabinet:sheet_import_cad', JSON.stringify({ config: cfg }));
+  }
+
   document.addEventListener('DOMContentLoaded', bind);
   if (document.readyState !== 'loading') bind();
 
-  return { open, setState, addImages, render, add, resetPages, move, moveTo, remove, onField, exportDxf,
+  return { open, setState, addImages, render, add, resetPages, move, moveTo, remove, onField, exportDxf, importCad,
            getConfig: () => { ensure(); return cfg; }, _persist: persist, _pageById: (id) => pageById(id) };
 })();
 
