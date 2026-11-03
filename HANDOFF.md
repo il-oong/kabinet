@@ -1,6 +1,16 @@
-# Kabinet 인수인계 (v1.17.0 기준)
+# Kabinet 인수인계 (최신 상태는 아래 「제작도면(시트) 기능 — 최신 인계」 절 먼저)
 
 새 세션에서 이 파일부터 읽고 이어서 작업하세요. 사용자 선호: **한국어로 답변, 코드는 항상 PR 먼저 만든 뒤 머지, Railway 사용(이 저장소는 SketchUp 플러그인이라 해당 없음)**, 컨텍스트 70% 넘으면 중단하고 정리.
+
+## 제작도면(시트) 기능 — 최신 인계 (이 절이 가장 최신)
+- **브랜치**: `claude/dazzling-babbage-v46o8h` (master 와 별개, PR 은 사용자가 따로 요청할 때만). 플러그인 버전은 아직 v1.22.1 — Ruby 이식이 끝나면 올림.
+- **Python 프로토타입(완성)**: `tools/sheet/build_sheet.py` → `output_samples/test_sheet.pdf/.dxf/_dark.dxf`, `furniture.json`, 미리보기 PNG. 양식 분석·결정사항·테스트 결과는 `SHEET_FORMAT_ANALYSIS.md` (§2~§8 양식 좌표, §12 입력 DWG 분석, **§13.x 테스트 결과·개정 이력**). 입력 샘플은 주방 아일랜드(싱크면+서랍면 양면) 1건 전용 페이지(평면/NO.001~005)까지 구현됨.
+- **Ruby 이식(진행 중, 단계별 커밋)** — SketchUp 의존 없는 순수 Ruby `kabinet/output/sheet/*` + `kabinet/output/sheet.rb`:
+  - ① **완료**: DXF 생성기(AC1015, CP949, LINE/LWPOLYLINE/CIRCLE/TEXT/SOLID/IMAGE, BG 레이어 white/dark/none), 페이지 빌더(`Pages`: floor/furniture/side/detail/table/photos/view3d 격자), 모델 정규화(`Model.from_spec` = Schema.normalize 결과 → 시트 모델), 구성 `Builder`(config → 캔버스 → DXF, 이미지 `<이름>_images/` 복사). 테스트 `test/sheet_dxf_test.rb`. python 교차검증 `tools/sheet/verify_dxf.py`(수동).
+  - ② 페이지 구성 편집 UI(HtmlDialog '도면 시트') / ③ 현장사진·상담3D UI + IMAGE / ④ rbz·버전·INSTALL.md — **아래 '진행 기록'에서 완료 여부 갱신**.
+- **한계**: Ruby 시트는 일반 가구(일렬 모듈: 도어/서랍/선반)용. 주방 아일랜드 양면(싱크면/서랍면·단면 1·2·EP/찬넬 세부)은 Python 프로토타입에만 있음. PDF 는 이번 범위 아님(Python `build_sheet.py` 로만).
+- **옛 기록 표시**: 아래 `현재 상태`·`진행 기록`의 버전 표기(v1.17 등)는 작성 당시 기준. 실제 최신 버전은 `kabinet/version.rb`.
+
 
 ## 현재 상태
 - master = v1.17.0 (PR #16~#22 머지됨). 설치 파일 `kabinet.rbz`(루트)는 항상 최신으로 재빌드해 커밋: `python3 build/package.py && cp build/kabinet-<버전>.rbz kabinet.rbz`
