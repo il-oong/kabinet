@@ -333,7 +333,7 @@ module Kabinet
 
         def section_spec(c, m, x0, y0)
           o = m['overall']
-          rows = ["몸통(측판·상하판) 18T / 칸막이 18T", '뒷판 9T (홈 또는 맞댐 — 확인필요)', '도어·서랍 전판 20T, 전판 간격 3',
+          rows = ["몸통(측판·상하판) 18T / 칸막이 18T", '뒷판 9T (홈 또는 맞댐 / 확인필요)', '도어·서랍 전판 20T, 전판 간격 3',
                   "선반 18T (핀 간격 96 추정) / 걸레받이 H#{f(o['kick'])}", m['channel'] ? '목찬넬 60*40 (상세 쪽 참조)' : '손잡이: 노트 참조']
           rows.each_with_index { |t, i| c.text(x0, y0 + i * 7.0, "· #{t}", 2.8, i == 4 ? 'b' : 'k') }
         end
@@ -412,7 +412,18 @@ module Kabinet
           c.blue_leader(x.call(xr - 110), y.call(0) - 8, x.call(xr - 110), y.call(DT / 2), '도어 20T (전면)')
           c.block_arrow(x.call(xr - 300) + 5, y.call(0) - 3.0, 10.0, :up)
           c.shaded_label(x.call(xr - 300) + 9.0, y.call(0) - 6.0, '전면 (도어 쪽)', 2.6)
-          c.text(x.call(xr - 300), y.call(300) + 22.0, '위치: 가구 우단 앞쪽 모서리 / 위 = 전면(도어), 오른쪽 = 바깥(EP)', 2.0, 'k')
+          c.line(x.call(xr - 300), y.call(DT + 18), x.call(xr - EP - BT), y.call(DT + 18), 'THIN')
+          c.text(x.call(xr - 70), y.call(300) - 1.5, '(이하 생략)', 1.8, 'g', 'c')
+          c.block_arrow(x.call(xr - 300) + 5, y.call(300) - 12.0, 9.0, :down)
+          c.shaded_label(x.call(xr - 300) + 9.0, y.call(300) - 5.5, '후면 (벽 쪽)', 2.4)
+          c.arrow(x.call(xr - 40), y.call(300) + 17.0, x.call(xr - 40) - 14.0, y.call(300) + 17.0, '가구 안쪽', 2.0, 'l', -1.0, 0.8)
+          c.text(x.call(xr - 40) + 1.5, y.call(300) + 17.8, '바깥(우단)', 2.0, 'k', 'l')
+          c.text(x.call(xr - 300), y.call(300) + 24.0, '위치: 가구 우단 앞쪽 모서리 / 위 = 전면(도어), 오른쪽 = 바깥(EP 마감면)', 2.0, 'k')
+          ly = y.call(300) + 31.0
+          c.hatch_rect(x.call(xr - 300), ly - 2.4, x.call(xr - 300) + 8.0, ly, 0.5); c.rect(x.call(xr - 300), ly - 2.4, x.call(xr - 300) + 8.0, ly, 'OUT')
+          c.text(x.call(xr - 300) + 11.0, ly, "해칭 = 측판 EP #{EP.round}T (마감판)", 2.0, 'k', 'l')
+          c.rect(x.call(xr - 300) + 66.0, ly - 2.4, x.call(xr - 300) + 74.0, ly, 'OUT')
+          c.text(x.call(xr - 300) + 77.0, ly, '실선 사각 = 18T 몸통 / 20T 도어', 2.0, 'k', 'l')
         end
 
         # 천판 EP 하단(z=0) 기준 목찬넬 측면 단면: 전면 = 왼쪽
@@ -465,6 +476,8 @@ module Kabinet
           c.dim_h([x.call(0), x.call(room['W'])], y.call(-wt) - 6.0, [f(room['W'])], ref: y.call(-wt))
           c.dim_v(x.call(room['W'] + wt) + 7.0, [y.call(0), y.call(room['D'])], [f(room['D'])], ref: x.call(room['W'] + wt), side: 1)
           c.marker(x.call(ix + o['W'] / 2), y.call(iy + o['D']) + 22.0, 'A', :up)
+          c.marker(x.call(ix) - 22.0, y.call(o['D'] / 2), 'C', :right)
+          c.marker(x.call(ix + o['W']) + 22.0, y.call(o['D'] / 2), 'D', :left)
           c.text(x.call(room['W']) - 3, y.call(room['D']) - 3, '※ 공간 규격은 가정(확인필요)', 2.2, 'r', 'r')
           c
         end

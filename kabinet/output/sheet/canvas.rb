@@ -132,6 +132,16 @@ module Kabinet
           fill(pts, [0, 0, 0])
         end
 
+        # 가는 화살표 + 글자 (x2,y2 = 화살촉 쪽)
+        def arrow(x1, y1, x2, y2, label, size = 2.2, a = 'l', dx = 1.5, dy = 0.8)
+          line(x1, y1, x2, y2, 'OUT')
+          len = Math.hypot(x2 - x1, y2 - y1)
+          return if len < 1e-6
+          ux = (x2 - x1) / len; uy = (y2 - y1) / len
+          fill([[x2, y2], [x2 - ux * 2.2 - uy * 0.9, y2 - uy * 2.2 + ux * 0.9], [x2 - ux * 2.2 + uy * 0.9, y2 - uy * 2.2 - ux * 0.9]], [0, 0, 0])
+          text(x2 + dx, y2 + dy, label, size, 'k', a)
+        end
+
         def block_arrow(x, y, len, dir, th = 1.4)
           dx, dy = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }.fetch(dir)
           px = -dy; py = dx
