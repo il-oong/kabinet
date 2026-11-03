@@ -1332,6 +1332,7 @@ const kabinet = (() => {
   ];
   const SIDEBAR_OUTPUTS = [
     { id: 'furniture_drawing', label: '가구 도면 (LayOut)', hint: '선택한 가구 → A3 평면·정면·측면·컬러 입체도 + PDF' },
+    { id: 'sheet_dxf', label: '도면 시트 (DXF)', hint: '현장사진·3D·평면도·가구 시트·단면·확인표를 시트별 DXF로 — 페이지 순서/제목 편집' },
     { id: 'drawing_import', label: '도면 치수표 → 3D 가구', hint: '도면의 가구별 치수를 표로 입력 → 프리셋 구조로 한 번에 생성·배치' },
   ];
   const SIDEBAR_MORE = [
@@ -1358,6 +1359,7 @@ const kabinet = (() => {
       case 'countertop':   showView('countertop'); loadCountertopForm(); break;
       case 'furniture_drawing': showView('drawing'); window.kabinetDrawing && kabinetDrawing.setSpaceMode(false); break;
       case 'space_drawing':     showView('drawing'); window.kabinetDrawing && kabinetDrawing.setSpaceMode(true); break;
+      case 'sheet_dxf':         showView('sheet'); window.kabinetSheet && kabinetSheet.open(); break;
       case 'drawing_import':    showView('dimport'); window.kabinetDrawingImport && kabinetDrawingImport.open(); break;
       case 'library_manage':    showView('library'); break;
       case 'cutlist':      exportCutList(); break;
@@ -1616,7 +1618,7 @@ const kabinet = (() => {
 
   // ── 화면 전환: 가구 설계 / 도면 / 보관함 / EP 판재 ─────────────────────
   let furnitureLibrary = [];
-  const VIEW_TITLES = { drawing: '도면 출력 (LayOut + PDF)', library: '내 가구 보관함', ep: 'EP 판재 한 장', countertop: '주방 상판 설치', common: '가구 공통사항', dimport: '도면 치수표 → 3D 가구' };
+  const VIEW_TITLES = { drawing: '도면 출력 (LayOut + PDF)', library: '내 가구 보관함', ep: 'EP 판재 한 장', countertop: '주방 상판 설치', common: '가구 공통사항', dimport: '도면 치수표 → 3D 가구', sheet: '도면 시트 (DXF)' };
 
   // ── 주방 상판 ────────────────────────────────────────────────────────
   const CT_FIELDS = ['thickness', 'front', 'side', 'back', 'material', 'height-mode', 'top-height'];

@@ -59,6 +59,7 @@ module Kabinet
 
       def register_callbacks(d)
         register_drawing_callbacks(d)
+        register_sheet_callbacks(d)
         d.add_action_callback('kabinet:ready') do |_ctx, _params|
           @ready = true
           d.execute_script("kabinet.setCommon(#{JSON.generate(Kabinet::Commands::Common.load)})") rescue nil
@@ -506,6 +507,49 @@ module Kabinet
       end
 
       # ── LayOut 도면 · 내 가구 보관함 · EP 판재 (Kabinet 2.0 기능을 이 창에 통합) ──
+      # ── 도면 시트(DXF): 페이지 구성 저장/불러오기, DXF 내보내기 ───────────────
+      def register_sheet_callbacks(d)
+        bridge = Kabinet::UI::SheetBridge
+        d.add_action_callback('kabinet:sheet_load') do |_ctx, _params|
+          begin
+            model = Sketchup.active_model
+            payload = { config: bridge.load_config(model), furniture: bridge.summary(model),
+                        page_types: Kabinet::Output::Sheet::Builder::PAGE_TYPES }
+            d.execute_script("kabinetSheet.setState(#{JSON.generate(payload)})")
+          rescue StandardError => e
+            d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
+          end
+        end
+
+        d.add_action_callback('kabinet:sheet_save') do |_ctx, raw|
+          begin
+            bridge.save_config(Sketchup.active_model, JSON.parse(raw))
+          rescue StandardError => e
+            d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
+          end
+        end
+
+        d.add_action_callback('kabinet:sheet_export') do |_ctx, raw|
+          begin
+            req = JSON.parse(raw)
+            model = Sketchup.active_model
+            cfg = bridge.save_config(model, req['config'] || {})
+            ids = req['page_ids'].is_a?(Array) ? req['page_ids'] : nil
+            name = (cfg['furniture_name'].to_s.empty? ? 'sheet' : cfg['furniture_name']).gsub(/[\\\/:*?"<>|]/, '_')
+            path = ::UI.savepanel('도면 시트 DXF 저장', Dir.home, "#{name}_도면시트.dxf")
+            if path
+              path += '.dxf' unless path.downcase.end_with?('.dxf')
+              r = bridge.export(model, cfg, path, only_ids: ids)
+              msg = "도면 시트 저장 완료: #{File.basename(path)} (#{r[:pages]}장)"
+              msg += " — 이미지는 #{File.basename(r[:images_dir])} 폴더에 복사됨. DXF와 이 폴더를 함께 옮기세요." if r[:images_dir]
+              d.execute_script("kabinet.onSuccess(#{JSON.generate(msg)})")
+            end
+          rescue StandardError => e
+            d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
+          end
+        end
+      end
+
       def register_drawing_callbacks(d)
         # 가구 공통사항: 모델에 저장 + 모델 안 모든 Kabinet 가구 다시 생성
         d.add_action_callback('kabinet:common_apply') do |_ctx, raw|
