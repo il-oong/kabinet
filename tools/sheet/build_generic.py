@@ -252,7 +252,7 @@ def default_notes(d):
 # ------------------------------------------------------------------ 페이지
 def page_furniture(d, den, no):
     s = 1.0 / den; o = d["overall"]
-    sh = Sheet("furniture")
+    sh = Sheet("furniture"); sh.den = den
     bs.furniture_frame(sh, d["furniture_name"], d.get("type", "가구").split("(")[0][:12] + " 정면/평면", no, den, ("TOP VIEW",))
     keyplan(sh, d)
     ox, oy = 50.0, 50.0
@@ -273,9 +273,9 @@ def page_side(d, den, no):
                        hdr2=("SECTION 1  (단면)", "SECTION 1  (상세)"))
     note_block(sh, d, [("*C = 좌측면 / D = 우측면 (전면 = 오른쪽/왼쪽 화살표)", "k"), ("*단면 1 : TOP VIEW · 정면 BODY 절단선과 연결", "k")] + default_notes(d)[1:4])
     den_top = max(den, -(-int(o["H"]) // 62))             # 상단 구획(높이 ~70mm)에 들어가도록 측면도 축척을 키움
-    s_full, s = s, 1.0 / den_top
+    s = 1.0 / den_top                                     # 시트 전체(측면도+단면)를 같은 축척으로 그려 DXF 1:1 유지
+    sh.den = den_top
     gy = 30.0 + o["H"] * s + 12.0
-    if den_top != den: sh.text(48.0, 114.0 - 2.0, f"※ 좌·우 측면도 축척 1/{den_top} (단면은 1/{den})", 2.2, "r")
     for idx, (ox, flip) in enumerate(((48.0, False), (140.0, True))):
         Y = (lambda v, ox=ox: ox + (D - v) * s) if flip else (lambda v, ox=ox: ox + v * s)
         Z = lambda v: gy - v * s
@@ -291,7 +291,7 @@ def page_side(d, den, no):
         # 전면 방향: 도면 정면(앞)은 평면 아래쪽 = 측면도에서 오른쪽(좌측면) / 왼쪽(우측면)
         bs.block_arrow(sh, (b - 2) if not flip else (a + 2), gy + 9.0, 7.0, "right" if not flip else "left")
         bs.shaded_label(sh, (b - 9.0) if not flip else (a + 9.0), gy + 10.0, "전면", 2.2, "r" if not flip else "l")
-    draw_section(sh, d, 70.0, 222.0, s_full)
+    draw_section(sh, d, 70.0, 222.0, s)
     return sh
 
 
@@ -330,7 +330,7 @@ def draw_section(sh, d, ox, gy, s):
 
 
 def page_detail(d, den, no):
-    sh = Sheet("detail")
+    sh = Sheet("detail"); sh.den = den
     bs.furniture_frame(sh, d["furniture_name"], "EP / 목찬넬 상세", no, den, ("DETAIL",), hdr2=("DETAIL", "DETAIL"))
     note_block(sh, d, [(f"*EP = 마감판 {d['ep']['thickness']}T / 몸통 18T / 도어 20T", "b")] +
                ([("*목찬넬 60*40 = 손잡이 (확인필요, 기본값)", "r")] if d.get("channel") else []))
@@ -348,7 +348,7 @@ def page_floor(d, no):
     o = d["overall"]; room = d["room"]
     den = next((x for x in (20, 25, 30, 40, 50) if room["W"] / x <= 270 and room["D"] / x <= 185), 50)
     s = 1.0 / den
-    sh = Sheet("floor")
+    sh = Sheet("floor"); sh.den = den
     bs.SITE_LOCATION = d.get("site", bs.SITE_LOCATION)
     bs.plan_frame(sh, room["name"], f"{room['name']} {d['furniture_name']} 평면도", den)
     wt = 150; ox, oy = 62.0, 62.0
@@ -367,14 +367,14 @@ def page_floor(d, no):
     return sh
 
 
-def page_table(d):
+def page_table(d, den=25):
     rows = d.get("table_rows") or []
     base = [["도어 재질·색상", "목림 지정 자재 (샘플 문구)", "지정 자재 확인"], ["서랍 레일", "좌우 13 여유 (추정)", "레일 제품 규격 확인"],
             ["뒷판·후면 마감", "뒷판 9T (추정)", "후면 마감 사양 확인"], ["선반", "18T, 핀 96 간격 (추정)", "선반 위치 확정"],
             ["EP 20T 위치", "도면 EP 라벨 기준 (추정)", "원본 도면 EP 지시 대조"], ["콘센트·배선 타공", "위치 미정", "전기 도면 확인"],
             ["공간 규격", "평면도 공간은 가정치", "현장 실측"]]
     rows = rows + [[f, "도면에서 읽지 못함/추정", "확인 필요"] for f in d["flags"]] + base
-    sh = Sheet("table")
+    sh = Sheet("table"); sh.den = den
     sh.rect(4.5, 3.2, 415.5, 293.9, "FR")
     sh.text(17.0, 21.0, "생산 확인표", 8.5)
     sh.text(19.0, 277.0, d.get("site", ""), 4.9); sh.text(19.0, 286.4, f"{d['furniture_name']} 생산 확인표 (추정값 확인 필요)", 4.9)
@@ -400,7 +400,7 @@ def build(d, scale=None):
     pages = [page_floor(d, ""), page_furniture(d, den, "NO.001"), page_side(d, den, "NO.002")]
     if d["ep"].get("left") or d["ep"].get("right") or d["ep"].get("top") or d.get("channel"):
         pages.append(page_detail(d, den, "NO.003"))
-    pages.append(page_table(d))
+    pages.append(page_table(d, den))
     return pages, den
 
 
@@ -408,6 +408,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("json"); ap.add_argument("--out", default=None); ap.add_argument("--name", default=None)
     ap.add_argument("--site", default=None); ap.add_argument("--scale", type=int, default=None); ap.add_argument("--font", default=None)
+    ap.add_argument("--paper", action="store_true", help="DXF 를 예전 종이 mm 좌표(축소)로 출력 (기본: 1:1 실치수)")
     a = ap.parse_args()
     d = json.load(open(a.json, encoding="utf-8"))
     if a.name: d["furniture_name"] = a.name
@@ -419,8 +420,8 @@ def main():
     os.makedirs(out, exist_ok=True)
     bs.SCALE_DEN = den
     bs.render_pdf(pages, os.path.join(out, "sheet.pdf"))
-    bs.render_dxf(pages, os.path.join(out, "sheet.dxf"), "white")
-    bs.render_dxf(pages, os.path.join(out, "sheet_dark.dxf"), "dark")
+    bs.render_dxf(pages, os.path.join(out, "sheet.dxf"), "white", real=not a.paper)
+    bs.render_dxf(pages, os.path.join(out, "sheet_dark.dxf"), "dark", real=not a.paper)
     print("ok", d["furniture_name"], "scale 1/%d" % den, "pages", len(pages), "font", bs.FONT_USED["name"])
 
 
