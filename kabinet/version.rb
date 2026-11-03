@@ -1,3 +1,3 @@
 module Kabinet
-  VERSION = '1.23.0'.freeze
+  VERSION = '1.23.1'.freeze
 end

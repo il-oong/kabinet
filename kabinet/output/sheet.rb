@@ -1,4 +1,5 @@
 # 제작도면 시트(DXF) 생성기 — 순수 Ruby 진입점
+require_relative 'sheet/text'
 require_relative 'sheet/styles'
 require_relative 'sheet/canvas'
 require_relative 'sheet/frame'

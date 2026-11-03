@@ -1,5 +1,6 @@
 require 'fileutils'
 require 'json'
+require_relative 'text'
 require_relative 'pages'
 require_relative 'dxf_writer'
 require_relative 'image_info'
@@ -59,6 +60,7 @@ module Kabinet
           case o
           when Hash then o.each_with_object({}) { |(k, v), h| h[k.to_s] = stringify(v) }
           when Array then o.map { |v| stringify(v) }
+          when String then Text.utf8(o)
           else o
           end
         end
@@ -114,13 +116,17 @@ module Kabinet
         end
 
         # DXF 저장. 이미지는 <이름>_images/ 로 복사하고 상대경로로 참조한다.
-        # => { path:, pages:, images_dir:, copied: [...] }
+        # path 는 SketchUp(UI.savepanel)이 준 원본 경로 — 인코딩이 CP949 든 UTF-8 이든 그대로 파일 I/O 에 쓰고,
+        # DXF·메시지용 문자열은 UTF-8 로 따로 만든다.
+        # => { path:, pages:, images_dir:, copied: [...] }  (문자열은 모두 UTF-8)
         def export(cfg, model, path, only_ids: nil, max_image_px: nil)
           cfg = normalize_config(cfg)
           canvases = build(cfg, model, only_ids: only_ids)
-          base = File.basename(path, '.*')
-          dir = File.dirname(path)
-          images_dir = File.join(dir, "#{base}_images")
+          native_path = path
+          base = File.basename(Text.utf8(native_path), '.*')               # UTF-8 (한글 가능)
+          dir_native = File.dirname(native_path)
+          images_name = "#{base}_images"                                     # UTF-8
+          images_dir_native = File.join(dir_native, Text.native(images_name, dir_native))
           paths = {}
           sizes = {}
           copied = []
@@ -129,28 +135,31 @@ module Kabinet
               next unless it[0] == :I
               src = it[5]
               next if src.to_s.empty? || paths.key?(src)
-              sz = ImageInfo.size(src) if File.file?(src)
+              real = Text.resolve_path(src)
+              sz = ImageInfo.size(real) if File.file?(real)
               sizes[src] = sz || [1000, 1000]
-              next unless File.file?(src)
-              FileUtils.mkdir_p(images_dir)
-              dst_name = unique_name(images_dir, File.basename(src))
-              FileUtils.cp(src, File.join(images_dir, dst_name))
-              paths[src] = "#{File.basename(images_dir)}/#{dst_name}"
-              copied << File.join(images_dir, dst_name)
+              next unless File.file?(real)
+              FileUtils.mkdir_p(images_dir_native)
+              dst_name = unique_name(images_dir_native, Text.utf8(File.basename(real)))
+              FileUtils.cp(real, File.join(images_dir_native, Text.native(dst_name, images_dir_native)))
+              paths[src] = "#{images_name}/#{dst_name}"
+              copied << "#{Text.utf8(images_dir_native)}/#{dst_name}"
             end
           end
           w = DxfWriter.new(canvases, bg: cfg['bg'], style_name: cfg['style_name'], font_file: cfg['font_file'],
                             image_paths: paths, image_sizes: sizes)
-          FileUtils.mkdir_p(dir)
-          w.write(path)
-          { path: path, pages: canvases.size, images_dir: (copied.empty? ? nil : images_dir), copied: copied }
+          FileUtils.mkdir_p(dir_native)
+          w.write(native_path)
+          { path: Text.utf8(native_path), pages: canvases.size, images_dir: (copied.empty? ? nil : Text.utf8(images_dir_native)), copied: copied }
         end
 
-        def unique_name(dir, name)
-          return name unless File.exist?(File.join(dir, name))
+        # dir_native: 실제 파일 I/O 용 경로(원본 인코딩), name: UTF-8 파일명 → 겹치지 않는 UTF-8 파일명
+        def unique_name(dir_native, name)
+          exists = ->(n) { File.exist?(File.join(dir_native, Text.native(n, dir_native))) }
+          return name unless exists.call(name)
           ext = File.extname(name); stem = File.basename(name, ext)
           i = 2
-          i += 1 while File.exist?(File.join(dir, "#{stem}_#{i}#{ext}"))
+          i += 1 while exists.call("#{stem}_#{i}#{ext}")
           "#{stem}_#{i}#{ext}"
         end
       end

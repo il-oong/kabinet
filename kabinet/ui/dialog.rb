@@ -508,82 +508,70 @@ module Kabinet
       end
 
       # ── LayOut 도면 · 내 가구 보관함 · EP 판재 (Kabinet 2.0 기능을 이 창에 통합) ──
-      # ── 도면 시트(DXF): 페이지 구성 저장/불러오기, DXF 내보내기 ───────────────
+      # ── 도면 시트(DXF): 페이지 구성 저장/불러오기, 이미지 추가, DXF 내보내기 ──────
+      # 모든 경로/문자열은 SheetBridge.utf8 로 정규화(한글 Windows CP949 대응), 실패는 동작 이름과 함께 표시.
       def register_sheet_callbacks(d)
         bridge = Kabinet::UI::SheetBridge
+        home = lambda { bridge.utf8(Dir.home) }
+
         d.add_action_callback('kabinet:sheet_load') do |_ctx, _params|
-          begin
+          bridge.guard(d, '도면 시트 불러오기') do
             model = Sketchup.active_model
             payload = { config: bridge.load_config(model), furniture: bridge.summary(model), scenes: bridge.scene_names(model),
                         page_types: Kabinet::Output::Sheet::Builder::PAGE_TYPES }
-            d.execute_script("kabinetSheet.setState(#{JSON.generate(payload)})")
-          rescue StandardError => e
-            d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
+            d.execute_script("kabinetSheet.setState(#{bridge.js(payload)})")
           end
         end
 
         d.add_action_callback('kabinet:sheet_save') do |_ctx, raw|
-          begin
-            bridge.save_config(Sketchup.active_model, JSON.parse(raw))
-          rescue StandardError => e
-            d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
-          end
+          bridge.guard(d, '구성 저장') { bridge.save_config(Sketchup.active_model, JSON.parse(bridge.utf8(raw))) }
         end
 
         # 이미지 파일 추가 (파일 선택 대화상자, 한 장씩) / 폴더 안 이미지 일괄
         d.add_action_callback('kabinet:sheet_pick_image') do |_ctx, raw|
-          begin
-            req = JSON.parse(raw)
-            path = ::UI.openpanel('이미지 선택 (JPG/PNG)', Dir.home, 'Images|*.jpg;*.jpeg;*.png||')
-            if path
-              d.execute_script("kabinetSheet.addImages(#{JSON.generate(req['page_id'])}, #{JSON.generate([path])})")
-            end
-          rescue StandardError => e
-            d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
+          bridge.guard(d, '이미지 추가') do
+            req = JSON.parse(bridge.utf8(raw))
+            path = ::UI.openpanel('이미지 선택 (JPG/PNG)', home.call, 'Images|*.jpg;*.jpeg;*.png||')
+            d.execute_script(bridge.add_images_script(req['page_id'], [path])) if path
           end
         end
         d.add_action_callback('kabinet:sheet_pick_folder') do |_ctx, raw|
-          begin
-            req = JSON.parse(raw)
-            dir = ::UI.select_directory(title: '이미지가 들어 있는 폴더 선택', directory: Dir.home)
+          bridge.guard(d, '폴더 이미지 추가') do
+            req = JSON.parse(bridge.utf8(raw))
+            dir = ::UI.select_directory(title: '이미지가 들어 있는 폴더 선택', directory: home.call)
             if dir
               files = bridge.images_in(dir)
-              d.execute_script("kabinetSheet.addImages(#{JSON.generate(req['page_id'])}, #{JSON.generate(files)})")
-              d.execute_script("kabinet.onSuccess(#{JSON.generate("#{files.size}장 추가")})") if files.any?
+              d.execute_script(bridge.add_images_script(req['page_id'], files))
+              d.execute_script("kabinet.onSuccess(#{bridge.js("#{files.size}장 추가")})") if files.any?
             end
-          rescue StandardError => e
-            d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
           end
         end
         # SketchUp 현재 시점/장면 → PNG → 이 페이지에 추가
         d.add_action_callback('kabinet:sheet_capture') do |_ctx, raw|
-          begin
-            req = JSON.parse(raw)
+          bridge.guard(d, '화면 캡처') do
+            req = JSON.parse(bridge.utf8(raw))
             path = bridge.capture(Sketchup.active_model, scene_index: req.fetch('scene', -1), width: req['width'] || 1600)
-            d.execute_script("kabinetSheet.addImages(#{JSON.generate(req['page_id'])}, #{JSON.generate([path])}, #{JSON.generate(req['caption'].to_s)})")
-            d.execute_script("kabinet.onSuccess(#{JSON.generate("캡처 완료: #{File.basename(path)}")})")
-          rescue StandardError => e
-            d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
+            d.execute_script(bridge.add_images_script(req['page_id'], [path], req['caption'].to_s))
+            d.execute_script("kabinet.onSuccess(#{bridge.js("캡처 완료: #{File.basename(path)}")})")
           end
         end
 
         d.add_action_callback('kabinet:sheet_export') do |_ctx, raw|
-          begin
-            req = JSON.parse(raw)
+          bridge.guard(d, 'DXF 내보내기') do
+            req = JSON.parse(bridge.utf8(raw))
             model = Sketchup.active_model
             cfg = bridge.save_config(model, req['config'] || {})
             ids = req['page_ids'].is_a?(Array) ? req['page_ids'] : nil
-            name = (cfg['furniture_name'].to_s.empty? ? 'sheet' : cfg['furniture_name']).gsub(/[\\\/:*?"<>|]/, '_')
-            path = ::UI.savepanel('도면 시트 DXF 저장', Dir.home, "#{name}_도면시트.dxf")
+            name = bridge.utf8(cfg['furniture_name']).empty? ? 'sheet' : Kabinet::Output::Sheet::Text.safe_name(cfg['furniture_name'])
+            path = ::UI.savepanel('도면 시트 DXF 저장', home.call, "#{name}_도면시트.dxf")
             if path
-              path += '.dxf' unless path.downcase.end_with?('.dxf')
+              # 파일 I/O 는 대화상자가 준 원본 경로(인코딩 그대로), 표시용 문자열만 UTF-8
+              path += Kabinet::Output::Sheet::Text.native('.dxf', path) unless bridge.utf8(path).downcase.end_with?('.dxf')
               r = bridge.export(model, cfg, path, only_ids: ids)
-              msg = "도면 시트 저장 완료: #{File.basename(path)} (#{r[:pages]}장)"
+              msg = "도면 시트 저장 완료: #{File.basename(r[:path])} (#{r[:pages]}장)"
               msg += " — 이미지는 #{File.basename(r[:images_dir])} 폴더에 복사됨. DXF와 이 폴더를 함께 옮기세요." if r[:images_dir]
-              d.execute_script("kabinet.onSuccess(#{JSON.generate(msg)})")
+              d.execute_script("kabinet.onSuccess(#{bridge.js(msg)})")
             end
-          rescue StandardError => e
-            d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
           end
         end
       end

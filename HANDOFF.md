@@ -3,14 +3,14 @@
 새 세션에서 이 파일부터 읽고 이어서 작업하세요. 사용자 선호: **한국어로 답변, 코드는 항상 PR 먼저 만든 뒤 머지, Railway 사용(이 저장소는 SketchUp 플러그인이라 해당 없음)**, 컨텍스트 70% 넘으면 중단하고 정리.
 
 ## 제작도면(시트) 기능 — 최신 인계 (이 절이 가장 최신)
-- **브랜치/버전**: 작업 브랜치 `claude/dazzling-babbage-v46o8h`(master 에는 아직 머지 안 됨 — 사용자가 요청할 때만 PR). 이 브랜치 = **v1.23.0**(`kabinet/version.rb`, `index.html ?v=`), `kabinet.rbz` 재빌드 완료(`python3 build/package.py && cp build/kabinet-1.23.0.rbz kabinet.rbz`). master 는 v1.22.1.
+- **브랜치/버전**: 작업 브랜치 `claude/dazzling-babbage-v46o8h`(master 에는 아직 머지 안 됨 — 사용자가 요청할 때만 PR). 이 브랜치 = **v1.23.1**(`kabinet/version.rb`, `index.html ?v=`), `kabinet.rbz` 재빌드 완료(`python3 build/package.py && cp build/kabinet-1.23.1.rbz kabinet.rbz`). v1.23.0 은 master 에 머지됨(PR #34).
 - **Python 프로토타입(완성, PDF+DXF)**: `tools/sheet/build_sheet.py` → `output_samples/test_sheet.pdf/.dxf/_dark.dxf`, `furniture.json`, `preview-*.png`. 양식 분석·결정사항·테스트 결과·개정 이력은 `SHEET_FORMAT_ANALYSIS.md` (§2~§8 양식 좌표, §12 입력 DWG 분석, §13.x 테스트 결과). 주방 아일랜드(싱크면+서랍면) 1건 전용 페이지(평면 / NO.001~003 / 상세 / 확인표)까지.
 - **Ruby 이식(DXF만, 4단계 모두 커밋됨)**:
   - ① 생성기 — `kabinet/output/sheet/*`(순수 Ruby: styles/canvas/frame/model/pages/dxf_writer(AC1015, CP949, IMAGE)/builder/image_info) + `output/sheet.rb`. 테스트 `test/sheet_dxf_test.rb`(레이어·시트 수·배경 옵션·IMAGE/IMAGEDEF·상대경로·한글), 교차검증(수동) `tools/sheet/verify_dxf.py`(ezdxf audit 0 확인).
   - ② 페이지 구성 UI — 사이드바 「도면 시트 (DXF)」(`ui/web/sheet.js`, `index.html #view-sheet`): 순서(▲▼·드래그)·추가/삭제·숨김·제목/SHEET NO./SCALE, 가구명/현장명/DATE, 배경·폰트 스타일. 모델 attribute `kabinet_sheet/config_json` 저장(`ui/sheet_bridge.rb`). 테스트 `test/sheet_bridge_test.rb`, 브라우저 `node test/sheet_ui_browser.js`(스크린샷 `test/sheet-ui.png`).
   - ③ 현장사진(맨 앞)·상담 3D 쪽 — 파일 추가(UI.openpanel)/폴더 추가/현재 화면·장면 캡처(`SheetBridge.capture`, view.write_image), 격자 1/2/4/6, 캡션, DXF `<이름>_images/` 복사·상대경로.
   - ④ 버전/문서 — INSTALL.md 맨 위 v1.23.0 항목(사용법 + **실기 확인 항목 6개**).
-- **남은 일**: ⓐ SketchUp 실기 테스트(위 6개) ⓑ Ruby 시트에 주방 아일랜드 양면/단면 2개/EP·목찬넬 세부를 일반화해 이식(현재 Ruby 가구 시트는 일렬 모듈 일반형) ⓒ PDF 시트 Ruby 이식(미착수 — Python 만 가능) ⓓ 이미지 자동 리사이즈(현재 원본 복사) ⓔ `drawing_import.js` 의 `window.kabinetDrawingImport` 미노출(사이드바 `open()` 호출이 무효일 수 있음, 확인 필요) ⓕ 필요 시 master 로 PR.
+- **(v1.23.1) 한글 Windows 인코딩 버그 수정**: 실기에서 `incompatible character encodings: UTF-8 and CP949`(이미지 추가). 원인 = openpanel/Dir/File.basename 이 준 CP949 태그 경로를 UTF-8 한글 문자열과 결합. 수정 = `output/sheet/text.rb`(`Text.utf8/deep_utf8/resolve_path/native/to_cp949`) + Builder/DxfWriter/ImageInfo/SheetBridge/dialog 콜백(`SheetBridge.guard/js/add_images_script`) 정규화, 오류에 동작명 표시·콘솔 backtrace. 재현·회귀 `test/sheet_encoding_test.rb`. 새 코드에서 외부 문자열을 다룰 땐 반드시 `Text.utf8` 경유. 브랜치는 PR #34 머지 후 master 최신에서 다시 생성함.\n- **남은 일**: ⓐ SketchUp 실기 테스트(위 6개) ⓑ Ruby 시트에 주방 아일랜드 양면/단면 2개/EP·목찬넬 세부를 일반화해 이식(현재 Ruby 가구 시트는 일렬 모듈 일반형) ⓒ PDF 시트 Ruby 이식(미착수 — Python 만 가능) ⓓ 이미지 자동 리사이즈(현재 원본 복사) ⓔ `drawing_import.js` 의 `window.kabinetDrawingImport` 미노출(사이드바 `open()` 호출이 무효일 수 있음, 확인 필요) ⓕ 필요 시 master 로 PR.
 - **옛 기록 표시**: 아래 `현재 상태`·`진행 기록`의 v1.17~v1.21 표기와 "DXF/CAD UI는 제거함" 등은 작성 당시 기준 — 지금은 위 시트 기능이 DXF 출력의 최신입니다. 실제 버전은 `kabinet/version.rb`.
 
 ## 현재 상태

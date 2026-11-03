@@ -115,7 +115,7 @@ module Kabinet
       core/ep_board.rb core/furniture_library.rb
       output/furniture_sheet.rb output/space_sheet.rb output/drawing_template.layout
       output/sheet.rb output/sheet/styles.rb output/sheet/canvas.rb output/sheet/frame.rb output/sheet/model.rb output/sheet/pages.rb
-      output/sheet/image_info.rb output/sheet/dxf_writer.rb output/sheet/builder.rb ui/sheet_bridge.rb ui/web/sheet.js
+      output/sheet/text.rb output/sheet/image_info.rb output/sheet/dxf_writer.rb output/sheet/builder.rb ui/sheet_bridge.rb ui/web/sheet.js
       commands/generate.rb commands/regenerate.rb commands/export.rb
       commands/face_panel.rb commands/space_divide.rb
       output/drawing2d.rb output/dxf.rb output/order_sheet.rb

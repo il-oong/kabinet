@@ -1,3 +1,4 @@
+require_relative 'text'
 module Kabinet
   module Output
     module Sheet
@@ -122,6 +123,7 @@ module Kabinet
           case o
           when Hash then o.each_with_object({}) { |(k, v), h| h[k.to_s] = deep_stringify(v) }
           when Array then o.map { |v| deep_stringify(v) }
+          when String then Text.utf8(o)
           else o
           end
         end

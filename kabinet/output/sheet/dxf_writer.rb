@@ -1,3 +1,4 @@
+require_relative 'text'
 require_relative 'styles'
 module Kabinet
   module Output
@@ -13,8 +14,8 @@ module Kabinet
         def initialize(pages, bg: 'white', style_name: 'MALGUN', font_file: 'malgun.ttf', image_paths: {}, image_sizes: {})
           @pages = pages
           @bg = %w[white dark none].include?(bg.to_s) ? bg.to_s : 'white'
-          @style = style_name.to_s.empty? ? 'MALGUN' : style_name.to_s
-          @font = font_file.to_s.empty? ? 'malgun.ttf' : font_file.to_s
+          @style = Text.utf8(style_name).empty? ? 'MALGUN' : Text.utf8(style_name)
+          @font = Text.utf8(font_file).empty? ? 'malgun.ttf' : Text.utf8(font_file)
           @image_paths = image_paths
           @image_sizes = image_sizes
           @handle = 0x100
@@ -28,7 +29,10 @@ module Kabinet
           @handle.to_s(16).upcase
         end
 
-        def pair(code, val) "#{code}\n#{val}\n" end
+        def pair(code, val)
+          v = val.is_a?(String) ? Text.utf8(val) : val
+          "#{code}\n#{v}\n"
+        end
 
         def fx(v) format('%.4f', v.to_f) end
 
@@ -303,7 +307,7 @@ module Kabinet
         # CP949 바이트로 변환. 변환 불가 문자는 '?'
         def to_cp949
           @model_rec_h = '1F'
-          to_s.encode(Encoding::CP949, invalid: :replace, undef: :replace, replace: '?')
+          Text.to_cp949(to_s)
         end
 
         def write(path)
