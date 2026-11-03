@@ -534,14 +534,6 @@ def chan_dims(sh, X, Z, x, m):
     inner_dim(sh, X, Z, x + 45, c - CH_H, c, "60", 1.6, "BLUE", "b")
 
 
-def _hinge(sh, X, Z, x0, w, z0, z1):
-    zm = (z0 + z1) / 2
-    sh.dashed(X(x0 + 8), Z(z0 + 8), X(x0 + w - 8), Z(zm), "THIN")
-    sh.dashed(X(x0 + 8), Z(z1 - 8), X(x0 + w - 8), Z(zm), "THIN")
-    for zz in (z0 + 100, z1 - 100):                                                # 힌지(컵) 위치
-        sh.rect(X(x0 + 2), Z(zz + 17), X(x0 + 16), Z(zz - 17), "BLUE")
-
-
 def mods_sink_vx(m):
     sx, sy, sw, sd, sr = m.sink
     return m.W - (sx + sw)
@@ -561,8 +553,6 @@ def draw_b_door(sh, m, ox, gy, s):
         cx = X(x0 + w / 2)
         for i, fr in enumerate(b_fronts(m, md)):
             draw_front_panel(sh, X, Z, x0, w, fr)
-            if fr[3] == "door":
-                _hinge(sh, X, Z, x0, w, fr[0], fr[1])
             if fr[3] == "drawer" and t == "drawer2":
                 inner_dim(sh, X, Z, x0 + w - 40, fr[0], fr[1], fmt(fr[1] - fr[0]))
         if t == "dishwasher":
@@ -1049,7 +1039,6 @@ NOTE_B = [("*EP = 마감판 20T (측판 양단·천판) / 몸통 18T / 도어 20
           ("*쿡탑 스트로만 후드일체형 4구 JJ-HI01 (위치 확인필요)", "r"),
           ("*상판 1,800 x 2분할 이음 / 상판 하부 보강대 60*18 (추정)", "k"),
           ("*도어 : 주방장 도어 공용 부엌 도어 - KK DR 112", "k"),
-          ("*힌지 : 도어 상·하단 100 이격 (추정) / 도어 간격 3 (추정)", "k"),
           ("*목찬넬 60*40 : 전판 상단(상판 하단 25 이격). OPEN 베이 찬넬 없음", "b"),
           ("*단면 1·2 : SIDE VIEW 시트(NO.003) 참조 / 확인 목록 : NO.005", "k")]
 NOTE_A = [("*EP = 마감판 20T (측판 양단·천판) / 몸통 18T / 서랍 전판 20T", "b"),
@@ -1115,7 +1104,7 @@ def page_b(m, scale_den, sheet_no, title):
     X, Z = draw_b_door(sh, m, 30.0, gy, s)
     elev_dims(sh, m, X, Z, edges, labs)
     marker(sh, X(3450), gy + 10.0, "B", "up")
-    sh.text(X(0), gy + 21.0, "도어 20T / 힌지 컵 Φ35 (도어 상·하 100 이격, 추정) / 도어 간격 3~4(추정)", 2.0, "b", "l")
+    sh.text(X(0), gy + 21.0, "도어 20T / 도어 상단 = 천판 하단 25 아래 / 단간 25(찬넬 틈, 추정)", 2.0, "b", "l")
     sh.text(X(0), gy + 24.5, "천판 EP 20T (상판 아래) / 측판 EP 20T", 2.0, "b", "l")
     X, Z = draw_b_body(sh, m, 240.0, gy, s)
     elev_dims(sh, m, X, Z, edges, labs)
@@ -1247,7 +1236,6 @@ TABLE_ROWS = [
     ("EP 20T 위치", "서랍면 좌단, 싱크면 좌단(326 후퇴), 우단 전체, 천판", "원본 EP 지시(`EP 판넬 [20T]`)와 위치 대조"),
     ("뒷판·후면 마감", "등 맞댐 면 뒷판 9T (추정)", "후면 마감 사양 확인"),
     ("선반", "18T, 싱크면 높이 500 / OPEN 357, 핀 96 간격", "선반 위치 확정"),
-    ("힌지", "컵 Φ35, 도어 상·하 100 이격 (추정)", "힌지 제품 규격 확인"),
     ("콘센트·배선 타공", "Φ60~80, 위치 미정", "전기 도면 확인"),
     ("도어 재질·색상", "목림 지정 자재 / 안도크림 색상 (샘플 문구)", "지정 자재 확인"),
     ("단면 절단 위치", "단면 1 : X=2,300 / 단면 2 : X=2,900 (추정)", "제작 협의 후 확정"),
