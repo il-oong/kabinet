@@ -48,7 +48,7 @@ Dir.mktmpdir do |dir|
   assert sec['HEADER'].include?([1, 'AC1018']), 'version'
   ents = entities(sec['ENTITIES'])
   types = ents.map { |e| e[:type] }.tally
-  assert types['LINE'] > 500 && types['TEXT'] > 100 && types['LWPOLYLINE'] > 50 && types['CIRCLE'] > 3, "types #{types}"
+  assert types['LINE'] > 200 && types['HATCH'].to_i > 5 && types['TEXT'] > 100 && types['LWPOLYLINE'] > 50 && types['CIRCLE'] > 3, "types #{types}"
   assert types['SOLID'].to_i >= 7 + 10, "solid (BG 7 + fills) #{types['SOLID']}"
   layers = ents.map { |e| e[:layer] }.uniq
   %w[OUTLINE DIM THIN NOTE_BLUE NOTE_RED FRAME TEXT BG].each { |l| assert layers.include?(l), "layer #{l} missing in #{layers}" }
@@ -124,22 +124,23 @@ Dir.mktmpdir do |dir|
   path = File.join(out_dir, '도면.dxf')
   r = S::Builder.export(c3, model, path)
   assert r[:pages] == 2, "pages #{r[:pages]}"
-  assert r[:images_dir] && File.basename(r[:images_dir]) == '도면_images' && r[:copied].size == 2, "copied #{r[:copied]}"   # 같은 파일은 한 번만, 누락 파일은 복사 안 함
-  assert Dir.children(r[:images_dir]).map { |f| f.dup.force_encoding('UTF-8') }.sort == ['kitchen.jpg', '거실 사진.png'].sort, 'image files'
+  assert r[:images_dir] && File.basename(r[:images_dir]) == 'sheet_images' && r[:copied].size == 2, "copied #{r[:copied]}"   # 같은 파일은 한 번만, 누락 파일은 복사 안 함(ASCII 폴더)
+  assert Dir.children(r[:images_dir]).map { |f| f.dup.force_encoding('UTF-8') }.sort == ['img_01.png', 'img_02.jpg'], 'image files (ASCII 이름)'
   sec = parse_dxf(path)
   assert sec['CLASSES'].include?([1, 'IMAGE']) && sec['CLASSES'].include?([1, 'IMAGEDEF']), 'classes'
   ents = entities(sec['ENTITIES'])
   imgs = ents.select { |e| e[:type] == 'IMAGE' }
-  assert imgs.size == 4, "IMAGE entities #{imgs.size}"        # 사진 3 + 3D 1
+  assert imgs.size == 3, "IMAGE entities #{imgs.size}"        # 사진 2 + 3D 1 (누락 파일은 IMAGE 없이 틀만)
   assert imgs.all? { |e| e[:layer] == 'IMAGE' }, 'IMAGE layer'
   frames = ents.select { |e| e[:layer] == 'IMAGE_FRAME' }
   assert frames.size >= 4, 'image frame rectangles on own layer'
   objs = sec['OBJECTS']
   defs = objs.each_index.select { |i| objs[i] == [0, 'IMAGEDEF'] }
   assert defs.size == imgs.size, 'imagedef per image'
-  paths = objs.select { |c, _| c == 1 }.map { |_, v| v }
-  assert paths.include?('도면_images/kitchen.jpg') && paths.include?('도면_images/거실 사진.png'), "relative paths #{paths}"
-  assert paths.any? { |v| v == '/없는/파일.png' }, 'missing file keeps original ref (frame still opens)'
+  paths = objs.each_cons(2).select { |a, _| a[0] == 1 }.map { |a, _| a[1] }
+  paths = objs.select { |c, v| c == 1 && v =~ /_images\// }.map { |_, v| v }
+  assert paths.sort.uniq == ['sheet_images/img_01.png', 'sheet_images/img_02.jpg'], "relative ASCII paths #{paths}"
+  assert paths.all? { |v| v.ascii_only? && v !~ /[ ()]/ }, 'ASCII-safe IMAGEDEF paths'
   assert objs.include?([0, 'IMAGEDEF_REACTOR']) && objs.include?([3, 'ACAD_IMAGE_DICT']), 'reactor/dict'
   # 이미지가 없어도 도곽만 있는 DXF 로 열림
   path2 = File.join(out_dir, 'empty.dxf')

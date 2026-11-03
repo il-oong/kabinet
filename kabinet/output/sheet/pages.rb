@@ -184,6 +184,7 @@ module Kabinet
           info = info.merge(scale: den)
           s = 1.0 / den
           c = Canvas.new('furniture', title: info[:subject])
+          c.meta[:den] = den
           Frame.furniture(c, info)
           o = m['overall']
           ox = 50.0; oy = 50.0
@@ -208,6 +209,7 @@ module Kabinet
           s = 1.0 / den
           o = m['overall']; d = o['D']
           c = Canvas.new('side', title: info[:subject])
+          c.meta[:den] = den
           Frame.furniture(c, info, hdr: 'SIDE VIEW (LEFT)', hdr2: ['SIDE VIEW (RIGHT)', 'SECTION 1'])
           note_block(c, m, [['*C = 좌측면 / D = 우측면 (앞 = 오른쪽)', 'k'], ['*단면 1 : 중앙 절단 (추정)', 'k']] + default_notes(m).drop(1))
           gy = 98.0
@@ -322,6 +324,7 @@ module Kabinet
           info = info.merge(scale: den)
           s = 1.0 / den
           c = Canvas.new('floor', title: info[:subject])
+          c.meta[:den] = den
           Frame.plan(c, info, room['name'], "#{room['name']} #{m['furniture_name']} 평면도")
           wt = 150.0
           ox = 62.0; oy = 62.0

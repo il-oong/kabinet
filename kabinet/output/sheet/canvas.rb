@@ -4,7 +4,7 @@ module Kabinet
   module Output
     module Sheet
       # 한 장(A3 가로)의 그리기 모델. 좌표: mm, 좌상단 원점, y 아래로.
-      # 항목: [:L, x1,y1,x2,y2,st] [:P, pts,st,closed] [:C, cx,cy,r,st] [:F, pts,rgb]
+      # 항목: [:L, x1,y1,x2,y2,st] [:P, pts,st,closed] [:C, cx,cy,r,st] [:F, pts,rgb] [:H, pts,st,step](해칭)
       #       [:T, x,y,str,size,color,align,rot] [:I, x,y,w,h,path,id]
       class Canvas
         attr_reader :name, :items, :meta
@@ -67,13 +67,9 @@ module Kabinet
           poly(pts, st, true)
         end
 
+        # 닫힌 사각 안을 45° 해칭 — DXF 에서는 HATCH(ANSI31) 엔티티. step = 종이 mm 간격
         def hatch_rect(x1, y1, x2, y2, step = 1.6, st = 'HATCH')
-          k = x1 + y1
-          while k < x2 + y2
-            lo = [x1, k - y2].max; hi = [x2, k - y1].min
-            line(lo, k - lo, hi, k - hi, st) if hi - lo > 0.05
-            k += step
-          end
+          @items << [:H, [[x1, y1], [x2, y1], [x2, y2], [x1, y2]], st, step]
         end
 
         # EP 20T 판 — 해칭 + 외곽

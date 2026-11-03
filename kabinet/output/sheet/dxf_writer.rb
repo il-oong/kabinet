@@ -1,27 +1,60 @@
 require_relative 'text'
 require_relative 'styles'
+require_relative 'dxf_skeleton'
 module Kabinet
   module Output
     module Sheet
-      # AC1018(R2004) ASCII DXF 작성기 — LINE/LWPOLYLINE/CIRCLE/TEXT/SOLID/IMAGE, 레이어 선굵기·TrueColor,
+      # AC1018(R2004) ASCII DXF 작성기 — LINE/LWPOLYLINE/CIRCLE/TEXT/SOLID/HATCH/IMAGE, 레이어 선굵기·TrueColor,
       # 시트별 BG(배경) 채움. 한글은 CP949(ANSI_949)로 인코딩. 순수 Ruby.
       #
-      # pages: [Canvas], 시트는 X 방향으로 (PW + gap) 간격으로 배치(1단위 = 1mm).
-      # opts: bg: 'white'|'dark'|'none', style_name:, font_file:, image_paths: {원본경로 => DXF에 적을 경로}
+      # 골격(HEADER/CLASSES/TABLES/BLOCKS/OBJECTS)은 ezdxf 가 쓰는 R2004 파일을 그대로 옮긴 DxfSkeleton(자동 생성,
+      # tools/sheet/gen_dxf_skeleton.py)이고, 여기서는 레이어·텍스트 스타일·엔티티·IMAGEDEF 만 끼워 넣는다.
+      # (LAYOUT/ACAD_GROUP/ACAD_MATERIAL/DIMSTYLE/CLASSES 등이 빠진 파일은 일부 CAD 가 열지 못한다)
+      #
+      # pages: [Canvas], 시트는 X 방향으로 나란히 배치(1단위 = 1mm).
+      # opts:
+      #   bg: 'white'|'dark'|'none', style_name:, font_file:
+      #   image_paths: {원본경로 => DXF 에 적을 경로}, image_sizes: {원본경로 => [px_w, px_h]}
+      #   images: false 면 IMAGE/IMAGEDEF 를 쓰지 않는다(사진 자리는 IMAGE_FRAME 사각형만 남는다)
+      #   real_scale: true 면 시트별 축척 분모(canvas.meta[:den] 또는 default_den)만큼 모든 좌표·글자·간격을 키워
+      #               가구 형상이 실제 mm 좌표가 되게 한다(도곽은 420xden × 297xden).
       class DxfWriter
         PAGE_GAP = 80.0
+        PW_ = Sheet::PW
+        BG_RGB_FOR = { 'white' => [255, 255, 255], 'dark' => [33, 37, 43] }.freeze
 
-        def initialize(pages, bg: 'white', style_name: 'MALGUN', font_file: 'malgun.ttf', image_paths: {}, image_sizes: {})
+        attr_reader :ents_count
+
+        def initialize(pages, bg: 'white', style_name: 'MALGUN', font_file: 'malgun.ttf', image_paths: {}, image_sizes: {},
+                       images: true, real_scale: false, default_den: nil)
           @pages = pages
           @bg = %w[white dark none].include?(bg.to_s) ? bg.to_s : 'white'
           @style = Text.utf8(style_name).empty? ? 'MALGUN' : Text.utf8(style_name)
           @font = Text.utf8(font_file).empty? ? 'malgun.ttf' : Text.utf8(font_file)
           @image_paths = image_paths
           @image_sizes = image_sizes
-          @handle = 0x100
-          @ents = []
+          @images_on = images ? true : false
+          @real = real_scale ? true : false
+          @default_den = [(default_den || 1).to_f, 1.0].max
+          @handle = [0x100, DxfSkeleton::MAX_TEMPLATE_HANDLE + 1].max
+          @model_rec = DxfSkeleton::MODEL_RECORD
           @images = []      # [{ent, def, reactor, path, pw, ph}]
-          @model_rec_h = '1F'
+          layout_pages
+        end
+
+        # 시트별 배수·X 오프셋
+        def layout_pages
+          @dens = @pages.map do |pg|
+            @real ? [((pg.respond_to?(:meta) && pg.meta[:den]) || @default_den).to_f, 1.0].max : 1.0
+          end
+          @offsets = []
+          x = 0.0
+          @dens.each do |k|
+            @offsets << x
+            x += @real ? PW_ * k * 1.1 : PW_ * k + PAGE_GAP
+          end
+          @total_w = @pages.empty? ? PW_ : @offsets.last + PW_ * @dens.last
+          @max_k = @dens.max || 1.0
         end
 
         def h
@@ -48,85 +81,102 @@ module Kabinet
           s
         end
 
+        # ── 엔티티 ───────────────────────────────────────────────────────
         def build_entities
-          @model_rec = '1F'
           out = []
           out << bg_solids if %w[white dark].include?(@bg)
           @pages.each_with_index do |pg, i|
-            ox = i * (PW_ + PAGE_GAP)
-            pg.items.each do |it|
-              out << entity(it, ox)
-            end
-            out << info_text(pg, i, ox)
+            ox = @offsets[i]; k = @dens[i]
+            pg.items.each { |it| out << entity(it, ox, k) }
+            out << info_text(pg, i, ox, k)
           end
           out.flatten.compact
         end
 
-        PW_ = Sheet::PW
-
         def bg_solids
           @pages.each_index.map do |i|
-            ox = i * (PW_ + PAGE_GAP)
+            ox = @offsets[i]; k = @dens[i]
             ent_head('SOLID', 'BG', BG_RGB_FOR[@bg], 0) + pair(100, 'AcDbTrace') +
-              pair(10, fx(ox)) + pair(20, fx(0)) + pair(30, 0) + pair(11, fx(ox + PW_)) + pair(21, fx(0)) + pair(31, 0) +
-              pair(12, fx(ox)) + pair(22, fx(Sheet::PH)) + pair(32, 0) + pair(13, fx(ox + PW_)) + pair(23, fx(Sheet::PH)) + pair(33, 0)
+              pair(10, fx(ox)) + pair(20, fx(0)) + pair(30, 0) + pair(11, fx(ox + PW_ * k)) + pair(21, fx(0)) + pair(31, 0) +
+              pair(12, fx(ox)) + pair(22, fx(Sheet::PH * k)) + pair(32, 0) + pair(13, fx(ox + PW_ * k)) + pair(23, fx(Sheet::PH * k)) + pair(33, 0)
           end
         end
 
-        def info_text(pg, i, ox)
-          text_entity(ox + 4.5, Sheet::PH + 4.0, 3.0, "[#{i + 1}] #{pg.name}", 'SHEET_FRAME_INFO', [110, 110, 110], 0, 'l')
+        def info_text(pg, i, ox, k)
+          lab = "[#{i + 1}] #{pg.name}"
+          lab += " (1/#{k.round})" if @real && k > 1
+          text_entity(ox + 4.5 * k, (Sheet::PH + 4.0) * k, 3.0 * k, lab, 'SHEET_FRAME_INFO', [110, 110, 110], 0, 'l')
         end
 
-        def entity(it, ox)
+        def entity(it, ox, k)
+          px = ->(x) { ox + x * k }
+          py = ->(y) { (Sheet::PH - y) * k }
           case it[0]
           when :L
             _t, x1, y1, x2, y2, st = it
             lay, w, rgb = Sheet::STY[st]
             ent_head('LINE', lay, rgb, Sheet.lineweight(w)) + pair(100, 'AcDbLine') +
-              pair(10, fx(ox + x1)) + pair(20, fx(Sheet::PH - y1)) + pair(30, 0) +
-              pair(11, fx(ox + x2)) + pair(21, fx(Sheet::PH - y2)) + pair(31, 0)
+              pair(10, fx(px.call(x1))) + pair(20, fx(py.call(y1))) + pair(30, 0) +
+              pair(11, fx(px.call(x2))) + pair(21, fx(py.call(y2))) + pair(31, 0)
           when :P
             _t, pts, st, closed = it
             lay, w, rgb = Sheet::STY[st]
             s = ent_head('LWPOLYLINE', lay, rgb, Sheet.lineweight(w)) + pair(100, 'AcDbPolyline') +
                 pair(90, pts.size) + pair(70, closed ? 1 : 0)
-            pts.each { |x, y| s += pair(10, fx(ox + x)) + pair(20, fx(Sheet::PH - y)) }
+            pts.each { |x, y| s += pair(10, fx(px.call(x))) + pair(20, fx(py.call(y))) }
             s
           when :C
             _t, cx, cy, r, st = it
             lay, w, rgb = Sheet::STY[st]
             ent_head('CIRCLE', lay, rgb, Sheet.lineweight(w)) + pair(100, 'AcDbCircle') +
-              pair(10, fx(ox + cx)) + pair(20, fx(Sheet::PH - cy)) + pair(30, 0) + pair(40, fx(r))
+              pair(10, fx(px.call(cx))) + pair(20, fx(py.call(cy))) + pair(30, 0) + pair(40, fx(r * k))
           when :F
             _t, pts, rgb = it
-            fill_entity(pts, rgb, ox)
+            fill_entity(pts, rgb, px, py)
+          when :H
+            hatch_entity(it, px, py, k)
           when :T
             _t, x, y, str, size, col, a, rot = it
             lay, rgb = Sheet::TXT[col]
-            text_entity(ox + x, Sheet::PH - y, size * 0.72, str, lay, rgb, rot, a)
+            text_entity(px.call(x), py.call(y), size * 0.72 * k, str, lay, rgb, rot, a)
           when :I
-            image_entity(it, ox)
+            image_entity(it, px, py, k)
           end
         end
 
-        def fill_entity(pts, rgb, ox)
+        def fill_entity(pts, rgb, px, py)
           lay = rgb == [85, 85, 85] ? 'FRAME' : 'OUTLINE'
-          return fan_solids(pts, rgb, ox, lay) if pts.size > 4
+          return fan_solids(pts, rgb, px, py, lay) if pts.size > 4
           q = pts.size == 3 ? pts + [pts[2]] : pts
-          ent_head('SOLID', lay, rgb, 0) + pair(100, 'AcDbTrace') + solid_corners(q, ox)
+          ent_head('SOLID', lay, rgb, 0) + pair(100, 'AcDbTrace') + solid_corners(q, px, py)
         end
 
         # SOLID 점 순서: 1,2,4,3
-        def solid_corners(q, ox)
+        def solid_corners(q, px, py)
           [q[0], q[1], q[3], q[2]].each_with_index.map do |(x, y), i|
-            pair(10 + i, fx(ox + x)) + pair(20 + i, fx(Sheet::PH - y)) + pair(30 + i, 0)
+            pair(10 + i, fx(px.call(x))) + pair(20 + i, fx(py.call(y))) + pair(30 + i, 0)
           end.join
         end
 
-        def fan_solids(pts, rgb, ox, lay)
+        def fan_solids(pts, rgb, px, py, lay)
           (1...pts.size - 1).map do |i|
-            ent_head('SOLID', lay, rgb, 0) + pair(100, 'AcDbTrace') + solid_corners([pts[0], pts[i], pts[i + 1], pts[i + 1]], ox)
+            ent_head('SOLID', lay, rgb, 0) + pair(100, 'AcDbTrace') + solid_corners([pts[0], pts[i], pts[i + 1], pts[i + 1]], px, py)
           end
+        end
+
+        # [:H, pts, st, step] — 닫힌 외곽 안을 45° 해칭(ANSI31). step = 종이 mm 간격(실치수 모드에선 배수 적용)
+        def hatch_entity(it, px, py, k)
+          _t, pts, st, step = it
+          lay, _w, rgb = Sheet::STY[st || 'HATCH']
+          step = (step || 0.5).to_f * k
+          scale = step / (3.175 * 0.70710678)          # ANSI31 기본 선 간격 3.175 → 원하는 간격
+          off = 3.175 * scale * 0.70710678
+          s = ent_head('HATCH', lay, rgb, nil) + pair(100, 'AcDbHatch') +
+              pair(10, 0) + pair(20, 0) + pair(30, 0) + pair(210, 0) + pair(220, 0) + pair(230, 1) +
+              pair(2, 'ANSI31') + pair(70, 0) + pair(71, 0) + pair(91, 1) + pair(92, 3) + pair(72, 0) + pair(73, 1) + pair(93, pts.size)
+          pts.each { |x, y| s += pair(10, fx(px.call(x))) + pair(20, fx(py.call(y))) }
+          s + pair(97, 0) + pair(75, 1) + pair(76, 1) + pair(52, 0) + pair(41, fx(scale)) + pair(77, 0) + pair(78, 1) +
+            pair(53, 45) + pair(43, 0) + pair(44, 0) + pair(45, fx(-off)) + pair(46, fx(off)) + pair(79, 0) + pair(98, 0)
         end
 
         def text_entity(x, y, height, str, layer, rgb, rot, align)
@@ -141,7 +191,9 @@ module Kabinet
           s + pair(100, 'AcDbText')
         end
 
-        def image_entity(it, ox)
+        # IMAGE + IMAGEDEF + IMAGEDEF_REACTOR (ezdxf 와 같은 구성). images: false 면 아무것도 쓰지 않는다.
+        def image_entity(it, px, py, k)
+          return nil unless @images_on
           _t, x, y, w, hgt, path = it
           ref = @image_paths[path] || path
           sz = @image_sizes[path] || [1000, 1000]
@@ -149,53 +201,45 @@ module Kabinet
           eh = h; dh = h; rh = h
           @images << { ent: eh, def: dh, reactor: rh, path: ref, pw: pw, ph: ph }
           # 삽입점 = 이미지 좌하단(DXF 좌표). 시트 y 는 아래로 증가하므로 변환.
-          llx = ox + x; lly = Sheet::PH - (y + hgt)
-          s = pair(0, 'IMAGE') + pair(5, eh) + pair(330, @model_rec) + pair(100, 'AcDbEntity') + pair(8, 'IMAGE') +
-              pair(100, 'AcDbRasterImage') + pair(90, 0) +
-              pair(10, fx(llx)) + pair(20, fx(lly)) + pair(30, 0) +
-              pair(11, fx(w / pw.to_f)) + pair(21, 0) + pair(31, 0) +
-              pair(12, 0) + pair(22, fx(hgt / ph.to_f)) + pair(32, 0) +
-              pair(13, fx(pw)) + pair(23, fx(ph)) +
-              pair(340, dh) + pair(70, 7) + pair(280, 1) + pair(281, 50) + pair(282, 50) + pair(283, 0) +
-              pair(360, rh) + pair(71, 1) + pair(91, 2) +
-              pair(14, fx(-0.5)) + pair(24, fx(-0.5)) + pair(14, fx(pw - 0.5)) + pair(24, fx(ph - 0.5))
-          s
+          llx = px.call(x); lly = py.call(y + hgt)
+          pair(0, 'IMAGE') + pair(5, eh) + pair(330, @model_rec) + pair(100, 'AcDbEntity') + pair(8, 'IMAGE') +
+            pair(100, 'AcDbRasterImage') + pair(90, 0) +
+            pair(10, fx(llx)) + pair(20, fx(lly)) + pair(30, 0) +
+            pair(11, format('%.10f', w * k / pw.to_f)) + pair(21, 0) + pair(31, 0) +
+            pair(12, 0) + pair(22, format('%.10f', hgt * k / ph.to_f)) + pair(32, 0) +
+            pair(13, fx(pw)) + pair(23, fx(ph)) +
+            pair(340, dh) + pair(70, 3) + pair(280, 0) + pair(281, 50) + pair(282, 50) + pair(283, 0) +
+            pair(360, rh) + pair(71, 1) + pair(91, 2) +
+            pair(14, fx(-0.5)) + pair(24, fx(-0.5)) + pair(14, fx(pw - 0.5)) + pair(24, fx(ph - 0.5))
         end
 
-        BG_RGB_FOR = { 'white' => [255, 255, 255], 'dark' => [33, 37, 43] }.freeze
-
+        # ── 파일 조립 ─────────────────────────────────────────────────────
         def to_s
+          @images = []
+          @handle = [0x100, DxfSkeleton::MAX_TEMPLATE_HANDLE + 1].max
           ents = build_entities
-          has_img = !@images.empty?
+          @ents_count = ents.size
           layers = layer_defs
-          # 핸들 사전 할당(테이블/블록/객체)
-          out = +''
-          out << section('HEADER',
-                         pair(9, '$ACADVER') + pair(1, 'AC1018') +
-                         pair(9, '$HANDSEED') + pair(5, 'FFFFF') +
-                         pair(9, '$INSUNITS') + pair(70, 4) +
-                         pair(9, '$LWDISPLAY') + pair(290, 1) +
-                         pair(9, '$DWGCODEPAGE') + pair(3, 'ANSI_949') +
-                         pair(9, '$EXTMIN') + pair(10, 0) + pair(20, 0) + pair(30, 0) +
-                         pair(9, '$EXTMAX') + pair(10, fx(@pages.size * (PW_ + PAGE_GAP))) + pair(20, fx(Sheet::PH + 10)) + pair(30, 0))
-          if has_img
-            out << section('CLASSES',
-                           class_def('IMAGE', 'AcDbRasterImage', 127, 1) +
-                           class_def('IMAGEDEF', 'AcDbRasterImageDef', 0, 0) +
-                           class_def('IMAGEDEF_REACTOR', 'AcDbRasterImageDefReactor', 1, 0))
-          else
-            out << section('CLASSES', '')
+          layer_text = +''
+          layers.each { |nm, (rgb, w)| next if %w[0 Defpoints].include?(nm); layer_text << layer_rec(nm, rgb, w, h) }
+          style_text = style_rec(@style, h)
+          image_dict, image_objs = image_objects
+          cx = @offsets.empty? ? 0.0 : PW_ * @dens.first / 2.0
+          vals = {
+            'ENTITIES' => ents.join,
+            'LAYERS' => layer_text, 'LAYERS_COUNT' => (DxfSkeleton::BASE_LAYER_COUNT + layers.keys.reject { |n| %w[0 Defpoints].include?(n) }.size).to_s,
+            'STYLES' => style_text, 'STYLES_COUNT' => (DxfSkeleton::BASE_STYLE_COUNT + 1).to_s,
+            'IMAGE_DICT_ENTRIES' => image_dict, 'IMAGE_OBJECTS' => image_objs,
+            'EXTMINX' => '0.0', 'EXTMINY' => '0.0',
+            'EXTMAXX' => fx(@total_w), 'EXTMAXY' => fx((Sheet::PH + 10) * @max_k),
+            'LTSCALE' => format('%.1f', @real ? @dens.first.to_f : 1.0),
+            'VPCX' => fx(cx), 'VPCY' => fx(Sheet::PH * (@dens.first || 1) / 2.0), 'VPH' => fx(Sheet::PH * (@dens.first || 1) * 1.15),
+            'HANDSEED' => (@handle + 1).to_s(16).upcase
+          }
+          DxfSkeleton::TEXT.gsub(/^@@(\w+)@@\n/) do
+            v = vals.fetch(Regexp.last_match(1))
+            v.empty? || v.end_with?("\n") ? v : "#{v}\n"
           end
-          out << section('TABLES', tables(layers))
-          out << section('BLOCKS', blocks)
-          out << section('ENTITIES', ents.join)
-          out << section('OBJECTS', objects)
-          out << pair(0, 'EOF')
-          out
-        end
-
-        def class_def(name, cpp, flags, proxy)
-          pair(0, 'CLASS') + pair(1, name) + pair(2, cpp) + pair(3, 'ISM') + pair(90, flags) + pair(280, 0) + pair(281, proxy)
         end
 
         def layer_defs
@@ -211,102 +255,44 @@ module Kabinet
           defs
         end
 
-        def tables(layers)
-          s = +''
-          # VPORT
-          s << table_head('VPORT', '8', 1) + pair(0, 'VPORT') + pair(5, '40') + pair(330, '8') + pair(100, 'AcDbSymbolTableRecord') +
-               pair(100, 'AcDbViewportTableRecord') + pair(2, '*Active') + pair(70, 0) + pair(10, 0) + pair(20, 0) + pair(11, 1) + pair(21, 1) +
-               pair(12, fx(@pages.size * (PW_ + PAGE_GAP) / 2)) + pair(22, fx(Sheet::PH / 2)) + pair(13, 0) + pair(23, 0) + pair(14, 10) + pair(24, 10) +
-               pair(15, 0) + pair(25, 0) + pair(16, 0) + pair(26, 0) + pair(36, 1) + pair(17, 0) + pair(27, 0) + pair(37, 0) +
-               pair(40, fx(Sheet::PH + 30)) + pair(41, 1.5) + pair(42, 50) + pair(43, 0) + pair(44, 0) + pair(50, 0) + pair(51, 0) +
-               pair(71, 0) + pair(72, 100) + pair(73, 1) + pair(74, 3) + pair(75, 0) + pair(76, 0) + pair(77, 0) + pair(78, 0) + pair(0, 'ENDTAB')
-          # LTYPE
-          s << table_head('LTYPE', '5', 3)
-          [['ByBlock', '14'], ['ByLayer', '15'], ['Continuous', '16']].each do |nm, hd|
-            s << pair(0, 'LTYPE') + pair(5, hd) + pair(330, '5') + pair(100, 'AcDbSymbolTableRecord') + pair(100, 'AcDbLinetypeTableRecord') +
-                 pair(2, nm) + pair(70, 0) + pair(3, nm == 'Continuous' ? 'Solid line' : '') + pair(72, 65) + pair(73, 0) + pair(40, 0)
-          end
-          s << pair(0, 'ENDTAB')
-          # LAYER
-          s << table_head('LAYER', '2', layers.size + 1)
-          s << layer_rec('0', [0, 0, 0], 0.0, '10')
-          layers.each { |nm, (rgb, w)| s << layer_rec(nm, rgb, w, h) }
-          s << pair(0, 'ENDTAB')
-          # STYLE
-          s << table_head('STYLE', '3', 2)
-          s << style_rec('Standard', '11') << style_rec(@style, h)
-          s << pair(0, 'ENDTAB')
-          # VIEW / UCS 비움, APPID
-          s << pair(0, 'TABLE') + pair(2, 'VIEW') + pair(5, '6') + pair(330, 0) + pair(100, 'AcDbSymbolTable') + pair(70, 0) + pair(0, 'ENDTAB')
-          s << pair(0, 'TABLE') + pair(2, 'UCS') + pair(5, '7') + pair(330, 0) + pair(100, 'AcDbSymbolTable') + pair(70, 0) + pair(0, 'ENDTAB')
-          s << table_head('APPID', '9', 1) + pair(0, 'APPID') + pair(5, '12') + pair(330, '9') + pair(100, 'AcDbSymbolTableRecord') +
-               pair(100, 'AcDbRegAppTableRecord') + pair(2, 'ACAD') + pair(70, 0) + pair(0, 'ENDTAB')
-          s << pair(0, 'TABLE') + pair(2, 'DIMSTYLE') + pair(5, 'A') + pair(330, 0) + pair(100, 'AcDbSymbolTable') + pair(70, 0) + pair(0, 'ENDTAB')
-          s << table_head('BLOCK_RECORD', '1', 2)
-          [['*Model_Space', @model_rec_h], ['*Paper_Space', '1B']].each do |nm, hd|
-            s << pair(0, 'BLOCK_RECORD') + pair(5, hd) + pair(330, '1') + pair(100, 'AcDbSymbolTableRecord') +
-                 pair(100, 'AcDbBlockTableRecord') + pair(2, nm) + pair(340, 0)
-          end
-          s << pair(0, 'ENDTAB')
-          s
-        end
-
-        def table_head(name, handle, count)
-          pair(0, 'TABLE') + pair(2, name) + pair(5, handle) + pair(330, 0) + pair(100, 'AcDbSymbolTable') + pair(70, count)
-        end
-
+        # ezdxf 가 쓰는 LAYER 레코드와 같은 그룹 순서(62 [420] 6 290 370 390)
         def layer_rec(name, rgb, w, hd)
           col = Sheet.dxf_color(rgb, @bg)
-          s = pair(0, 'LAYER') + pair(5, hd) + pair(330, '2') + pair(100, 'AcDbSymbolTableRecord') + pair(100, 'AcDbLayerTableRecord') +
+          s = pair(0, 'LAYER') + pair(5, hd) + pair(330, '1') + pair(100, 'AcDbSymbolTableRecord') + pair(100, 'AcDbLayerTableRecord') +
               pair(2, name) + pair(70, 0)
           s += col.is_a?(Integer) ? pair(62, col) : pair(62, 7) + pair(420, (col[0] << 16) | (col[1] << 8) | col[2])
-          s + pair(6, 'Continuous') + pair(370, Sheet.lineweight(w))
+          s + pair(6, 'Continuous') + pair(290, 1) + pair(370, Sheet.lineweight(w)) + pair(390, '13')
         end
 
         def style_rec(name, hd)
-          pair(0, 'STYLE') + pair(5, hd) + pair(330, '3') + pair(100, 'AcDbSymbolTableRecord') + pair(100, 'AcDbTextStyleTableRecord') +
+          pair(0, 'STYLE') + pair(5, hd) + pair(330, '5') + pair(100, 'AcDbSymbolTableRecord') + pair(100, 'AcDbTextStyleTableRecord') +
             pair(2, name) + pair(70, 0) + pair(40, 0) + pair(41, 1) + pair(50, 0) + pair(71, 0) + pair(42, 2.5) + pair(3, @font) + pair(4, '')
         end
 
-        def blocks
-          s = +''
-          [['*Model_Space', '20', @model_rec_h], ['*Paper_Space', '1C', '1B']].each do |nm, hd, rec|
-            s << pair(0, 'BLOCK') + pair(5, hd) + pair(330, rec) + pair(100, 'AcDbEntity') + pair(8, '0') +
-                 pair(100, 'AcDbBlockBegin') + pair(2, nm) + pair(70, 0) + pair(10, 0) + pair(20, 0) + pair(30, 0) + pair(3, nm) + pair(1, '')
-            s << pair(0, 'ENDBLK') + pair(5, hd == '20' ? '21' : '1D') + pair(330, rec) + pair(100, 'AcDbEntity') + pair(8, '0') + pair(100, 'AcDbBlockEnd')
+        # => [ACAD_IMAGE_DICT 항목 텍스트, IMAGEDEF/IMAGEDEF_REACTOR 객체 텍스트]
+        def image_objects
+          return ['', ''] if @images.empty?
+          dict = DxfSkeleton::IMAGE_DICT
+          used = {}
+          entries = +''
+          objs = +''
+          @images.each_with_index do |im, i|
+            key = File.basename(im[:path].to_s)
+            key = "img_#{i + 1}" if key.empty?
+            key = "#{key}_#{i + 1}" if used[key]
+            used[key] = true
+            entries << pair(3, key) + pair(350, im[:def])
+            objs << pair(0, 'IMAGEDEF') + pair(5, im[:def]) + pair(102, '{ACAD_REACTORS') + pair(330, dict) + pair(330, im[:reactor]) + pair(102, '}') +
+                    pair(330, dict) + pair(100, 'AcDbRasterImageDef') + pair(90, 0) + pair(1, im[:path]) +
+                    pair(10, fx(im[:pw])) + pair(20, fx(im[:ph])) + pair(11, '0.01') + pair(21, '0.01') + pair(280, 1) + pair(281, 0)
+            objs << pair(0, 'IMAGEDEF_REACTOR') + pair(5, im[:reactor]) + pair(330, im[:ent]) + pair(100, 'AcDbRasterImageDefReactor') +
+                    pair(90, 2) + pair(330, im[:ent])
           end
-          s
+          [entries, objs]
         end
-
-        def objects
-          root = 'C'; imgdict = 'D1'
-          s = pair(0, 'DICTIONARY') + pair(5, root) + pair(330, 0) + pair(100, 'AcDbDictionary') + pair(281, 1)
-          s += pair(3, 'ACAD_IMAGE_DICT') + pair(350, imgdict) unless @images.empty?
-          unless @images.empty?
-            s << pair(0, 'DICTIONARY') + pair(5, imgdict) + pair(330, root) + pair(100, 'AcDbDictionary') + pair(281, 1)
-            @images.each_with_index { |im, i| s << pair(3, "IMG#{i + 1}") + pair(350, im[:def]) }
-            @images.each_with_index do |im, i|
-              s << pair(0, 'IMAGEDEF') + pair(5, im[:def]) + pair(102, '{ACAD_REACTORS') + pair(330, imgdict) + pair(330, im[:reactor]) + pair(102, '}') +
-                   pair(330, imgdict) + pair(100, 'AcDbRasterImageDef') + pair(90, 0) + pair(1, im[:path]) +
-                   pair(10, fx(im[:pw])) + pair(20, fx(im[:ph])) + pair(11, 1) + pair(21, 1) + pair(280, 1) + pair(281, 0)
-              s << pair(0, 'IMAGEDEF_REACTOR') + pair(5, im[:reactor]) + pair(330, im[:ent]) + pair(100, 'AcDbRasterImageDefReactor') +
-                   pair(90, 2) + pair(330, im[:ent])
-            end
-          end
-          s
-        end
-
-        def section(name, body)
-          pair(0, 'SECTION') + pair(2, name) + body + pair(0, 'ENDSEC')
-        end
-
-        public
-
-        def model_rec_handle=(v); @model_rec_h = v; end
 
         # CP949 바이트로 변환. 변환 불가 문자는 '?'
         def to_cp949
-          @model_rec_h = '1F'
           Text.to_cp949(to_s)
         end
 

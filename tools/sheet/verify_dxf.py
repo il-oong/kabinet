@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """생성 DXF 검증 (수동 교차검증, ezdxf 필요).
 
-사용:  python3 -I tools/sheet/verify_dxf.py out.dxf [furniture.json]
+사용:  python3 -I tools/sheet/verify_dxf.py out.dxf [furniture.json] [--structure-only]
+ 0) 구조 검사: 핸들 중복·미해결 참조(330/340/350/360)·$HANDSEED·LAYOUT/CLASSES/DIMSTYLE/필수 OBJECTS
  1) ezdxf audit 오류 0
  2) 시트 도곽(FRAME 굵은 사각) 폭 = 420 x 시트 배수 (1:1 실치수 규칙) -> 시트별 배수 출력
  3) 치수 문자 = 측정 길이: 치수선(DIM 레이어 선)의 눈금(DIMT) 사이 길이(mm)와 근처 TEXT 숫자가 일치하는지
@@ -12,6 +13,105 @@
 import collections, json, math, re, sys
 import ezdxf
 
+
+# ---------------------------------------------------------------- 구조 검사 (CAD 호환)
+HANDLE_DEF = {"5", "105"}
+HANDLE_REF = {"330", "340", "350", "360", "390", "391", "380", "331"}
+REQUIRED_OBJECTS = {"ACAD_GROUP", "ACAD_LAYOUT", "ACAD_MLINESTYLE", "ACAD_PLOTSETTINGS", "ACAD_PLOTSTYLENAME", "ACAD_MATERIAL", "ACAD_COLOR", "ACAD_VISUALSTYLE"}
+
+
+def raw_pairs(path):
+    raw = open(path, "rb").read()
+    try:
+        txt = raw.decode("cp949")
+    except UnicodeDecodeError:
+        txt = raw.decode("utf-8", "replace")
+    lines = txt.replace("\r\n", "\n").split("\n")
+    return [(lines[i].strip(), lines[i + 1].strip()) for i in range(0, len(lines) - 1, 2)]
+
+
+def check_structure(path, verbose=True):
+    """핸들 중복 / 미해결 참조(330·340·350·360·390) / HANDSEED / 필수 OBJECTS·CLASSES·DIMSTYLE·레이아웃 검사.
+    반환: (통과 여부, 문제 목록)"""
+    P = raw_pairs(path)
+    probs = []
+    sec = None
+    defs = collections.Counter()
+    refs = []
+    kinds = collections.Counter()
+    seed = None
+    root_keys = set()
+    cur0 = None
+    cur_in_root = False
+    objs = collections.Counter()
+    owners_dict = {}
+    for i, (c, v) in enumerate(P):
+        if c == "0" and v == "SECTION":
+            sec = P[i + 1][1]
+        if c == "0":
+            cur0 = v
+            if sec == "OBJECTS":
+                objs[v] += 1
+            if sec == "CLASSES" and v == "CLASS":
+                kinds["CLASS"] += 1
+        if c == "9" and v == "$HANDSEED":
+            seed = P[i + 1][1]
+        if c in HANDLE_DEF and sec in ("TABLES", "BLOCKS", "ENTITIES", "OBJECTS"):
+            defs[v.upper()] += 1
+        elif c in HANDLE_REF and sec in ("TABLES", "BLOCKS", "ENTITIES", "OBJECTS") and v not in ("0", ""):
+            refs.append((v.upper(), c, cur0, sec))
+    dup = [h for h, n in defs.items() if n > 1]
+    if dup:
+        probs.append(f"핸들 중복 {len(dup)}개 (예 {dup[:5]})")
+    miss = [(h, c, t) for h, c, t, s_ in refs if h not in defs]
+    if miss:
+        probs.append(f"미해결 참조 {len(miss)}개 (예 {miss[:5]})")
+    try:
+        mx = max(int(h, 16) for h in defs)
+        if seed is None or int(seed, 16) <= mx:
+            probs.append(f"$HANDSEED({seed}) <= 최대 핸들({mx:X})")
+    except ValueError:
+        probs.append("핸들 형식 오류")
+    # 루트 딕셔너리 항목 + 필수 객체
+    names = []
+    k = next((j for j, (c, v) in enumerate(P) if (c, v) == ("0", "DICTIONARY")), None)
+    if k is not None:
+        j = k + 1
+        while j < len(P) and P[j][0] != "0":
+            if P[j][0] == "3":
+                names.append(P[j][1])
+            j += 1
+    miss_obj = sorted(REQUIRED_OBJECTS - set(names))
+    if miss_obj:
+        probs.append(f"루트 DICTIONARY 에 없는 항목: {miss_obj}")
+    if objs.get("LAYOUT", 0) < 2:
+        probs.append(f"LAYOUT {objs.get('LAYOUT', 0)}개 (Model + Layout1 필요)")
+    if kinds["CLASS"] < 3:
+        probs.append(f"CLASSES {kinds['CLASS']}개")
+    # DIMSTYLE Standard 레코드
+    if not any(P[j] == ("0", "DIMSTYLE") and any(q == ("2", "Standard") for q in P[j + 1:j + 12]) for j in range(len(P) - 12)):
+        probs.append("DIMSTYLE Standard 레코드 없음")
+    # BLOCK_RECORD 의 레이아웃 핸들(340)
+    for j, (c, v) in enumerate(P):
+        if (c, v) == ("0", "BLOCK_RECORD"):
+            blk = P[j + 1:j + 14]
+            nm = next((q[1] for q in blk if q[0] == "2"), "")
+            if nm in ("*Model_Space", "*Paper_Space") and not any(q[0] == "340" and q[1] not in ("0", "") for q in blk):
+                probs.append(f"BLOCK_RECORD {nm} 에 레이아웃 핸들(340) 없음")
+    # IMAGE 정합 (IMAGEDEF 경로는 ASCII, 상대경로)
+    for j, (c, v) in enumerate(P):
+        if (c, v) == ("0", "IMAGEDEF"):
+            pth = next((q[1] for q in P[j + 1:j + 20] if q[0] == "1"), "")
+            if not pth.isascii() or " " in pth or "(" in pth:
+                probs.append(f"IMAGEDEF 경로가 ASCII-안전하지 않음: {pth}")
+    if verbose:
+        print(f"구조 검사: 핸들 {len(defs)}개, 참조 {len(refs)}개, HANDSEED {seed}, LAYOUT {objs.get('LAYOUT', 0)}, "
+              f"CLASS {kinds['CLASS']}, 객체 {sum(objs.values())}개(DICTIONARY {objs.get('DICTIONARY', 0)}) ->",
+              "OK" if not probs else "문제 %d건" % len(probs))
+        for pr in probs:
+            print("  -", pr)
+    return not probs, probs
+
 TOL = 1.5
 
 
@@ -21,12 +121,16 @@ def num(s):
 
 
 def main():
-    path = sys.argv[1]
-    fj = json.load(open(sys.argv[2], encoding="utf-8")) if len(sys.argv) > 2 else None
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    path = args[0]
+    fj = json.load(open(args[1], encoding="utf-8")) if len(args) > 1 else None
     d = ezdxf.readfile(path)
     ok = True
     a = d.audit()
     print("audit errors:", len(a.errors)); ok &= len(a.errors) == 0
+    good, _ = check_structure(path); ok &= good
+    if "--structure-only" in sys.argv:
+        print("RESULT:", "PASS" if ok else "FAIL"); sys.exit(0 if ok else 1)
     print("INSUNITS:", d.header.get("$INSUNITS"), "layers:", sorted(l.dxf.name for l in d.layers))
     msp = d.modelspace()
     ents = list(msp)
