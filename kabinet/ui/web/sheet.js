@@ -24,7 +24,7 @@ const kabinetSheet = (() => {
     const mk = (type, title) => ({ id: newId(), type, title, subject: title, sheet_no: '', scale: '', hidden: false, export: true, images: [] });
     return {
       site: '', furniture_name: '', date: d.getFullYear() + '.' + pad(d.getMonth() + 1) + '.' + pad(d.getDate()),
-      bg: 'white', style_name: 'MALGUN', font_file: 'malgun.ttf',
+      bg: 'white', style_name: 'MALGUN', font_file: 'malgun.ttf', images: true, real_scale: true,
       pages: [mk('photos', '현장사진'), mk('view3d', '상담 3D'), mk('floor', '평면도'), mk('furniture', '가구 시트'),
               mk('side', '측면 · 단면'), mk('detail', '상세'), mk('table', '생산 확인표')]
     };
@@ -67,6 +67,7 @@ const kabinetSheet = (() => {
     ensure();
     ['site', 'furniture_name', 'date', 'style_name'].forEach(k => { const el = $('sh-' + k); if (el && el !== document.activeElement) el.value = cfg[k] || ''; });
     const bg = $('sh-bg'); if (bg) bg.value = cfg.bg || 'white';
+    ['images', 'real_scale'].forEach(k => { const el = $('sh-' + k); if (el) el.checked = cfg[k] !== false; });
     const info = $('sh-furniture-info');
     if (info) info.textContent = furniture.has_furniture ? ('도면 기준 가구: ' + furniture.name + ' (' + furniture.size + ' mm)') :
       '선택한/마지막 Kabinet 가구가 없으면 샘플 가구(1,800×2,300×600)로 틀만 그립니다.';

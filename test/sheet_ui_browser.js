@@ -47,10 +47,13 @@ const assert = (ok, m) => { if (!ok) throw new Error(m); };
   await page.fill('#sh-site', '판교 푸르지오 그랑블');
   await page.fill('#sh-furniture_name', '__-1');
   await page.selectOption('#sh-bg', 'dark');
+  assert(await page.isChecked('#sh-images') && await page.isChecked('#sh-real_scale'), '사진 포함·실치수 기본 켜짐');
+  await page.uncheck('#sh-images');
   await page.waitForTimeout(500);
   const cfg = await page.evaluate(() => kabinetSheet.getConfig());
   assert(cfg.pages[4].subject === 'A동 주방 가구' && cfg.pages[4].sheet_no === 'NO.012' && cfg.pages[4].scale === '30', 'edited fields');
   assert(cfg.pages[2].hidden === true && cfg.site === '판교 푸르지오 그랑블' && cfg.bg === 'dark', 'hidden/site/bg');
+  assert(cfg.images === false && cfg.real_scale === true, 'images off / real_scale on in config');
   const saves = await page.evaluate(() => window.__calls.filter(c => c.name === 'kabinet:sheet_save'));
   assert(saves.length >= 1 && JSON.parse(saves[saves.length - 1].v).pages.length === 7, 'save bridge called with 7 pages');
   // 내보내기: 숨김 제외 6쪽

@@ -500,8 +500,11 @@
         <option value="none">자동 (배경 없음, CAD 배경에 맞춤)</option></select></label>
       <label class="ep-field">글자 스타일 폰트 이름<input id="sh-style_name" oninput="kabinetSheet.onField('style_name', this.value)" placeholder="MALGUN"></label>
     </div>
+    <label class="ep-check"><input type="checkbox" id="sh-images" onchange="kabinetSheet.onField('images', this.checked)"> 사진 포함 (현장사진·상담 3D 를 DXF 이미지로 넣기)</label>
+    <label class="ep-check"><input type="checkbox" id="sh-real_scale" onchange="kabinetSheet.onField('real_scale', this.checked)"> 실치수 1:1 (가구가 실제 mm 좌표, 도곽은 축척 배수만큼 크게 — 끄면 종이 크기 420×297)</label>
+    <p class="ep-hint">사진이 CAD 에서 안 열리거나 필요 없으면 「사진 포함」을 끄세요(틀과 캡션만 남고 IMAGE 가 빠집니다).</p>
     <p class="ep-hint">글자는 맑은 고딕(malgun.ttf) 스타일로 들어갑니다. CAD 에 맑은 고딕이 없으면 다른 글꼴로 보일 수 있습니다.</p>
-    <p class="ep-hint"><b>이미지가 있는 도면</b>: DXF 는 이미지를 파일로 <u>참조</u>합니다. 저장하면 <code>&lt;이름&gt;_images/</code> 폴더가 DXF 옆에 만들어지니
+    <p class="ep-hint"><b>이미지가 있는 도면</b>: DXF 는 이미지를 파일로 <u>참조</u>합니다. 저장하면 <code>&lt;영문이름&gt;_images/</code>(img_01.jpg …, 한글·공백 없는 이름) 폴더가 DXF 옆에 만들어지니
       <b>DXF 파일과 그 폴더를 함께</b> 옮기세요(폴더째 복사하면 됩니다). 이미지가 없어도 도곽은 열립니다.</p>
     <button type="button" class="btn-primary ep-big" onclick="kabinetSheet.exportDxf()">DXF 내보내기 (저장 위치 선택)</button>
     <button type="button" class="ep-big" onclick="kabinetSheet.importCad()" title="다른 CAD 에서 받은 가구 도면 DXF(평면·정면·치수 포함)를 읽어 이 양식의 제작도면 시트로 다시 만듭니다">CAD 도면 DXF 불러와 재구성</button>
