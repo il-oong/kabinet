@@ -7,7 +7,7 @@ PDF / DXF 렌더러가 같은 모델을 그린다.  양식 좌표는 SHEET_FORMA
 실행:  python3 -I tools/sheet/build_sheet.py --json output_samples/furniture.json --out output_samples
        (옵션) --name 가구명  --site 현장명  --scale 25  --font C:/Windows/Fonts/malgun.ttf
 """
-import argparse, datetime, json, math, os, sys
+import argparse, contextlib, datetime, functools, json, math, os, sys
 
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
@@ -86,10 +86,38 @@ class Sheet:
     def __init__(self, name):
         self.name = name
         self.items = []
+        self.groups = []       # items 와 같은 길이: 뷰(BLOCK) 이름, None = 도곽/표제란(FRAME)
+        self._cur = None
+        self._last = (None, None)
+        self._names = set()
         self.den = None        # 이 시트의 축척 분모(예 25 -> 1/25). DXF 는 이 값만큼 키워 실치수(1:1)로 낸다
 
+    def _add(self, it):
+        self.items.append(it)
+        self.groups.append(self._cur)
+
+    @contextlib.contextmanager
+    def group(self, base):
+        """이 안에서 그리는 항목을 한 뷰(DXF BLOCK)로 묶는다. 중첩 호출은 바깥 그룹에 합쳐지고,
+        같은 base 를 연속 호출하면 같은 블록(예: 평면 + 치수 + 마커)이다."""
+        if self._cur is not None:
+            yield
+            return
+        if self._last[0] == base:
+            name = self._last[1]
+        else:
+            name, n = base, 2
+            while name in self._names:
+                name = f"{base}_{n}"; n += 1
+            self._names.add(name)
+        self._last = (base, name); self._cur = name
+        try:
+            yield
+        finally:
+            self._cur = None
+
     def line(self, x1, y1, x2, y2, st="OUT"):
-        self.items.append(("L", x1, y1, x2, y2, st))
+        self._add(("L", x1, y1, x2, y2, st))
 
     def dashed(self, x1, y1, x2, y2, st="THIN", d=1.6, g=0.9):
         L = math.hypot(x2 - x1, y2 - y1)
@@ -114,20 +142,20 @@ class Sheet:
             t = e; k += 1
 
     def poly(self, pts, st="OUT", closed=False):
-        self.items.append(("P", list(pts), st, closed))
+        self._add(("P", list(pts), st, closed))
 
     def rect(self, x1, y1, x2, y2, st="OUT"):
         self.poly([(x1, y1), (x2, y1), (x2, y2), (x1, y2)], st, True)
 
     def circ(self, cx, cy, r, st="OUT"):
-        self.items.append(("C", cx, cy, r, st))
+        self._add(("C", cx, cy, r, st))
 
     def fill(self, pts, color):
-        self.items.append(("F", list(pts), color))
+        self._add(("F", list(pts), color))
 
     def text(self, x, y, s, size=2.4, c="k", a="l", rot=0):
         if s:
-            self.items.append(("T", x, y, s, size, c, a, rot))
+            self._add(("T", x, y, s, size, c, a, rot))
 
     def rrect(self, x1, y1, x2, y2, r, st="OUT"):
         pts = []
@@ -142,12 +170,33 @@ class Sheet:
                     cy + r * math.sin(math.radians(a0 + (a1 - a0) * k / n))) for k in range(n + 1)], st)
 
     def hatch_rect(self, x1, y1, x2, y2, step=1.6, st="HATCH"):
-        k = x1 + y1
-        while k < x2 + y2:
-            lo, hi = max(x1, k - y2), min(x2, k - y1)
-            if hi - lo > 0.05:
-                self.line(lo, k - lo, hi, k - hi, st)
-            k += step
+        """닫힌 사각 안을 45° 해칭 — 영역마다 HATCH 엔티티 1개(낱개 사선 LINE 으로 분해하지 않는다). step = 종이 mm 간격"""
+        self._add(("H", [(x1, y1), (x2, y1), (x2, y2), (x1, y2)], st, step))
+
+
+def view(base):
+    """그리기 함수(첫 인자 sh)를 한 뷰(BLOCK)로 묶는 데코레이터."""
+    def deco(fn):
+        @functools.wraps(fn)
+        def w(sh, *a, **k):
+            with sh.group(base):
+                return fn(sh, *a, **k)
+        return w
+    return deco
+
+
+def hatch_lines(pts, step):
+    """PDF 용: HATCH 영역(사각)을 45° 선분 목록으로 푼다(PDF 에는 해칭 객체가 없음)."""
+    xs = [p[0] for p in pts]; ys = [p[1] for p in pts]
+    x1, x2, y1, y2 = min(xs), max(xs), min(ys), max(ys)
+    out = []
+    k = x1 + y1
+    while k < x2 + y2:
+        lo, hi = max(x1, k - y2), min(x2, k - y1)
+        if hi - lo > 0.05:
+            out.append((lo, k - lo, hi, k - hi))
+        k += step
+    return out
 
 
 # ----------------------------------------------------------------- 치수·마커 도우미
@@ -1301,6 +1350,11 @@ def render_pdf(sheets, path):
                 if cl:
                     p.close()
                 c.drawPath(p, stroke=1, fill=0)
+            elif k == "H":
+                _, pts, st, step = it
+                _pen(c, st)
+                for (hx1, hy1, hx2, hy2) in hatch_lines(pts, step):
+                    c.line(hx1 * mm, (PH - hy1) * mm, hx2 * mm, (PH - hy2) * mm)
             elif k == "C":
                 _, cx, cy, r, st = it
                 _pen(c, st); c.circle(cx * mm, (PH - cy) * mm, r * mm, stroke=1, fill=0)
