@@ -54,4 +54,9 @@ end
 # 치수가 없으면 기본 모델 + 확인필요
 r0 = S::DxfImport.from_doc(S::DxfReader.parse("0\nSECTION\n2\nENTITIES\n0\nENDSEC\n0\nEOF"), name_hint: '빈도면')
 assert r0[:models][0]['flags'].any? { |f| f.include?('읽지 못함') }, 'empty fallback'
+# 폭 치수 하나 + 라벨 하나 (분할 행 없음) → 폭 유지, 라벨 유지
+one = ["0\nSECTION\n2\nENTITIES", dim(1200, -100, 0, -150, 1200, -150, 1200), dim(-80, -300, -60, -700, -60, -300, 700, 90),
+       mtext(600, -400, 50, '조리장(2D)'), "0\nENDSEC\n0\nEOF"].join("\n")
+m1 = S::DxfImport.from_doc(S::DxfReader.parse(one), name_hint: 'one')[:models][0]
+assert m1['overall']['W'] == 1200.0 && m1['modules'].size == 1 && m1['modules'][0]['name'] == '조리장(2D)' && m1['modules'][0]['doors'] == 2, "single dim labeled #{m1['overall']} #{m1['modules']}"
 puts 'sheet_import_test OK'

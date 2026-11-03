@@ -43,7 +43,7 @@ module Kabinet
             sides << { chain: ch, labels: [], y: ch ? ch.y : 0.0 } if ch
           else
             bands.each do |b|
-              ch = best_chain(chains, b)
+              ch = best_chain(chains, b) || single_chain(dims, b[:labels])
               sides << { chain: ch, labels: b[:labels], y: b[:y] } if ch
             end
           end
@@ -134,8 +134,11 @@ module Kabinet
           Chain.new(ds.map { |d| [d.a0, d.a1] }, ds.first.pos)
         end
 
-        def single_chain(dims)
-          d = dims.reject(&:vertical).max_by(&:meas)
+        # 폭 분할 행이 없을 때: 가장 긴 가로 치수 하나를 한 구간으로 (라벨이 있으면 라벨 x 를 덮는 치수만)
+        def single_chain(dims, labels = nil)
+          hd = dims.reject(&:vertical)
+          hd = hd.select { |d| labels.any? { |l| l[:x] >= d.a0 - TOL && l[:x] <= d.a1 + TOL } } if labels
+          d = hd.max_by(&:meas)
           d && Chain.new([[d.a0, d.a1]], d.pos)
         end
 
