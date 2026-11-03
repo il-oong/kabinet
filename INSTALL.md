@@ -1,5 +1,12 @@
 # Kabinet — 설치 및 검증 가이드
 
+## v1.23.1 — 도면 시트: 한글(CP949) 경로 오류 수정
+
+- **증상**: 한글 Windows 에서 도면 시트의 `＋ 이미지 파일…`이 안 되고 `incompatible character encodings: UTF-8 and CP949` 오류. **원인**: `UI.openpanel`/`savepanel`/`Dir`/`File.basename` 이 돌려준 경로가 CP949 태그 문자열인데 UTF-8 한글 문자열(메시지·`_images` 폴더명·캡션·JSON)과 이어 붙일 때 Ruby 가 거부. 재현 테스트 `test/sheet_encoding_test.rb` 로 같은 오류를 재현한 뒤 수정함(오류 발생 지점: 내보내기 메시지/`_images` 경로 조합/캡처 완료 메시지/JSON 생성 등).
+- **수정**: 새 `Output::Sheet::Text`(`output/sheet/text.rb`) — 외부 문자열은 전부 UTF-8 로 정규화(`utf8`/`deep_utf8`: CP949·BINARY·잘못 태그된 바이트 처리), 파일 I/O 는 원본 경로 또는 존재하는 경로를 찾아 쓰고(`resolve_path`), `_images` 경로 등은 대상 인코딩에 맞춰 조합(`native`). DXF 는 AC1015 + `$DWGCODEPAGE ANSI_949`(한글 CAD 기본)로 쓰고, CP949 로 못 쓰는 문자만 `\U+XXXX` 이스케이프(AutoCAD·LibreCAD 해석).
+- **오류 표시 개선**: 이미지 추가/폴더 이미지 추가/화면 캡처/DXF 내보내기/구성 저장 중 어느 동작에서 났는지 `이미지 추가 실패 — 클래스: 메시지` 로 표시하고, SketchUp Ruby 콘솔에 backtrace 출력.
+- **실기에서 확인**: 한글 폴더/파일명(`사진 1.jpg`)의 이미지 추가·썸네일 목록·DXF 내보내기(`<이름>_images` 한글 폴더), 한글 장면 이름 캡처 파일명, 한글 현장명·가구명이 CAD 에서 깨지지 않는지.
+
 ## v1.23.0 — 도면 시트(DXF): 현장사진 · 상담 3D · 평면도 · 가구 시트 · 단면 · 확인표
 
 - 사이드바 「도면·출력 > **도면 시트 (DXF)**」. 선택한 Kabinet 가구(없으면 모델 안 마지막 가구)로 A3 가로 시트를 한 DXF에 나란히(시트 간격 500mm, 1단위=1mm) 만듭니다. 글자는 맑은 고딕(malgun.ttf) 스타일, 선굵기·색·양식 틀은 샘플 PDF 규칙(`SHEET_FORMAT_ANALYSIS.md`).

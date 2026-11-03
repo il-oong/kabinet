@@ -1,3 +1,4 @@
+require_relative 'text'
 module Kabinet
   module Output
     module Sheet
@@ -7,8 +8,8 @@ module Kabinet
 
         # => [width, height] 또는 nil
         def size(path)
-          File.open(path, 'rb') do |f|
-            head = f.read(32).to_s
+          File.open(Text.resolve_path(path), 'rb') do |f|
+            head = (f.read(32) || ''.b).b
             if head.start_with?("\x89PNG\r\n\x1a\n".b)
               return head[16, 8].unpack('NN')
             elsif head.start_with?("\xFF\xD8".b)

@@ -1,3 +1,4 @@
+require_relative 'text'
 require_relative 'styles'
 module Kabinet
   module Output
@@ -22,7 +23,8 @@ module Kabinet
         def circ(cx, cy, r, st = 'OUT'); @items << [:C, cx, cy, r, st]; end
         def fill(pts, rgb); @items << [:F, pts, rgb]; end
         def text(x, y, str, size = 2.4, c = 'k', a = 'l', rot = 0)
-          @items << [:T, x, y, str.to_s, size, c, a, rot] unless str.to_s.empty?
+          str = Text.utf8(str)
+          @items << [:T, x, y, str, size, c, a, rot] unless str.empty?
         end
         # 이미지 자리(DXF IMAGE 로 출력). (x,y)=좌상단, w,h mm
         def image(x, y, w, h, path)
