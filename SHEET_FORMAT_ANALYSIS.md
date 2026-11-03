@@ -166,3 +166,36 @@
   - 좌표계·치수 값은 한 번만 계산(레이아웃 모델) → 두 출력이 같은 모델을 그리도록 구현.
 - 미확정(다음 세션에서 사용자에게 재확인): 폰트, DWG 가구 용도, 평면도·키플랜 생성 여부.
 - 다음 세션 시작 순서: 이 파일 §12 읽기 → DWG 변환 재실행(백그라운드, 약 4분) → 시트별 치수 읽어 JSON → 레이아웃 모델 + PDF/DXF 렌더러 → 샘플 PDF와 겹쳐 검증 → PR.
+
+---
+
+## 13. 테스트 결과 (첫 PDF/DXF 산출, `__-1`)
+
+### 산출물
+- `output_samples/test_sheet.pdf` (A3 가로 3쪽: 주방 평면도 / 가구 시트 NO.001(싱크면) / 가구 시트 NO.002(서랍면+측면)), `test_sheet.dxf`(시트 3장을 X로 500mm 간격 배치, 1단위=1mm), `furniture.json`, `preview-1~3.png`(60dpi).
+- 렌더러: `tools/sheet/build_sheet.py` (레이아웃 모델 1개 -> reportlab PDF + ezdxf DXF 동시 렌더).
+
+### 읽어낸 치수 (DWG 좌표 1 unit = 25.4mm 로 확정: 3600mm = 141.7 unit)
+- 주방 아일랜드(양면 하부장) 총 W3,600 x D1,100 x H1,020 (상판 t120 + 몸통 900, 걸레받이 100). 상판 1,800 x 2분할.
+- 깊이: 싱크면(B) 650 / 서랍면(A) 450.
+- B면 모듈(평면 좌->우): 326(상판 돌출) | 서랍장(2단) 900 | 장(2단) 300 | 조리장(1D) 474 | 식기세척기 614(600) | 조리장(싱크) 486 | 로봇청소기서랍장 500.
+- A면: OPEN 890(+EP 판넬 20T) + 서랍장(2단) 890 x 3 (좌우 20 이격).
+- 싱크 컷 850x450, 수전, 쿡탑 `스트로만 후드일체형 4구 JJ-HI01`, 도어 `주방장 도어 공용 부엌 도어 - KK DR 112`.
+
+### 불확실한 값 (JSON 에 "추정"/확인필요 표기)
+- 싱크 컷 위치(상판 시트가 좌우 반전으로 보여 평면과 대조해 보정), 서랍 단 높이(2단 균등 500 분할 가정), 로봇청소기 서랍 상단 190, 식기세척기 이격 14, OPEN 선반 높이 357, 쿡탑 위치(상판에 컷이 안 보임), 단면 내부 구성(서랍 박스 등).
+- 방 평면(5,200x3,400, 출입구)은 입력에 없어 **가정치**. NOTE 의 DOOR/BODY/손잡이는 샘플 문구 + "(확인필요)".
+- 가구명 `__-1` 은 파일명 stem 그대로(`--name` 으로 변경). 가구 용도(주방 아일랜드)는 라벨 기반 추정.
+
+### 폰트
+- 이 샌드박스에는 맑은 고딕/나눔고딕/Noto CJK 가 없어 **WenQuanYi Zen Hei(`wqy-zenhei.ttc`)로 대체** 후 PDF 에 임베드. 사용자 PC 에서는 `--font C:\Windows\Fonts\malgun.ttf` 또는 환경변수 `SHEET_FONT`. DXF 텍스트 스타일은 항상 `malgun.ttf` 지정.
+
+### 양식과 다른 점 / 남은 개선
+- 선반핀·치수 내부 높이(칸 안 1,155 등), 힌지 `155°` 박스, 확대 상세·제품 사진 카드, 단면 절단선 번호 마커 5·6·7·8 연결은 미구현(마커는 A/B ELE 만).
+- 한 시트 고정 레이아웃(경계 y=114.3, NOTE x=210); 내용 크기에 따른 가변 구획 미구현. 페이지 2 의 BODY 뷰(서랍면) 생략.
+- 치수 문자 충돌 회피는 단순 규칙(좁은 구간은 바깥으로). 폰트가 샘플과 달라 글자 폭 차이 있음.
+
+### 실행 방법
+1. DWG->DXF: `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 python3 -I conv.py in.dwg out.dxf` (aspose-cad `DxfOptions`). 이 환경에서는 `libssl.so.1.1` 이 없어 `No usable version of libssl` 오류 -> libssl1.1 deb 를 풀어 `LD_LIBRARY_PATH` 로 지정하니 약 40초에 변환됨.
+2. 렌더: `python3 -I tools/sheet/build_sheet.py --json output_samples/furniture.json --out output_samples [--name 가구명] [--scale 25] [--font malgun.ttf경로]`
+3. 미리보기: `pdftoppm -r 60 -png output_samples/test_sheet.pdf output_samples/preview`
