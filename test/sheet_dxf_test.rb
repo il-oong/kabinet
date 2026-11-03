@@ -101,4 +101,51 @@ assert t.include?('NO.001'), 'sheet no'
 hidden = S::Builder.normalize_config(cfg2.merge('pages' => pages.map { |p| p['type'] == 'table' ? p.merge('hidden' => true) : p }))
 assert S::Builder.build(hidden, model).size == 6, 'hidden'
 
+# ── 이미지(IMAGE/IMAGEDEF) 포함 ──────────────────────────────────────
+require 'zlib'
+def make_png(w, h)
+  chunk = ->(type, data) { [data.bytesize].pack('N') + type + data + [Zlib.crc32(type + data)].pack('N') }
+  raw = ("\x00".b + "\xFF\x80\x00".b * w) * h
+  "\x89PNG\r\n\x1a\n".b + chunk.call('IHDR', [w, h, 8, 2, 0, 0, 0].pack('NNCCCCC')) + chunk.call('IDAT', Zlib::Deflate.deflate(raw)) + chunk.call('IEND', ''.b)
+end
+def make_jpeg(w, h)   # SOI + APP0 + SOF0 (헤더만 — 크기 파싱 검증용)
+  "\xFF\xD8".b + "\xFF\xE0".b + [16].pack('n') + "JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00".b +
+    "\xFF\xC0".b + [17].pack('n') + [8, h, w, 3].pack('CnnC') + "\x01\x22\x00\x02\x11\x01\x03\x11\x01".b + "\xFF\xD9".b
+end
+
+Dir.mktmpdir do |dir|
+  png = File.join(dir, '거실 사진.png'); File.binwrite(png, make_png(40, 30))
+  jpg = File.join(dir, 'kitchen.jpg');  File.binwrite(jpg, make_jpeg(64, 48))
+  assert S::ImageInfo.size(png) == [40, 30] && S::ImageInfo.size(jpg) == [64, 48], 'image size parse'
+  c3 = S::Builder.normalize_config(cfg)
+  c3['pages'] = [S::Builder.page('photos', '현장사진', 'images' => [{ 'path' => png, 'caption' => '거실' }, { 'path' => jpg, 'caption' => '주방' }, { 'path' => '/없는/파일.png', 'caption' => '누락' }]),
+                 S::Builder.page('view3d', '상담 3D', 'images' => [{ 'path' => png, 'caption' => '3D' }])]
+  out_dir = File.join(dir, 'out'); Dir.mkdir(out_dir)
+  path = File.join(out_dir, '도면.dxf')
+  r = S::Builder.export(c3, model, path)
+  assert r[:pages] == 2, "pages #{r[:pages]}"
+  assert r[:images_dir] && File.basename(r[:images_dir]) == '도면_images' && r[:copied].size == 2, "copied #{r[:copied]}"   # 같은 파일은 한 번만, 누락 파일은 복사 안 함
+  assert Dir.children(r[:images_dir]).map { |f| f.dup.force_encoding('UTF-8') }.sort == ['kitchen.jpg', '거실 사진.png'].sort, 'image files'
+  sec = parse_dxf(path)
+  assert sec['CLASSES'].include?([1, 'IMAGE']) && sec['CLASSES'].include?([1, 'IMAGEDEF']), 'classes'
+  ents = entities(sec['ENTITIES'])
+  imgs = ents.select { |e| e[:type] == 'IMAGE' }
+  assert imgs.size == 4, "IMAGE entities #{imgs.size}"        # 사진 3 + 3D 1
+  assert imgs.all? { |e| e[:layer] == 'IMAGE' }, 'IMAGE layer'
+  frames = ents.select { |e| e[:layer] == 'IMAGE_FRAME' }
+  assert frames.size >= 4, 'image frame rectangles on own layer'
+  objs = sec['OBJECTS']
+  defs = objs.each_index.select { |i| objs[i] == [0, 'IMAGEDEF'] }
+  assert defs.size == imgs.size, 'imagedef per image'
+  paths = objs.select { |c, _| c == 1 }.map { |_, v| v }
+  assert paths.include?('도면_images/kitchen.jpg') && paths.include?('도면_images/거실 사진.png'), "relative paths #{paths}"
+  assert paths.any? { |v| v == '/없는/파일.png' }, 'missing file keeps original ref (frame still opens)'
+  assert objs.include?([0, 'IMAGEDEF_REACTOR']) && objs.include?([3, 'ACAD_IMAGE_DICT']), 'reactor/dict'
+  # 이미지가 없어도 도곽만 있는 DXF 로 열림
+  path2 = File.join(out_dir, 'empty.dxf')
+  S::Builder.export(S::Builder.normalize_config(cfg).merge('pages' => [S::Builder.page('photos', '현장사진')]), model, path2)
+  e2 = entities(parse_dxf(path2)['ENTITIES'])
+  assert e2.none? { |e| e[:type] == 'IMAGE' } && e2.any? { |e| e[:layer] == 'FRAME' }, 'empty photo page frame only'
+end
+
 puts 'sheet_dxf_test OK'

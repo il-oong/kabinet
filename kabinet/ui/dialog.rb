@@ -514,7 +514,7 @@ module Kabinet
         d.add_action_callback('kabinet:sheet_load') do |_ctx, _params|
           begin
             model = Sketchup.active_model
-            payload = { config: bridge.load_config(model), furniture: bridge.summary(model),
+            payload = { config: bridge.load_config(model), furniture: bridge.summary(model), scenes: bridge.scene_names(model),
                         page_types: Kabinet::Output::Sheet::Builder::PAGE_TYPES }
             d.execute_script("kabinetSheet.setState(#{JSON.generate(payload)})")
           rescue StandardError => e
@@ -525,6 +525,43 @@ module Kabinet
         d.add_action_callback('kabinet:sheet_save') do |_ctx, raw|
           begin
             bridge.save_config(Sketchup.active_model, JSON.parse(raw))
+          rescue StandardError => e
+            d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
+          end
+        end
+
+        # 이미지 파일 추가 (파일 선택 대화상자, 한 장씩) / 폴더 안 이미지 일괄
+        d.add_action_callback('kabinet:sheet_pick_image') do |_ctx, raw|
+          begin
+            req = JSON.parse(raw)
+            path = ::UI.openpanel('이미지 선택 (JPG/PNG)', Dir.home, 'Images|*.jpg;*.jpeg;*.png||')
+            if path
+              d.execute_script("kabinetSheet.addImages(#{JSON.generate(req['page_id'])}, #{JSON.generate([path])})")
+            end
+          rescue StandardError => e
+            d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
+          end
+        end
+        d.add_action_callback('kabinet:sheet_pick_folder') do |_ctx, raw|
+          begin
+            req = JSON.parse(raw)
+            dir = ::UI.select_directory(title: '이미지가 들어 있는 폴더 선택', directory: Dir.home)
+            if dir
+              files = bridge.images_in(dir)
+              d.execute_script("kabinetSheet.addImages(#{JSON.generate(req['page_id'])}, #{JSON.generate(files)})")
+              d.execute_script("kabinet.onSuccess(#{JSON.generate("#{files.size}장 추가")})") if files.any?
+            end
+          rescue StandardError => e
+            d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
+          end
+        end
+        # SketchUp 현재 시점/장면 → PNG → 이 페이지에 추가
+        d.add_action_callback('kabinet:sheet_capture') do |_ctx, raw|
+          begin
+            req = JSON.parse(raw)
+            path = bridge.capture(Sketchup.active_model, scene_index: req.fetch('scene', -1), width: req['width'] || 1600)
+            d.execute_script("kabinetSheet.addImages(#{JSON.generate(req['page_id'])}, #{JSON.generate([path])}, #{JSON.generate(req['caption'].to_s)})")
+            d.execute_script("kabinet.onSuccess(#{JSON.generate("캡처 완료: #{File.basename(path)}")})")
           rescue StandardError => e
             d.execute_script("kabinet.onError(#{JSON.generate(e.message)})")
           end

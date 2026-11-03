@@ -8,6 +8,7 @@ const kabinetSheet = (() => {
   let cfg = null;
   let types = {};
   let furniture = {};
+  let scenes = [];
   let dragId = null;
   let saveTimer = null;
 
@@ -49,6 +50,7 @@ const kabinetSheet = (() => {
     if (payload && payload.config) cfg = payload.config;
     if (payload && payload.page_types) types = payload.page_types;
     furniture = (payload && payload.furniture) || {};
+    scenes = (payload && payload.scenes) || [];
     cfg.pages.forEach(p => { if (p.export === undefined) p.export = true; });
     render();
   }
@@ -91,6 +93,58 @@ const kabinetSheet = (() => {
     }
     const cnt = $('sh-export-count');
     if (cnt) cnt.textContent = cfg.pages.filter(p => !p.hidden && p.export !== false).length + '쪽 내보내기';
+  }
+
+
+  const IMG_TYPES = { photos: { max: 6, label: '현장사진' }, view3d: { max: 4, label: '상담 3D' } };
+  const baseName = (p) => String(p || '').split(/[\\/]/).pop();
+  function renderPageExtra(p) {
+    const t = IMG_TYPES[p.type];
+    if (!t || p.hidden) return '';
+    const imgs = p.images || [];
+    const perPage = t.max;
+    let h = '<div class="sh-extra" data-pid="' + esc(p.id) + '">' +
+      '<div><b>' + t.label + ' 이미지 ' + imgs.length + '장</b> <span class="dim-note">쪽당 최대 ' + perPage + '장(넘치면 다음 쪽으로 자동 이어짐). ' +
+      (perPage === 6 ? '1·2·4·6칸 자동 격자' : '1~4장 자동 격자') + '</span></div>';
+    h += imgs.map((im, i) => (
+      '<div class="sh-img"><span class="sh-no">' + (i + 1) + '</span>' +
+      '<span title="' + esc(im.path) + '">' + esc(baseName(im.path)) + '</span>' +
+      '<input data-ik="caption" data-idx="' + i + '" value="' + esc(im.caption) + '" placeholder="캡션">' +
+      '<button type="button" class="btn-inline" data-iact="iup" data-idx="' + i + '"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
+      '<button type="button" class="btn-inline" data-iact="idown" data-idx="' + i + '"' + (i === imgs.length - 1 ? ' disabled' : '') + '>▼</button>' +
+      '<button type="button" class="btn-inline" data-iact="idel" data-idx="' + i + '">✕</button></div>'
+    )).join('');
+    h += '<div class="di-actions"><button type="button" class="btn-inline" data-iact="ifile">＋ 이미지 파일…</button>' +
+      '<button type="button" class="btn-inline" data-iact="ifolder">＋ 폴더의 이미지 모두…</button>';
+    if (p.type === 'view3d') {
+      h += '<button type="button" class="btn-inline" data-iact="icapture">현재 화면 캡처 추가</button>' +
+        '<select data-iscene="1"><option value="">장면 선택…</option>' + scenes.map((n, i) => '<option value="' + i + '">' + esc(n) + '</option>').join('') + '</select>' +
+        '<button type="button" class="btn-inline" data-iact="iscene">선택한 장면 캡처 추가</button>';
+    }
+    h += '</div></div>';
+    return h;
+  }
+
+  function addImages(pageId, paths, caption) {
+    ensure();
+    const p = pageById(pageId); if (!p) return;
+    p.images = p.images || [];
+    (paths || []).forEach(path => p.images.push({ path, caption: caption || baseName(path).replace(/\.[^.]+$/, '') }));
+    persist(); render();
+  }
+  function imgAct(pid, act, idx, sceneSel) {
+    const p = pageById(pid); if (!p) return;
+    const imgs = p.images = p.images || [];
+    if (act === 'iup' && idx > 0) { const [x] = imgs.splice(idx, 1); imgs.splice(idx - 1, 0, x); persist(); render(); }
+    else if (act === 'idown' && idx < imgs.length - 1) { const [x] = imgs.splice(idx, 1); imgs.splice(idx + 1, 0, x); persist(); render(); }
+    else if (act === 'idel') { imgs.splice(idx, 1); persist(); render(); }
+    else if (act === 'ifile') kabinet.callSketchup('kabinet:sheet_pick_image', JSON.stringify({ page_id: pid }));
+    else if (act === 'ifolder') kabinet.callSketchup('kabinet:sheet_pick_folder', JSON.stringify({ page_id: pid }));
+    else if (act === 'icapture') kabinet.callSketchup('kabinet:sheet_capture', JSON.stringify({ page_id: pid, scene: -1, width: 1600, caption: '현재 화면' }));
+    else if (act === 'iscene') {
+      if (sceneSel === '' || sceneSel == null) { kabinet.setStatus('캡처할 장면을 선택하세요.', 'error'); return; }
+      kabinet.callSketchup('kabinet:sheet_capture', JSON.stringify({ page_id: pid, scene: parseInt(sceneSel, 10), width: 1600, caption: scenes[parseInt(sceneSel, 10)] || '' }));
+    }
   }
 
   function pageById(id) { return cfg.pages.find(p => p.id === id); }
@@ -149,6 +203,19 @@ const kabinetSheet = (() => {
       else if (b.dataset.act === 'down') move(id, 1);
       else if (b.dataset.act === 'del') remove(id);
     });
+    list.addEventListener('input', (e) => {
+      const ex = e.target.closest('.sh-extra');
+      if (ex && e.target.dataset.ik) {
+        const p = pageById(ex.dataset.pid); const im = p && p.images[parseInt(e.target.dataset.idx, 10)];
+        if (im) { im.caption = e.target.value; persist(); }
+      }
+    });
+    list.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-iact]'); if (!b) return;
+      const ex = b.closest('.sh-extra'); if (!ex) return;
+      const sel = ex.querySelector('select[data-iscene]');
+      imgAct(ex.dataset.pid, b.dataset.iact, parseInt(b.dataset.idx, 10), sel ? sel.value : null);
+    });
     list.addEventListener('dragstart', (e) => {
       const row = e.target.closest && e.target.closest('.sh-row'); if (!row) return;
       dragId = row.dataset.id; row.classList.add('dragging');
@@ -174,7 +241,7 @@ const kabinetSheet = (() => {
   document.addEventListener('DOMContentLoaded', bind);
   if (document.readyState !== 'loading') bind();
 
-  return { open, setState, render, add, resetPages, move, moveTo, remove, onField, exportDxf,
+  return { open, setState, addImages, render, add, resetPages, move, moveTo, remove, onField, exportDxf,
            getConfig: () => { ensure(); return cfg; }, _persist: persist, _pageById: (id) => pageById(id) };
 })();
 

@@ -64,6 +64,48 @@ module Kabinet
         sheet::Builder.export(cfg, data, path, only_ids: only_ids)
       end
 
+      # 모델 장면 이름 목록
+      def scene_names(model)
+        model.pages.to_a.map(&:name)
+      rescue StandardError
+        []
+      end
+
+      # 이미지를 보관할 폴더: 저장된 모델이면 모델 옆 kabinet_sheet_images/, 아니면 임시 폴더
+      def images_dir(model)
+        require 'tmpdir'
+        base = model.path.to_s.empty? ? Dir.tmpdir : File.dirname(model.path)
+        File.join(base, 'kabinet_sheet_images')
+      end
+
+      # 현재 시점 또는 장면(scene_index)을 PNG 로 저장 — view.write_image 사용(실기 확인 항목)
+      # 반환: 파일 경로
+      def capture(model, scene_index: -1, width: 1600, height: nil)
+        require 'fileutils'
+        dir = images_dir(model)
+        FileUtils.mkdir_p(dir)
+        view = model.active_view
+        prev = nil
+        label = '현재시점'
+        if scene_index.to_i >= 0
+          pg = model.pages[scene_index.to_i]
+          raise "장면 #{scene_index}를 찾을 수 없습니다." unless pg
+          prev = model.pages.selected_page
+          model.pages.selected_page = pg
+          label = pg.name.to_s
+        end
+        view.refresh
+        w = width.to_i > 0 ? width.to_i : 1600
+        h = height.to_i > 0 ? height.to_i : (w * view.vpheight.to_f / [view.vpwidth.to_f, 1.0].max).round
+        name = "#{Time.now.strftime('%Y%m%d_%H%M%S')}_#{label.gsub(/[\\\/:*?"<>|\s]/, '_')}.png"
+        path = File.join(dir, name)
+        ok = view.write_image(filename: path, width: w, height: [h, 1].max, antialias: true, transparent: false)
+        raise '이미지를 저장하지 못했습니다(view.write_image 실패).' unless ok && File.file?(path)
+        path
+      ensure
+        model.pages.selected_page = prev if prev
+      end
+
       def image_file?(path)
         IMAGE_EXTS.include?(File.extname(path.to_s).downcase)
       end
