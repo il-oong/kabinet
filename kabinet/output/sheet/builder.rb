@@ -1,5 +1,6 @@
 require 'fileutils'
 require 'json'
+require 'zlib'
 require_relative 'text'
 require_relative 'pages'
 require_relative 'dxf_writer'
@@ -140,6 +141,12 @@ module Kabinet
           copied = []
           seq = 0
           if cfg['images']
+            # 같은 DXF 를 다시 내보내면 이전 img_*.* 를 지우고 새로 복사한다(이름이 DXF 마다 고유하므로 다른 파일은 건드리지 않음)
+            if File.directory?(images_dir_native)
+              Dir.children(images_dir_native).each do |f|
+                File.delete(File.join(images_dir_native, f)) if f.dup.force_encoding('BINARY') =~ /\Aimg_\d+\.[A-Za-z0-9]{1,4}\z/n
+              end
+            end
             canvases.each do |c|
               c.items.each do |it|
                 next unless it[0] == :I
@@ -154,7 +161,6 @@ module Kabinet
                   ext = '.jpg' unless ext =~ /\A\.[a-z0-9]{1,4}\z/
                   seq += 1
                   dst_name = format('img_%02d%s', seq, ext)
-                  dst_name = format('img_%02d%s', seq += 1, ext) while File.exist?(File.join(images_dir_native, dst_name))
                   FileUtils.cp(real, File.join(images_dir_native, dst_name))
                   sizes[src] = sz || [1000, 1000]
                   paths[src] = "#{images_name}/#{dst_name}"
@@ -175,10 +181,13 @@ module Kabinet
             real_scale: cfg['real_scale'], images: cfg['images'] }
         end
 
-        # 한글·공백·특수문자를 뺀 ASCII 이름(비면 'sheet')
+        # 한글·공백·특수문자를 뺀 ASCII 이름. 뺀 문자가 있으면 원래 이름의 CRC 6자리를 붙여 DXF 마다 폴더가 겹치지 않게 한다.
         def ascii_stem(base)
-          st = Text.utf8(base).gsub(/[^A-Za-z0-9_\-]/, '')
-          st.empty? ? 'sheet' : st
+          b = Text.utf8(base)
+          st = b.gsub(/[^A-Za-z0-9_\-]/, '')
+          return st if st == b && !st.empty?
+          st = 'sheet' if st.empty?
+          format('%s_%06x', st, Zlib.crc32(b.dup.force_encoding('BINARY')) & 0xFFFFFF)
         end
 
         # dir_native: 실제 파일 I/O 용 경로(원본 인코딩), name: UTF-8 파일명 → 겹치지 않는 UTF-8 파일명

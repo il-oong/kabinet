@@ -124,7 +124,7 @@ Dir.mktmpdir do |dir|
   path = File.join(out_dir, '도면.dxf')
   r = S::Builder.export(c3, model, path)
   assert r[:pages] == 2, "pages #{r[:pages]}"
-  assert r[:images_dir] && File.basename(r[:images_dir]) == 'sheet_images' && r[:copied].size == 2, "copied #{r[:copied]}"   # 같은 파일은 한 번만, 누락 파일은 복사 안 함(ASCII 폴더)
+  assert r[:images_dir] && File.basename(r[:images_dir]) =~ /\Asheet_[0-9a-f]{6}_images\z/ && r[:copied].size == 2, "copied #{r[:copied]}"   # 같은 파일은 한 번만, 누락 파일은 복사 안 함(ASCII 폴더)
   assert Dir.children(r[:images_dir]).map { |f| f.dup.force_encoding('UTF-8') }.sort == ['img_01.png', 'img_02.jpg'], 'image files (ASCII 이름)'
   sec = parse_dxf(path)
   assert sec['CLASSES'].include?([1, 'IMAGE']) && sec['CLASSES'].include?([1, 'IMAGEDEF']), 'classes'
@@ -139,7 +139,7 @@ Dir.mktmpdir do |dir|
   assert defs.size == imgs.size, 'imagedef per image'
   paths = objs.each_cons(2).select { |a, _| a[0] == 1 }.map { |a, _| a[1] }
   paths = objs.select { |c, v| c == 1 && v =~ /_images\// }.map { |_, v| v }
-  assert paths.sort.uniq == ['sheet_images/img_01.png', 'sheet_images/img_02.jpg'], "relative ASCII paths #{paths}"
+  assert paths.sort.uniq == %w[img_01.png img_02.jpg].map { |n| "#{File.basename(r[:images_dir])}/#{n}" }, "relative ASCII paths #{paths}"
   assert paths.all? { |v| v.ascii_only? && v !~ /[ ()]/ }, 'ASCII-safe IMAGEDEF paths'
   assert objs.include?([0, 'IMAGEDEF_REACTOR']) && objs.include?([3, 'ACAD_IMAGE_DICT']), 'reactor/dict'
   # 이미지가 없어도 도곽만 있는 DXF 로 열림
@@ -200,7 +200,6 @@ Dir.mktmpdir do |dir|
   assert r2[:copied].empty? && entities(s2['ENTITIES']).none? { |e| e[:type] == 'IMAGE' }, 'images:false -> no IMAGE'
   assert s2['OBJECTS'].none? { |c, v| c == 0 && v == 'IMAGEDEF' } && structure_problems(p2).empty?, 'images:false -> no IMAGEDEF'
   assert entities(s2['ENTITIES']).any? { |e| e[:layer] == 'IMAGE_FRAME' }, 'frame kept without images'
-  assert !File.directory?(File.join(dir, 'sheet_images')) || Dir.children(File.join(dir, 'sheet_images')).size == 1, 'only the with-images export copied a file'
 end
 
 # ── 1:1 실치수: 도곽 = 420x297 × 축척 배수, 가구 외곽 폭 = 입력 W ────────────────────────────────────────
