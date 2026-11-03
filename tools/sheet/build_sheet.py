@@ -1117,35 +1117,36 @@ def page_floor(m, scale_den):
     sh = Sheet("floor"); sh.den = scale_den
     rd = m.d["room_assumed"]
     plan_frame(sh, rd["name"], f"{rd['name']} 아일랜드 평면도", scale_den)
-    s = 1.0 / scale_den
-    wt = 150
-    ox, oy = 62.0, 62.0
-    RW, RD = rd["W"], rd["D"]
-    X = lambda x: ox + x * s
-    Y = lambda y: oy + y * s
-    for (a, b, c, d) in ((-wt, -wt, RW + wt, 0), (-wt, RD, RW + wt, RD + wt), (RW, 0, RW + wt, RD), (-wt, 0, 0, 2300), (-wt, 3200, 0, RD)):
-        sh.rect(X(a), Y(b), X(c), Y(d), "OUT"); sh.hatch_rect(X(a), Y(b), X(c), Y(d))
-    sh.line(X(0), Y(2300), X(900), Y(2300), "OUT")
-    sh.arc(X(0), Y(2300), 900 * s, 0, 90, "THIN", 18)
-    ix, iy = (RW - m.W) / 2, 1100
-    draw_plan(sh, m, X(ix), Y(iy), s, True, 2.1)
-    Xi = lambda x: X(ix) + x * s
-    edges = [0, m.ovl] + [md["x"] + md["w"] for md in m.bm]
-    dim_h(sh, [Xi(e) for e in edges], Y(iy) - 4.5, [fmt(b - a) for a, b in zip(edges, edges[1:])], ref=Y(iy))
-    dim_h(sh, [Xi(0), Xi(m.W)], Y(iy) - 10.0, [fmt(m.W)], ref=Y(iy))
-    dim_v(sh, Xi(0) - 5.0, [Y(iy), Y(iy + m.D)], [fmt(m.D)], ref=Xi(0))
-    dim_h(sh, [X(0), X(RW)], Y(-wt) - 6.0, [fmt(RW)], ref=Y(-wt))
-    dim_v(sh, X(RW + wt) + 7.0, [Y(0), Y(RD)], [fmt(RD)], ref=X(RW + wt), side=1)
-    dim_h(sh, [X(0), Xi(0)], Y(RD) + 8, [fmt(ix)], ref=Y(RD))
-    dim_h(sh, [Xi(m.W), X(RW)], Y(RD) + 8, [fmt(RW - ix - m.W)], ref=Y(RD))
-    dim_v(sh, X(RW) - 8.0, [Y(0), Y(iy)], [fmt(iy)], ref=X(RW))
-    dim_v(sh, X(RW) - 8.0, [Y(iy + m.D), Y(RD)], [fmt(RD - iy - m.D)], ref=X(RW))
-    cy = Y(iy + m.D / 2)
-    marker(sh, Xi(m.W / 2), Y(iy) - 22.0, "B", "down")
-    marker(sh, Xi(m.W / 2), Y(iy + m.D) + 22.0, "A", "up")
-    marker(sh, Xi(0) - 22.0, cy, "C", "right")
-    marker(sh, Xi(m.W) + 22.0, cy, "D", "left")
-    sh.text(X(RW) - 3, Y(RD) - 3, "※ 실 규격 5,200x3,400 / 출입구 위치는 가정(확인필요)", 2.2, "r", "r")
+    with sh.group("VIEW_PLAN"):
+        s = 1.0 / scale_den
+        wt = 150
+        ox, oy = 62.0, 62.0
+        RW, RD = rd["W"], rd["D"]
+        X = lambda x: ox + x * s
+        Y = lambda y: oy + y * s
+        for (a, b, c, d) in ((-wt, -wt, RW + wt, 0), (-wt, RD, RW + wt, RD + wt), (RW, 0, RW + wt, RD), (-wt, 0, 0, 2300), (-wt, 3200, 0, RD)):
+            sh.rect(X(a), Y(b), X(c), Y(d), "OUT"); sh.hatch_rect(X(a), Y(b), X(c), Y(d))
+        sh.line(X(0), Y(2300), X(900), Y(2300), "OUT")
+        sh.arc(X(0), Y(2300), 900 * s, 0, 90, "THIN", 18)
+        ix, iy = (RW - m.W) / 2, 1100
+        draw_plan(sh, m, X(ix), Y(iy), s, True, 2.1)
+        Xi = lambda x: X(ix) + x * s
+        edges = [0, m.ovl] + [md["x"] + md["w"] for md in m.bm]
+        dim_h(sh, [Xi(e) for e in edges], Y(iy) - 4.5, [fmt(b - a) for a, b in zip(edges, edges[1:])], ref=Y(iy))
+        dim_h(sh, [Xi(0), Xi(m.W)], Y(iy) - 10.0, [fmt(m.W)], ref=Y(iy))
+        dim_v(sh, Xi(0) - 5.0, [Y(iy), Y(iy + m.D)], [fmt(m.D)], ref=Xi(0))
+        dim_h(sh, [X(0), X(RW)], Y(-wt) - 6.0, [fmt(RW)], ref=Y(-wt))
+        dim_v(sh, X(RW + wt) + 7.0, [Y(0), Y(RD)], [fmt(RD)], ref=X(RW + wt), side=1)
+        dim_h(sh, [X(0), Xi(0)], Y(RD) + 8, [fmt(ix)], ref=Y(RD))
+        dim_h(sh, [Xi(m.W), X(RW)], Y(RD) + 8, [fmt(RW - ix - m.W)], ref=Y(RD))
+        dim_v(sh, X(RW) - 8.0, [Y(0), Y(iy)], [fmt(iy)], ref=X(RW))
+        dim_v(sh, X(RW) - 8.0, [Y(iy + m.D), Y(RD)], [fmt(RD - iy - m.D)], ref=X(RW))
+        cy = Y(iy + m.D / 2)
+        marker(sh, Xi(m.W / 2), Y(iy) - 22.0, "B", "down")
+        marker(sh, Xi(m.W / 2), Y(iy + m.D) + 22.0, "A", "up")
+        marker(sh, Xi(0) - 22.0, cy, "C", "right")
+        marker(sh, Xi(m.W) + 22.0, cy, "D", "left")
+        sh.text(X(RW) - 3, Y(RD) - 3, "※ 실 규격 5,200x3,400 / 출입구 위치는 가정(확인필요)", 2.2, "r", "r")
     return sh
 
 
@@ -1163,16 +1164,18 @@ def page_b(m, scale_den, sheet_no, title):
     mods = b_view_modules(m)
     edges = sorted(set([0] + [md["vx"] + md["w"] for md in mods] + [m.W]))
     labs = [fmt(b - a) for a, b in zip(edges, edges[1:])]
-    X, Z = draw_b_door(sh, m, 30.0, gy, s)
-    elev_dims(sh, m, X, Z, edges, labs)
-    marker(sh, X(3450), gy + 10.0, "B", "up")
-    sh.text(X(0), gy + 21.0, "도어 20T / 도어 상단 = 천판 하단 25 아래 / 단간 25(찬넬 틈, 추정)", 2.0, "b", "l")
-    sh.text(X(0), gy + 24.5, "천판 EP 20T (상판 아래) / 측판 EP 20T", 2.0, "b", "l")
-    X, Z = draw_b_body(sh, m, 240.0, gy, s)
-    elev_dims(sh, m, X, Z, edges, labs)
-    marker(sh, X(3450), gy + 10.0, "B", "up")
-    sh.text(X(0), gy + 21.0, "몸통 18T / 칸막이 18T / 뒷판 9T(추정) / 선반 18T·핀 96 간격(추정)", 2.0, "b", "l")
-    sh.text(X(0), gy + 24.5, "서랍통 레일 13*2 / 걸레받이 H100 / 보강대 60*18 (상판 하부)", 2.0, "b", "l")
+    with sh.group("VIEW_FRONT_DOOR"):             # 치수·방향 마커·캡션도 뷰 블록 안에 (뷰를 옮기면 같이 이동)
+        X, Z = draw_b_door(sh, m, 30.0, gy, s)
+        elev_dims(sh, m, X, Z, edges, labs)
+        marker(sh, X(3450), gy + 10.0, "B", "up")
+        sh.text(X(0), gy + 21.0, "도어 20T / 도어 상단 = 천판 하단 25 아래 / 단간 25(찬넬 틈, 추정)", 2.0, "b", "l")
+        sh.text(X(0), gy + 24.5, "천판 EP 20T (상판 아래) / 측판 EP 20T", 2.0, "b", "l")
+    with sh.group("VIEW_FRONT_BODY"):
+        X, Z = draw_b_body(sh, m, 240.0, gy, s)
+        elev_dims(sh, m, X, Z, edges, labs)
+        marker(sh, X(3450), gy + 10.0, "B", "up")
+        sh.text(X(0), gy + 21.0, "몸통 18T / 칸막이 18T / 뒷판 9T(추정) / 선반 18T·핀 96 간격(추정)", 2.0, "b", "l")
+        sh.text(X(0), gy + 24.5, "서랍통 레일 13*2 / 걸레받이 H100 / 보강대 60*18 (상판 하부)", 2.0, "b", "l")
     return sh
 
 
@@ -1189,14 +1192,14 @@ def page_a(m, scale_den, sheet_no, title):
     gy = 222.0
     with sh.group("VIEW_FRONT_DOOR"):
         X, Z = draw_a_elev(sh, m, 30.0, gy, s, False)
-    a_dims(sh, m, X, Z)
-    marker(sh, X(3450), gy + 10.0, "A", "up")
-    sh.text(X(0), gy + 21.0, "서랍 전판 20T (363 x 2단, 추정) / 측판 EP 20T / OPEN 베이 선반 18T", 2.0, "b", "l")
+        a_dims(sh, m, X, Z)
+        marker(sh, X(3450), gy + 10.0, "A", "up")
+        sh.text(X(0), gy + 21.0, "서랍 전판 20T (363 x 2단, 추정) / 측판 EP 20T / OPEN 베이 선반 18T", 2.0, "b", "l")
     with sh.group("VIEW_FRONT_BODY"):
         X, Z = draw_a_elev(sh, m, 240.0, gy, s, True)
-    a_dims(sh, m, X, Z)
-    marker(sh, X(3450), gy + 10.0, "A", "up")
-    sh.text(X(0), gy + 21.0, "목찬넬 60*40 (서랍 전판 상단·중간) / 서랍통 레일 13*2(추정)", 2.0, "b", "l")
+        a_dims(sh, m, X, Z)
+        marker(sh, X(3450), gy + 10.0, "A", "up")
+        sh.text(X(0), gy + 21.0, "목찬넬 60*40 (서랍 전판 상단·중간) / 서랍통 레일 13*2(추정)", 2.0, "b", "l")
     return sh
 
 
@@ -1215,14 +1218,16 @@ def page_side(m, scale_den, sheet_no, title):
     s = 1.0 / scale_den
     # 상단: 좌측면도(C) / 우측면도(D)
     gy = 80.0
-    Y, Z = draw_end_view(sh, m, 48.0, gy, s, "L")
-    front_labels_row(sh, 48.0, 48.0 + m.D * s, gy + 12.0, "전면(싱크)", "전면(서랍)")
-    marker(sh, 48.0 + m.D * s / 2, gy + 26.0, "C", "up")
-    sh.text(48.0 + m.D * s / 2 + 8, gy + 26.0 + 1.2, "SIDE VIEW (LEFT) 좌측면도", 2.6, "k", "l")
-    Y, Z = draw_end_view(sh, m, 140.0, gy, s, "R")
-    front_labels_row(sh, 140.0, 140.0 + m.D * s, gy + 12.0, "전면(서랍)", "전면(싱크)")
-    marker(sh, 140.0 + m.D * s / 2, gy + 26.0, "D", "up")
-    sh.text(140.0 + m.D * s / 2 + 8, gy + 26.0 + 1.2, "SIDE VIEW (RIGHT) 우측면도", 2.6, "k", "l")
+    with sh.group("VIEW_SIDE_LEFT"):              # 전면 표기·마커·캡션도 뷰 블록 안에
+        Y, Z = draw_end_view(sh, m, 48.0, gy, s, "L")
+        front_labels_row(sh, 48.0, 48.0 + m.D * s, gy + 12.0, "전면(싱크)", "전면(서랍)")
+        marker(sh, 48.0 + m.D * s / 2, gy + 26.0, "C", "up")
+        sh.text(48.0 + m.D * s / 2 + 8, gy + 26.0 + 1.2, "SIDE VIEW (LEFT) 좌측면도", 2.6, "k", "l")
+    with sh.group("VIEW_SIDE_RIGHT"):
+        Y, Z = draw_end_view(sh, m, 140.0, gy, s, "R")
+        front_labels_row(sh, 140.0, 140.0 + m.D * s, gy + 12.0, "전면(서랍)", "전면(싱크)")
+        marker(sh, 140.0 + m.D * s / 2, gy + 26.0, "D", "up")
+        sh.text(140.0 + m.D * s / 2 + 8, gy + 26.0 + 1.2, "SIDE VIEW (RIGHT) 우측면도", 2.6, "k", "l")
     # NOTE
     lines = [("*C = 좌측면(싱크면 좌, 서랍면 우) / D = 우측면(서랍면 좌, 싱크면 우)", "k"),
              ("*측판 EP 20T : 양단 마감 (서랍면 좌단·우단 전체, 싱크면 좌단 326 후퇴)", "b"),
@@ -1235,11 +1240,12 @@ def page_side(m, scale_den, sheet_no, title):
     # 하단: 단면 2개
     gy2 = 222.0
     for ox2, (num, xc) in ((70.0, list(m.cuts.items())[0]), (280.0, list(m.cuts.items())[1])):
-        X, Z = draw_section(sh, m, ox2, gy2, s, xc)
-        front_labels_row(sh, X(0), X(m.D), gy2 + 12.0, "전면(싱크)", "전면(서랍)")
-        shaded_label(sh, X(m.dB), gy2 + 18.0, "후면 = 등 맞댐", 2.0, "c")
-        marker(sh, ox2 + m.D * s / 2, gy2 + 26.0, num, "right")
-        sh.text(ox2 + m.D * s / 2 + 8, gy2 + 27.2, f"SECTION {num}  (X={fmt(xc)}, 추정 위치)", 2.4, "k", "l")
+        with sh.group(f"SECTION_{num}"):
+            X, Z = draw_section(sh, m, ox2, gy2, s, xc)
+            front_labels_row(sh, X(0), X(m.D), gy2 + 12.0, "전면(싱크)", "전면(서랍)")
+            shaded_label(sh, X(m.dB), gy2 + 18.0, "후면 = 등 맞댐", 2.0, "c")
+            marker(sh, ox2 + m.D * s / 2, gy2 + 26.0, num, "right")
+            sh.text(ox2 + m.D * s / 2 + 8, gy2 + 27.2, f"SECTION {num}  (X={fmt(xc)}, 추정 위치)", 2.4, "k", "l")
     return sh
 
 
@@ -1248,17 +1254,21 @@ def page_detail(m, scale_den, sheet_no, title):
     furniture_frame(sh, title, "상판 / EP / 목찬넬 상세", sheet_no, scale_den, ("COUNTERTOP",),
                     hdr2=("DETAIL", "DETAIL"))
     s = 1.0 / scale_den
-    detail_title(sh, 17.0, 29.0, 1, "상판 평면도 (1/25)")
-    draw_countertop_plan(sh, m, 50.0, 58.0, s)
+    with sh.group("DETAIL_COUNTERTOP"):
+        detail_title(sh, 17.0, 29.0, 1, "상판 평면도 (1/25)")
+        draw_countertop_plan(sh, m, 50.0, 58.0, s)
     note_block(sh, m.d, [("*상판 T120 / 1,800 x 2분할 (이음 1,800)", "k"),
                          ("*싱크 컷 850*450 R25 / 수전 Φ35 (추정)", "r"),
                          ("*EP = 마감판 20T / 몸통 18T / 도어 20T", "b"),
                          ("*생산 확인 목록 : 생산 확인표(NO.005) 참조", "k")])
-    legend(sh, 218.3, 83.0)
+    with sh.group("LEGEND"):
+        legend(sh, 218.3, 83.0)
     # ② 측판 EP 상세
-    detail_title(sh, 17.0, 139.0, 2, "측판 EP 상세 - 평면 (1/5)")
-    edge_ep_plan(sh, m, 60.0, 156.0, 0.2)
-    # ③ 목찬넬 상세
+    with sh.group("DETAIL_EP"):
+        detail_title(sh, 17.0, 139.0, 2, "측판 EP 상세 - 평면 (1/5)")
+        edge_ep_plan(sh, m, 60.0, 156.0, 0.2)
+    # ③ 목찬넬 상세 (범례·설명 글까지 한 블록)
+    _g = sh.group("DETAIL_CHANNEL"); _g.__enter__()
     detail_title(sh, 218.3, 139.0, 3, "목찬넬 상세 - 측면 (1/2, 위치 1/10)")
     mx, my = 232.0, 158.0
     Xm, Ym = edge_section(sh, mx, my, 0.1, 300, xmax=200, counter_h=120, dims=False, hand=False)
@@ -1284,6 +1294,7 @@ def page_detail(m, scale_den, sheet_no, title):
     sh.text(232.0, ly + 23.0, "파랑 치수 : 25 = 천판 하단~도어 상단", 2.0, "b", "l")
     sh.text(232.0, ly + 27.0, "60 = 찬넬 높이 / 40 = 도어 뒷면~찬넬 뒷면 / 20 = 도어", 2.0, "b", "l")
     sh.text(232.0, ly + 31.0, "손 진입 : 도어 위 25 틈 -> 도어 뒤 찬넬 홈", 2.0, "b", "l")
+    _g.__exit__(None, None, None)
     return sh
 
 

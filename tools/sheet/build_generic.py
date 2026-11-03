@@ -266,20 +266,22 @@ def page_furniture(d, den, no):
     draw_plan(sh, d, ox, oy, s); plan_dims(sh, d, ox, oy, s); plan_markers(sh, d, ox, oy, s)
     note_block(sh, d, default_notes(d))
     gy = min(124.2 + 26.0 + o["H"] * s, 262.0)
-    door_view(sh, d, 30.0, gy, s); bs.marker(sh, 30.0 + o["W"] * s / 2, gy + 10.0, "A", "up")
-    body_view(sh, d, 240.0, gy, s); bs.marker(sh, 240.0 + o["W"] * s / 2, gy + 10.0, "A", "up")
-    sh.text(30.0, gy + 19.0, "도어 20T / 전판 간격 3 / 걸레받이 (추정)", 2.0, "b")
-    sh.text(240.0, gy + 19.0, "몸통 18T · 칸막이 18T · 선반 18T · 뒷판 9T (추정)", 2.0, "b")
+    with sh.group("VIEW_FRONT_DOOR"):             # 마커·캡션도 뷰 블록 안에
+        door_view(sh, d, 30.0, gy, s); bs.marker(sh, 30.0 + o["W"] * s / 2, gy + 10.0, "A", "up")
+        sh.text(30.0, gy + 19.0, "도어 20T / 전판 간격 3 / 걸레받이 (추정)", 2.0, "b")
+    with sh.group("VIEW_FRONT_BODY"):
+        body_view(sh, d, 240.0, gy, s); bs.marker(sh, 240.0 + o["W"] * s / 2, gy + 10.0, "A", "up")
+        sh.text(240.0, gy + 19.0, "몸통 18T · 칸막이 18T · 선반 18T · 뒷판 9T (추정)", 2.0, "b")
     return sh
 
 
 def page_side(d, den, no):
     s = 1.0 / den; o = d["overall"]; D = o["D"]; k = o["kick"]; body = o["H"] - o["top_thickness"]
     sh = Sheet("side")
-    bs.furniture_frame(sh, d["furniture_name"], "좌·우 측면 / 단면 1", no, den, ("SIDE VIEW (LEFT / RIGHT)",),
+    den_top = max(den, -(-int(o["H"]) // 62))             # 상단 구획(높이 ~70mm)에 들어가도록 측면도 축척을 키움
+    bs.furniture_frame(sh, d["furniture_name"], "좌·우 측면 / 단면 1", no, den_top, ("SIDE VIEW (LEFT / RIGHT)",),
                        hdr2=("SECTION 1  (단면)", "SECTION 1  (상세)"))
     note_block(sh, d, [("*C = 좌측면 / D = 우측면 (전면 = 오른쪽/왼쪽 화살표)", "k"), ("*단면 1 : TOP VIEW · 정면 BODY 절단선과 연결", "k")] + default_notes(d)[1:4])
-    den_top = max(den, -(-int(o["H"]) // 62))             # 상단 구획(높이 ~70mm)에 들어가도록 측면도 축척을 키움
     s = 1.0 / den_top                                     # 시트 전체(측면도+단면)를 같은 축척으로 그려 DXF 1:1 유지
     sh.den = den_top
     gy = 30.0 + o["H"] * s + 12.0
@@ -343,13 +345,16 @@ def page_detail(d, den, no):
     bs.furniture_frame(sh, d["furniture_name"], "EP / 목찬넬 상세", no, den, ("DETAIL",), hdr2=("DETAIL", "DETAIL"))
     note_block(sh, d, [(f"*EP = 마감판 {d['ep']['thickness']}T / 몸통 18T / 도어 20T", "b")] +
                ([("*목찬넬 60*40 = 손잡이 (확인필요, 기본값)", "r")] if d.get("channel") else []))
-    sh.text(17.0, 28.0, "※ EP 위치는 도면의 'EP 판넬 [..T]' 라벨 기준(추정)", 2.6, "r")
-    bs.detail_title(sh, 17.0, 139.0, 1, "측판 EP 상세 - 평면 (1/5)")
-    bs.edge_ep_plan(sh, None, 60.0, 160.0, 0.2)
+    with sh.group("NOTE"):
+        sh.text(17.0, 28.0, "※ EP 위치는 도면의 'EP 판넬 [..T]' 라벨 기준(추정)", 2.6, "r")
+    with sh.group("DETAIL_EP"):
+        bs.detail_title(sh, 17.0, 139.0, 1, "측판 EP 상세 - 평면 (1/5)")
+        bs.edge_ep_plan(sh, None, 60.0, 160.0, 0.2)
     if d.get("channel"):
-        bs.detail_title(sh, 218.3, 139.0, 2, "목찬넬 상세 - 측면 (1/2)")
-        bs.edge_section(sh, 262.0, 178.0, 0.5, 60, 62, 0, True, True)
-        bs.shaded_label(sh, 240.0, 232.0, "전면 (도어 쪽)", 2.4); bs.shaded_label(sh, 330.0, 232.0, "후면 (벽 쪽)", 2.4, "r")
+        with sh.group("DETAIL_CHANNEL"):
+            bs.detail_title(sh, 218.3, 139.0, 2, "목찬넬 상세 - 측면 (1/2)")
+            bs.edge_section(sh, 262.0, 178.0, 0.5, 60, 62, 0, True, True)
+            bs.shaded_label(sh, 240.0, 232.0, "전면 (도어 쪽)", 2.4); bs.shaded_label(sh, 330.0, 232.0, "후면 (벽 쪽)", 2.4, "r")
     return sh
 
 
@@ -360,19 +365,20 @@ def page_floor(d, no):
     sh = Sheet("floor"); sh.den = den
     bs.SITE_LOCATION = d.get("site", bs.SITE_LOCATION)
     bs.plan_frame(sh, room["name"], f"{room['name']} {d['furniture_name']} 평면도", den)
-    wt = 150; ox, oy = 62.0, 62.0
-    X = lambda v: ox + v * s; Y = lambda v: oy + v * s
-    for a, b, c, e in ((-wt, -wt, room["W"] + wt, 0), (-wt, room["D"], room["W"] + wt, room["D"] + wt), (room["W"], 0, room["W"] + wt, room["D"]), (-wt, 0, 0, room["D"])):
-        sh.rect(X(a), Y(b), X(c), Y(e), "OUT"); sh.hatch_rect(X(a), Y(b), X(c), Y(e))
-    ix = (room["W"] - o["W"]) / 2.0
-    draw_plan(sh, d, X(ix), Y(0), s)
-    bs.dim_h(sh, [X(ix), X(ix + o["W"])], Y(o["D"]) + 8, [fmt(o["W"])], ref=Y(o["D"]))
-    bs.dim_v(sh, X(ix) - 6, [Y(0), Y(o["D"])], [fmt(o["D"])], ref=X(ix))
-    bs.dim_h(sh, [X(0), X(room["W"])], Y(-wt) - 6.0, [fmt(room["W"])], ref=Y(-wt))
-    bs.dim_v(sh, X(room["W"] + wt) + 7.0, [Y(0), Y(room["D"])], [fmt(room["D"])], ref=X(room["W"] + wt), side=1)
-    bs.marker(sh, X(ix + o["W"] / 2), Y(o["D"]) + 22.0, "A", "up")
-    bs.marker(sh, X(ix) - 22.0, Y(o["D"] / 2), "C", "right"); bs.marker(sh, X(ix + o["W"]) + 22.0, Y(o["D"] / 2), "D", "left")
-    sh.text(X(room["W"]) - 3, Y(room["D"]) - 3, "※ 공간 규격은 가정(확인필요)", 2.2, "r", "r")
+    with sh.group("VIEW_PLAN"):
+        wt = 150; ox, oy = 62.0, 62.0
+        X = lambda v: ox + v * s; Y = lambda v: oy + v * s
+        for a, b, c, e in ((-wt, -wt, room["W"] + wt, 0), (-wt, room["D"], room["W"] + wt, room["D"] + wt), (room["W"], 0, room["W"] + wt, room["D"]), (-wt, 0, 0, room["D"])):
+            sh.rect(X(a), Y(b), X(c), Y(e), "OUT"); sh.hatch_rect(X(a), Y(b), X(c), Y(e))
+        ix = (room["W"] - o["W"]) / 2.0
+        draw_plan(sh, d, X(ix), Y(0), s)
+        bs.dim_h(sh, [X(ix), X(ix + o["W"])], Y(o["D"]) + 8, [fmt(o["W"])], ref=Y(o["D"]))
+        bs.dim_v(sh, X(ix) - 6, [Y(0), Y(o["D"])], [fmt(o["D"])], ref=X(ix))
+        bs.dim_h(sh, [X(0), X(room["W"])], Y(-wt) - 6.0, [fmt(room["W"])], ref=Y(-wt))
+        bs.dim_v(sh, X(room["W"] + wt) + 7.0, [Y(0), Y(room["D"])], [fmt(room["D"])], ref=X(room["W"] + wt), side=1)
+        bs.marker(sh, X(ix + o["W"] / 2), Y(o["D"]) + 22.0, "A", "up")
+        bs.marker(sh, X(ix) - 22.0, Y(o["D"] / 2), "C", "right"); bs.marker(sh, X(ix + o["W"]) + 22.0, Y(o["D"] / 2), "D", "left")
+        sh.text(X(room["W"]) - 3, Y(room["D"]) - 3, "※ 공간 규격은 가정(확인필요)", 2.2, "r", "r")
     return sh
 
 

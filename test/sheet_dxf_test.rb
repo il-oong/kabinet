@@ -255,4 +255,36 @@ Dir.mktmpdir do |dir|
   assert entities(s2['ENTITIES']).none? { |e| e[:type] == 'INSERT' } && s2['BLOCKS'].none? { |c, v| c == 2 && v =~ /_S\d+\z|FRAME_SHEET/ }, 'blocks off'
 end
 
+# ── 모듈별 손잡이: 채널·바 혼합 가구에서 채널 보정은 채널 모듈에만 ──────────────────────────────
+mixed = S::Model.normalize(
+  'furniture_name' => '혼합', 'overall' => { 'W' => 1200, 'H' => 1000, 'D' => 600, 'kick' => 100 },
+  'modules' => [{ 'name' => 'C', 'x' => 0, 'z' => 100, 'w' => 600, 'h' => 800, 'type' => 'doors', 'doors' => 1, 'channel' => true },
+                { 'name' => 'B', 'x' => 600, 'z' => 100, 'w' => 600, 'h' => 800, 'type' => 'doors', 'doors' => 1, 'channel' => false }]
+)
+fc = S::Pages.fronts_for(mixed, mixed['modules'][0]); fb = S::Pages.fronts_for(mixed, mixed['modules'][1])
+assert fc == [[104, 855.0]] || fc == [[104.0, 855.0]], "channel module door #{fc}"
+assert fb == [[104, 896.0]] || fb == [[104.0, 896.0]], "bar module door unaffected #{fb}"
+spec = { 'width' => 1200, 'max_depth' => 600, 'base_height' => 100, 'run_mode' => true, 'run_height' => 800,
+         'modules' => [{ 'kind' => 'shelf_module', 'width' => 600, 'height' => 800, 'handle_type' => 'channel', 'door_config' => 'single' },
+                       { 'kind' => 'shelf_module', 'width' => 600, 'height' => 800, 'handle_type' => 'bar', 'door_config' => 'single' }] }
+ms = S::Model.from_spec(spec)
+assert ms['modules'].map { |m| m['channel'] } == [true, false] && ms['channel'] == true, 'per-module channel kept from spec'
+assert S::Pages.furniture(ms, { scale: 25, subject: 's', sheet_no: '', site: '', title: 't', date: '' }).items.size > 50, 'mixed sheet builds'
+
+# 도곽 블록(FRAME_SHEET*)에는 도곽·표제란만 — 치수선(DIM)·마커(CIRCLE)가 뷰 블록 밖에 남지 않는다
+Dir.mktmpdir do |dir|
+  path = File.join(dir, 'f.dxf')
+  S::Builder.export(cfg.merge('blocks' => true), model, path)
+  blk = parse_dxf(path)['BLOCKS']
+  cur = nil; stray = 0
+  blk.each do |c, v|
+    if c == 0 && v == 'BLOCK' then cur = :next
+    elsif cur == :next && c == 2 then cur = v
+    elsif c == 0 then (cur = nil if v == 'ENDBLK'); stray += 1 if cur.is_a?(String) && cur.start_with?('FRAME_SHEET') && v == 'CIRCLE'
+    elsif c == 8 && cur.is_a?(String) && cur.start_with?('FRAME_SHEET') && v == 'DIM' then stray += 1
+    end
+  end
+  assert stray == 0, "view elements in FRAME_SHEET blocks: #{stray}"
+end
+
 puts 'sheet_dxf_test OK'

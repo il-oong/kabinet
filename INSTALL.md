@@ -1,5 +1,12 @@
 # Kabinet — 설치 및 검증 가이드
 
+## v1.25.1 — 리뷰 지적 4건 수정 (제작도면 DXF)
+
+- **손잡이 채널 보정을 모듈 단위로**: 채널·바 손잡이가 섞인 가구에서 바 손잡이 모듈의 도어 높이·서랍 간격이 채널 기준으로 바뀌던 문제 수정(시트 모듈이 `handle_type == 'channel'` 을 모듈별로 보존, `Pages.fronts_for`·그리기·단면이 해당 모듈 값 사용). 시트 전체 NOTE·상세 쪽 안내는 채널 모듈이 하나라도 있으면 표시.
+- **측면 시트 표제란 SCALE**(Python `build_generic.py`): 측면도를 더 크게 그릴 때(1/den_top) 표제란도 같은 축척으로 표시.
+- **`to_real_scale.py`**: 뷰/도곽이 블록(INSERT)일 때도 블록 안의 표제란 축척 글자를 찾고, 못 찾으면 25 로 조용히 확대하지 않고 오류(`--scale N` 으로 지정 가능). INSERT 는 배수 변환.
+- **뷰 블록 정합**: 아일랜드(A·B면, 측면, 상세, 평면)·일반 시트의 치수·방향 마커·캡션이 해당 뷰 블록 안에 들어가 뷰를 옮기면 함께 이동(도곽 블록에는 도곽·표제란만). `verify_dxf.py` 가 이를 검사하고, 보조선이 치수로 오인되던 치수 문자 검사 오탐도 제거.
+
 ## v1.25.0 — 제작도면 DXF: CAD 호환 골격·1:1 실치수·뷰 블록·HATCH·Ruby/Python 동등성
 
 - **DXF 호환(최우선)**: 한글 CAD 에서 `Press ENTER to continue:` 만 뜨고 안 열리던 원본 Ruby DXF 의 구조 결함(OBJECTS 에 DICTIONARY 2개뿐, LAYOUT/ACAD_GROUP/MATERIAL 없음, CLASSES 3개, `$HANDSEED FFFFF`, BLOCK_RECORD 레이아웃 핸들 없음, DIMSTYLE 비어 있음, 한글·공백·괄호 이미지 경로)를 제거했습니다. `output/sheet/dxf_skeleton.rb`(ezdxf 가 쓰는 R2004 파일을 그대로 옮긴 골격 — `python3 tools/sheet/gen_dxf_skeleton.py` 로 재생성)에 레이어·엔티티·IMAGEDEF 만 끼웁니다. 구조 검사: `python3 -I tools/sheet/verify_dxf.py 파일.dxf --structure-only`(핸들 중복·미해결 참조·$HANDSEED·LAYOUT/CLASSES/DIMSTYLE). 비교는 `SHEET_FORMAT_ANALYSIS.md` §14.

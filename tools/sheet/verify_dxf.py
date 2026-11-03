@@ -149,6 +149,13 @@ def main():
     nins = sum(1 for e in msp if e.dxftype() == "INSERT")
     print(f"해칭: 패턴 HATCH {len(pat)}개, 낱개 45° 해칭 의심 LINE {len(loose)}개; 블록 정의 {len([b for b in d.blocks if not b.name.startswith('*')])}개 / INSERT {nins}개")
     ok &= len(loose) < 8
+    # 도곽 블록(FRAME_SHEET*)에는 도곽·표제란만: 치수(DIM)·마커(CIRCLE)가 있으면 뷰를 옮길 때 남는다
+    stray = 0
+    for b in d.blocks:
+        if b.name.startswith("FRAME_SHEET"):
+            stray += sum(1 for e in b if e.dxftype() == "CIRCLE" or e.dxf.layer == "DIM")
+    print(f"도곽 블록 안 뷰 요소(치수선·마커): {stray}개")
+    ok &= stray == 0
     # 시트 도곽: FRAME 레이어 lineweight 100 사각
     frames = []
     for e in ents:
@@ -204,6 +211,9 @@ def main():
                 if horiz and abs(cy - y1) < 0.01 and min(x1, x2) - 1 <= cx <= max(x1, x2) + 1: cs.append(cx)
                 if vert and abs(cx - x1) < 0.01 and min(y1, y2) - 1 <= cy <= max(y1, y2) + 1: cs.append(cy)
         cs = sorted(set(round(c, 3) for c in cs))
+        # 치수선 = 첫~끝 눈금 + 양쪽 0.8k 연장. 보조선(extension line)은 쌓인 치수줄의 눈금과 우연히 같은 선상에 놓일 뿐이라 제외
+        if len(cs) < 2 or abs(L - (cs[-1] - cs[0]) - 1.6 * sk) > 0.3 * sk:
+            continue
         for c0, c1 in zip(cs, cs[1:]):
             seg = c1 - c0
             if seg < 0.5:

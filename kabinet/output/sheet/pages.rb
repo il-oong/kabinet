@@ -96,11 +96,11 @@ module Kabinet
         # ── 정면 공통 ─────────────────────────────────────────────────────
         def fronts_for(m, md)
           z0 = md['z'] + 4
-          z1 = m['channel'] ? md['z'] + md['h'] - EP - CH_GAP : md['z'] + md['h'] - 4
+          z1 = md['channel'] ? md['z'] + md['h'] - EP - CH_GAP : md['z'] + md['h'] - 4
           case md['type']
           when 'drawers'
             n = [md['drawers'], 1].max
-            gap = m['channel'] ? CH_GAP : 3.0
+            gap = md['channel'] ? CH_GAP : 3.0
             fh = (((z1 - z0) - gap * (n - 1)) / n).floor
             (0...n).map { |i| [z0 + i * (fh + gap), z0 + i * (fh + gap) + fh] }
           when 'doors'
@@ -159,7 +159,7 @@ module Kabinet
                 xa = md['x'] + 3.0 + i * (dw + 3.0)
                 fr.each do |z0, z1|
                   c.rect(x.call(xa), z.call(z1), x.call(xa + dw), z.call(z0), 'OUT')
-                  if m['channel']
+                  if md['channel']
                     c.rect(x.call(xa), z.call(z1 + CH_GAP), x.call(xa + dw), z.call(z1), 'OUT')     # 전판(찬넬 가림)
                   else
                     hx = (n == 1 || i.zero?) ? xa + dw - 40 : xa + 40                              # 손잡이 위치 표시(힌지 표기 없음)
@@ -170,9 +170,9 @@ module Kabinet
             when 'drawers'
               fr.each do |z0, z1|
                 c.rect(x.call(md['x'] + 3), z.call(z1), x.call(md['x'] + md['w'] - 3), z.call(z0), 'OUT')
-                c.rect(x.call(md['x'] + 3), z.call(z1 + CH_GAP), x.call(md['x'] + md['w'] - 3), z.call(z1), 'OUT') if m['channel']
+                c.rect(x.call(md['x'] + 3), z.call(z1 + CH_GAP), x.call(md['x'] + md['w'] - 3), z.call(z1), 'OUT') if md['channel']
                 zc = (z0 + z1) / 2
-                c.line(x.call(md['x'] + md['w'] / 2 - 100), z.call(zc), x.call(md['x'] + md['w'] / 2 + 100), z.call(zc), 'THIN') unless m['channel']
+                c.line(x.call(md['x'] + md['w'] / 2 - 100), z.call(zc), x.call(md['x'] + md['w'] / 2 + 100), z.call(zc), 'THIN') unless md['channel']
                 c.dim_v(x.call(md['x'] + md['w']) - 3.0, [z.call(z1), z.call(z0)], [f(z1 - z0)], size: 1.7, ref: nil) if fr.size > 1 && md['w'] * s > 12
               end
             when 'appliance'
@@ -181,7 +181,7 @@ module Kabinet
             when 'desk'
               c.rect(x.call(md['x']), z.call(zt), x.call(md['x'] + md['w']), z.call(zt - 25), 'OUT')
             end
-            if m['channel'] && %w[doors drawers].include?(md['type']) && md['w'] * s > 12
+            if md['channel'] && %w[doors drawers].include?(md['type']) && md['w'] * s > 12
               top_f = fr.empty? ? zt : fr.last[1]
               c.blue_leader(x.call(md['x'] + md['w'] * 0.5), z.call(top_f - 110), x.call(md['x'] + md['w'] * 0.5), z.call(top_f + CH_GAP / 2.0), '목찬넬 60*40', 'l', 1.8)
             end
@@ -223,7 +223,7 @@ module Kabinet
             elsif md['w'] * s > 10 && md['shelves'].empty?
               c.text(x.call(md['x'] + md['w'] / 2), z.call((zb + zt) / 2), lbl(md), 1.7, 'g', 'c')
             end
-            if m['channel']
+            if md['channel']
               fronts_for(m, md).each do |_z0, z1|
                 c.rect(x.call(md['x'] + 1.5), z.call(z1 + CH_GAP), x.call(md['x'] + md['w'] - 1.5), z.call(z1 + CH_GAP - CH_H), 'BLUE')   # 목찬넬
               end
@@ -355,15 +355,16 @@ module Kabinet
           c.rect(x.call(d - BACK_T), z.call(body), x.call(d), z.call(k), 'THIN')             # 뒷판 9T
           c.rect(x.call(DT), z.call(body - BT), x.call(d - BACK_T), z.call(body), 'THIN')    # 상판 18T
           c.rect(x.call(DT), z.call(k), x.call(d - BACK_T), z.call(k + BT), 'THIN')          # 하판 18T
-          c.rect(x.call(0), z.call(body - EP - (m['channel'] ? CH_GAP : 4)), x.call(DT), z.call(k + 4), 'OUT')   # 도어 20T
-          if m['channel']
+          mid = m['modules'].find { |md| md['x'] <= cx && cx < md['x'] + md['w'] } || m['modules'].first
+          chan = mid && mid['channel']                                                   # 절단 모듈 자신의 손잡이(채널) 설정
+          c.rect(x.call(0), z.call(body - EP - (chan ? CH_GAP : 4)), x.call(DT), z.call(k + 4), 'OUT')   # 도어 20T
+          if chan
             xb = DT; zc = body - EP
             pts = [[xb + 22, zc], [xb + 40, zc], [xb + 40, zc - CH_H], [xb, zc - CH_H], [xb, zc - CH_H + 18], [xb + 22, zc - CH_H + 18]]
             c.poly(pts.map { |a, b| [x.call(a), z.call(b)] }, 'OUT', true)
             c.ep_rect(x.call(0), z.call(body), x.call(d), z.call(body - EP), 0.5)
           end
           c.rect(x.call(60), z.call(k), x.call(d - 60), z.call(0), 'OUT') if k > 0
-          mid = m['modules'].find { |md| md['x'] <= cx && cx < md['x'] + md['w'] } || m['modules'].first
           if mid
             mid['shelves'].each { |sh| zz = mid['z'] + sh; c.rect(x.call(DT), z.call(zz + 9), x.call(d - 29), z.call(zz - 9), 'OUT') }
             mid['rods'].each { |rr| c.circ(x.call(d / 2), z.call(mid['z'] + rr), [14 * s, 0.7].max, 'OUT') }

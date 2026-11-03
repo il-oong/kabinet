@@ -2,10 +2,13 @@
 
 새 세션에서 이 파일부터 읽고 이어서 작업하세요. 사용자 선호: **한국어로 답변, 코드는 항상 PR 먼저 만든 뒤 머지, Railway 사용(이 저장소는 SketchUp 플러그인이라 해당 없음)**, 컨텍스트 70% 넘으면 중단하고 정리.
 
-## (v1.25.0) 제작도면 DXF — 최신 인계 (이 절이 가장 최신)
+## (v1.25.1) 제작도면 DXF — 최신 인계 (이 절이 가장 최신; v1.25.1 = PR #39 리뷰 4건 수정, 아래는 v1.25.0 인계에 이어짐)
+- v1.25.1: ① 채널 손잡이 모듈 단위(`Model` 모듈별 'channel') ② generic 측면 시트 표제란 축척=den_top ③ `to_real_scale.py` 블록 대응·축척 못 찾으면 오류 ④ 뷰 블록에 치수·마커·캡션 포함 + `verify_dxf.py` 도곽 블록 검사·치수 검사 오탐(보조선) 제거. 남은 치수 문자 불일치: 아일랜드 side 시트 4건(650/450 구간), `______` furniture 2건(3 mm 구간) — 라벨 위치/검사 기준 확인 필요.
+
+## (v1.25.0) 제작도면 DXF 인계
 - 브랜치 `claude/dazzling-babbage-v46o8h`(master 최신 위, PR 미생성·미머지 — 사용자 확인 후 처리). 버전 1.25.0, `kabinet.rbz` 재빌드 완료.
 - **완료**: ① `SHEET_FORMAT_ANALYSIS.md` §14(Ruby vs Python 비교표·구조 결함) ② **DXF 호환**: `output/sheet/dxf_skeleton.rb`(자동 생성, `tools/sheet/gen_dxf_skeleton.py`)+`dxf_writer.rb` 재작성 — ezdxf R2004 골격 그대로(LAYOUT/ACAD_* 딕셔너리/CLASSES/DIMSTYLE/BLOCK_RECORD 340/$HANDSEED 계산), IMAGE 는 ASCII 상대경로(`<영문>_images/img_01.jpg`)+옵션 `images:false`(UI 「사진 포함」), `verify_dxf.py --structure-only`(핸들 중복·미해결 참조) ③ **내용 동등성**: Ruby 키플랜·절단선/번호 마커·단면 1~2·목찬넬·가전·싱크 이식, 모델 스키마 = `furniture.json`(generic), `tools/sheet/export_sheet.rb`, `tools/sheet/compare_ruby_python.py`(샘플 4건 중 ___-1/________ep-1 포함 모두 PASS) ④ **1:1 실치수**(Ruby `real_scale` 기본 켜짐/UI, Python WIP 와 같은 개념: 시트별 배수 den) ⑤ 해칭 = 영역당 HATCH(ANSI31) 1개(Ruby·Python 모두), 뷰·도곽을 이름 있는 BLOCK+INSERT(옵션 `blocks`/UI 「뷰를 블록으로」, Python `--no-blocks`) ⑥ 테스트: `test/sheet_dxf_test.rb`(구조·images:false·real_scale·블록·HATCH), `sheet_encoding_test`, `sheet_ui_browser.js`, 전체 `test/*_test.rb` 통과, Ruby 2.7 검사(오탐 2건 제외) 통과.
-- **남은 일**: (a) `verify_dxf.py` 치수 문자 검사가 가구 정면 시트에서 120mm 구간 8건 불일치(Python·Ruby 공통, 서랍 높이 소형 치수 `size=1.7` 라벨 위치 의심 — 검사 휴리스틱 vs 실제 라벨 위치 확인 필요) (b) 한국 CAD 실기 열림 확인(INSTALL.md v1.25.0 실기 항목) — 안 열리면 「사진 포함」 끄고 재시도, 그래도 안 되면 CAD 이름·오류 문구 수집 (c) 아일랜드 전용 JSON(`output_samples/_____-1/furniture.json`, B_side/A_side 스키마)은 Ruby 모델로 변환 미구현 — 비교는 generic JSON 으로 함 (d) 상세 쪽(1/5·1/2 확대)은 실물 1:1 아님 (e) PR/머지는 사용자 확인 후.
+- **남은 일**: (a) [v1.25.1 에서 120mm 8건은 검사 오탐으로 해소, 위 잔여 참조] (b) 한국 CAD 실기 열림 확인(INSTALL.md v1.25.0 실기 항목) — 안 열리면 「사진 포함」 끄고 재시도, 그래도 안 되면 CAD 이름·오류 문구 수집 (c) 아일랜드 전용 JSON(`output_samples/_____-1/furniture.json`, B_side/A_side 스키마)은 Ruby 모델로 변환 미구현 — 비교는 generic JSON 으로 함 (d) 상세 쪽(1/5·1/2 확대)은 실물 1:1 아님 (e) PR/머지는 사용자 확인 후.
 - **다음 세션 시작**: `git switch claude/dazzling-babbage-v46o8h && git pull`, `ruby test/sheet_dxf_test.rb`, `python3 -I tools/sheet/compare_ruby_python.py output_samples/___-1/furniture.json`, `python3 -I tools/sheet/verify_dxf.py <dxf>`. 하네스가 WIP 자동 커밋을 만들 수 있으니 `git add` 는 경로 지정으로.
 
 ## (v1.24.0) CAD 도면 DXF → 시트 재구성 — 최신 인계 (맨 앞 절보다 최신)

@@ -56,7 +56,7 @@ module Kabinet
             end
           end
           h = mods.map { |m| m['z'] + m['h'] }.max.to_f + top
-          channel = (spec['modules'] || []).any? { |m| m['handle_type'].to_s == 'channel' }
+          channel = mods.any? { |m| m['channel'] }          # 시트 전체 안내(NOTE·상세)용. 도어/서랍 지오메트리는 모듈별
           normalize('furniture_name' => furniture_name || spec['name'] || 'Furniture', 'channel' => channel,
                     'overall' => { 'W' => w, 'H' => h, 'D' => d, 'top_thickness' => top, 'kick' => base },
                     'ep' => { 'left' => ep['left'], 'right' => ep['right'], 'top' => ep['top'], 'thickness' => num(ep['thickness'], 20) },
@@ -72,7 +72,8 @@ module Kabinet
         end
 
         def module_from(m, i, x, z, w, h, d)
-          out = { 'name' => (m['label'] || "M#{i + 1}").to_s, 'x' => x, 'z' => z, 'w' => w, 'h' => h, 'd' => d,
+          out = { 'channel' => m['handle_type'].to_s == 'channel',   # Core::Gaps.channel? 와 같은 기준(모듈별)
+                  'name' => (m['label'] || "M#{i + 1}").to_s, 'x' => x, 'z' => z, 'w' => w, 'h' => h, 'd' => d,
                   'type' => 'open', 'doors' => 0, 'drawers' => 0, 'shelves' => [], 'rods' => [], 'flags' => [] }
           case m['kind']
           when 'shelf_module'
@@ -103,7 +104,7 @@ module Kabinet
                            'top_thickness' => num(o['top_thickness'], 0), 'kick' => num(o['kick'], 0) },
             'ep' => { 'left' => !!(s['ep'] || {})['left'], 'right' => !!(s['ep'] || {})['right'],
                       'top' => !!(s['ep'] || {})['top'], 'thickness' => num((s['ep'] || {})['thickness'], 20) },
-            'modules' => (s['modules'] || []).map { |m| module_defaults(m, o) },
+            'modules' => (s['modules'] || []).map { |m| module_defaults(m, o, !!s['channel']) },
             'type' => (s['type'] || '가구').to_s, 'channel' => !!s['channel'],
             'sink' => s['sink'].is_a?(Hash) ? %w[x y w d].each_with_object({}) { |k, h| h[k] = num(s['sink'][k]) } : nil,
             'cuts' => cuts_from(s),
@@ -123,8 +124,9 @@ module Kabinet
           list.map { |v| num(v, nil) }.compact.first(2)
         end
 
-        def module_defaults(m, o)
+        def module_defaults(m, o, default_channel = false)
           {
+            'channel' => m.key?('channel') ? !!m['channel'] : default_channel,
             'name' => (m['name'] || 'M').to_s, 'label' => (m['label'] || m['name'] || 'M').to_s, 'x' => num(m['x']), 'z' => num(m['z']),
             'w' => num(m['w'], num(o['W'], 900)), 'h' => num(m['h'], num(o['H'], 900)), 'd' => num(m['d'], num(o['D'], 600)),
             'type' => (m['type'] || 'open').to_s, 'doors' => m['doors'].to_i, 'drawers' => m['drawers'].to_i,
