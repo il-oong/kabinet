@@ -164,7 +164,7 @@ Dir.mktmpdir do |root|
     c = S::Builder.normalize_config(state)
     r = S::Builder.export(c, B.placeholder_model, path)
     assert File.file?(path), 'dxf written'
-    assert r[:pages] == 7, "pages #{r[:pages]}"
+    assert r[:pages] == 8, "pages #{r[:pages]}"
     assert r[:copied].size >= 1, "images copied #{r[:copied]}"
   end
 

@@ -14,9 +14,19 @@ const assert = (ok, m) => { if (!ok) throw new Error(m); };
   await page.waitForTimeout(300);
   await page.evaluate(() => kabinet.runSidebarAction('sheet_dxf'));
   assert(await page.isVisible('#view-sheet'), 'sheet view visible');
-  assert((await page.locator('.sh-row').count()) === 7, '7 default pages');
+  assert((await page.locator('.sh-row').count()) === 8, '8 default pages (현장 안내 + 7)');
   const titles = () => page.$$eval('.sh-row .sh-type', els => els.map(e => e.textContent));
   let t = await titles();
+  assert(t[0] === '현장 안내', '현장 안내 first: ' + t);
+  assert((await page.inputValue('#sh-si-cautions')).includes('정문으로 출입해주세요') && (await page.inputValue('#sh-site')).includes('광교호수공원로 80'), 'site info defaults in UI');
+  await page.fill('#sh-si-special', '2. 특이사항 : 테스트');
+  await page.locator('.sh-row').nth(0).locator('button[data-act="down"]').click();     // 순서 이동
+  t = await titles(); assert(t[1] === '현장 안내', 'info moved down: ' + t);
+  await page.locator('.sh-row').nth(1).locator('button[data-act="up"]').click();
+  assert((await page.evaluate(() => kabinetSheet.getConfig().site_info.special)) === '2. 특이사항 : 테스트', 'site_info saved in config');
+  await page.locator('.sh-row').nth(0).locator('button[data-act="del"]').click();       // 이하 기존 시나리오는 7쪽 기준
+  assert((await page.locator('.sh-row').count()) === 7, 'info deleted -> 7');
+  t = await titles();
   assert(t[0] === '현장사진' && t[1] === '상담 3D' && t[2] === '평면도', 'default order: ' + t);
   // 위/아래 버튼
   await page.locator('.sh-row').nth(1).locator('button[data-act="up"]').click();

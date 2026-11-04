@@ -525,6 +525,41 @@ module Kabinet
           c
         end
 
+        # ── 현장 안내 쪽 (맨 앞) ─────────────────────────────────────────────
+        DEFAULT_SITE_INFO = {
+          'address' => "경기도 수원시 영통구 광교호수공원로 80\n광교아이파크 101동 4601호",
+          'cautions' => "-. 정문으로 출입해주세요.\n-. 작업차량 B3 출입 꼭 지켜주세요.\n** 8시50분 차량 입차 불가 입니다. 꼭 8시 50분 이후 입차해주세요.\n주차차단기 호출로 공사차량이라고 해주세요",
+          'entrance' => "공동현관비번  경비실호출\n현관번호 7777",
+          'schedule' => '1. 가구 시공일정 : 11/13(금) ~ 11/17(화) 예상',
+          'special' => '2. 특이사항 : 한솔 4*9 자재 발주할 것(11/2)'
+        }.freeze
+
+        def site_info_defaults
+          DEFAULT_SITE_INFO.dup
+        end
+
+        # si: 편집 가능한 필드(여러 줄은 \n). '**' 로 시작하는 주의사항은 빨강(NOTE_RED)으로 강조.
+        def info(model, info, si = nil)
+          si = DEFAULT_SITE_INFO.merge((si || {}).reject { |_k, v| v.nil? })
+          c = Canvas.new('info', title: info[:subject])
+          Frame.info(c, info.merge(scale: nil))
+          y = 34.0
+          c.text(17.2, y, '현장 주소', 4.6, 'b'); y += 9.0
+          si['address'].to_s.split("\n").each { |ln| c.text(17.2, y, ln, 5.4, 'k'); y += 8.6 }
+          y += 10.0
+          %w[schedule special].each do |key|
+            next if si[key].to_s.strip.empty?
+            si[key].to_s.split("\n").each { |ln| c.text(17.2, y, ln, 4.6, 'k'); y += 9.0 }
+          end
+          y = 34.0
+          c.text(218.3, y, '주의사항', 4.6, 'b'); y += 9.0
+          (si['cautions'].to_s.split("\n") + si['entrance'].to_s.split("\n")).each do |ln|
+            next if ln.strip.empty?
+            c.text(218.3, y, ln, 4.6, ln.start_with?('**') ? 'r' : 'k'); y += 8.6
+          end
+          c
+        end
+
         # ── 생산 확인표 ────────────────────────────────────────────────────
         DEFAULT_TABLE = [
           ['도어 재질·색상', '목림 지정 자재 / 안도크림 색상 (샘플 문구)', '지정 자재 확인'],

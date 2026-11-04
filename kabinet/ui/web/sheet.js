@@ -14,7 +14,14 @@ const kabinetSheet = (() => {
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const DEFAULT_TYPES = { photos: '현장사진', view3d: '상담 3D', floor: '평면도', furniture: '가구 시트 (TOP / 정면)', side: '측면 · 단면', detail: '상세 (EP · 목찬넬)', table: '생산 확인표' };
+  const DEFAULT_TYPES = { info: '현장 안내', photos: '현장사진', view3d: '상담 3D', floor: '평면도', furniture: '가구 시트 (TOP / 정면)', side: '측면 · 단면', detail: '상세 (EP · 목찬넬)', table: '생산 확인표' };
+  const DEFAULT_SITE_INFO = {
+    address: '경기도 수원시 영통구 광교호수공원로 80\n광교아이파크 101동 4601호',
+    cautions: '-. 정문으로 출입해주세요.\n-. 작업차량 B3 출입 꼭 지켜주세요.\n** 8시50분 차량 입차 불가 입니다. 꼭 8시 50분 이후 입차해주세요.\n주차차단기 호출로 공사차량이라고 해주세요',
+    entrance: '공동현관비번  경비실호출\n현관번호 7777',
+    schedule: '1. 가구 시공일정 : 11/13(금) ~ 11/17(화) 예상',
+    special: '2. 특이사항 : 한솔 4*9 자재 발주할 것(11/2)'
+  };
   let seq = 0;
   const newId = () => 'p' + Date.now().toString(36) + (seq++);
 
@@ -23,9 +30,9 @@ const kabinetSheet = (() => {
     const pad = (n) => String(n).padStart(2, '0');
     const mk = (type, title) => ({ id: newId(), type, title, subject: title, sheet_no: '', scale: '', hidden: false, export: true, images: [] });
     return {
-      site: '', furniture_name: '', date: d.getFullYear() + '.' + pad(d.getMonth() + 1) + '.' + pad(d.getDate()),
+      site: '경기도 수원시 영통구 광교호수공원로 80 광교아이파크 101동 4601호', site_info: Object.assign({}, DEFAULT_SITE_INFO), furniture_name: '', date: d.getFullYear() + '.' + pad(d.getMonth() + 1) + '.' + pad(d.getDate()),
       bg: 'white', style_name: 'MALGUN', font_file: 'malgun.ttf', images: true, real_scale: true, blocks: true,
-      pages: [mk('photos', '현장사진'), mk('view3d', '상담 3D'), mk('floor', '평면도'), mk('furniture', '가구 시트'),
+      pages: [mk('info', '현장 안내'), mk('photos', '현장사진'), mk('view3d', '상담 3D'), mk('floor', '평면도'), mk('furniture', '가구 시트'),
               mk('side', '측면 · 단면'), mk('detail', '상세'), mk('table', '생산 확인표')]
     };
   }
@@ -67,6 +74,8 @@ const kabinetSheet = (() => {
     ensure();
     ['site', 'furniture_name', 'date', 'style_name'].forEach(k => { const el = $('sh-' + k); if (el && el !== document.activeElement) el.value = cfg[k] || ''; });
     const bg = $('sh-bg'); if (bg) bg.value = cfg.bg || 'white';
+    const si = Object.assign({}, DEFAULT_SITE_INFO, cfg.site_info || {});
+    ['address', 'cautions', 'entrance', 'schedule', 'special'].forEach(k => { const el = $('sh-si-' + k); if (el && el !== document.activeElement) el.value = si[k] || ''; });
     ['images', 'real_scale', 'blocks'].forEach(k => { const el = $('sh-' + k); if (el) el.checked = cfg[k] !== false; });
     const info = $('sh-furniture-info');
     if (info) info.textContent = furniture.has_furniture ? ('도면 기준 가구: ' + furniture.name + ' (' + furniture.size + ' mm)') :
@@ -181,6 +190,7 @@ const kabinetSheet = (() => {
   }
 
   function onField(key, value) { ensure(); cfg[key] = value; persist(); }
+  function onSiteInfo(key, value) { ensure(); cfg.site_info = cfg.site_info || Object.assign({}, DEFAULT_SITE_INFO); cfg.site_info[key] = value; persist(); }
 
   function bind() {
     const list = $('sh-pages');
@@ -249,7 +259,7 @@ const kabinetSheet = (() => {
   document.addEventListener('DOMContentLoaded', bind);
   if (document.readyState !== 'loading') bind();
 
-  return { open, setState, addImages, render, add, resetPages, move, moveTo, remove, onField, exportDxf, importCad,
+  return { open, setState, addImages, render, add, resetPages, move, moveTo, remove, onField, onSiteInfo, exportDxf, importCad,
            getConfig: () => { ensure(); return cfg; }, _persist: persist, _pageById: (id) => pageById(id) };
 })();
 

@@ -18,7 +18,10 @@ module Kabinet
       module Builder
         module_function
 
+        DEFAULT_SITE = '경기도 수원시 영통구 광교호수공원로 80 광교아이파크 101동 4601호'.freeze
+
         PAGE_TYPES = {
+          'info'      => '현장 안내',
           'photos'    => '현장사진',
           'view3d'    => '상담 3D',
           'floor'     => '평면도',
@@ -30,14 +33,14 @@ module Kabinet
 
         def default_config
           {
-            'site' => '', 'furniture_name' => '', 'date' => Time.now.strftime('%Y.%m.%d'),
+            'site' => DEFAULT_SITE, 'site_info' => Pages::DEFAULT_SITE_INFO.dup, 'furniture_name' => '', 'date' => Time.now.strftime('%Y.%m.%d'),
             'bg' => 'white', 'style_name' => 'MALGUN', 'font_file' => 'malgun.ttf', 'images' => true, 'real_scale' => true, 'blocks' => true,
             'pages' => default_pages
           }
         end
 
         def default_pages
-          [page('photos', '현장사진'), page('view3d', '상담 3D'), page('floor', '평면도'),
+          [page('info', '현장 안내'), page('photos', '현장사진'), page('view3d', '상담 3D'), page('floor', '평면도'),
            page('furniture', '가구 시트'), page('side', '측면 · 단면'), page('detail', '상세'), page('table', '생산 확인표')]
         end
 
@@ -94,6 +97,7 @@ module Kabinet
             auto = %w[furniture side detail].include?(pg['type']) ? format('NO.%03d', n += 1) : ''
             info = info_for(cfg, model, pg, auto)
             case pg['type']
+            when 'info' then out << Pages.info(model, info, cfg['site_info'])
             when 'photos', 'view3d'
               header = pg['type'] == 'photos' ? 'SITE PHOTO' : '3D VIEW'
               imgs = (pg['images'] || []).select { |i| i['path'].to_s != '' }

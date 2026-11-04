@@ -110,7 +110,8 @@ module Kabinet
             if it[0] == :I
               loose << entity(it, ox, k)
             else
-              (groups[pg.item_groups[idx] || :frame] ||= []) << it
+              key = (pg.respond_to?(:item_dims) && pg.item_dims[idx]) || pg.item_groups[idx] || :frame
+              (groups[key] ||= []) << it
             end
           end
           inserts = []

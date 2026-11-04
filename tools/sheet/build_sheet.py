@@ -17,7 +17,7 @@ from ezdxf.enums import TextEntityAlignment
 
 # ----------------------------------------------------------------- 설정 변수
 FURNITURE_NAME = "__-1"            # PROJECT TITLE 에 들어가는 가구명 (파일명 stem)
-SITE_LOCATION = "판교 푸르지오 그랑블"
+SITE_LOCATION = "경기도 수원시 영통구 광교호수공원로 80 광교아이파크 101동 4601호"
 SCALE_DEN = 25                     # 1/25  (1/20, 1/25, 1/30 중)
 DATE_TEXT = datetime.date.today().strftime("%Y.%m.%d")
 # 폰트: 사용자 PC 에서는 맑은 고딕 경로를 지정(--font 또는 환경변수 SHEET_FONT).
@@ -298,6 +298,47 @@ def marker(sh, cx, cy, label, direction="up", r=3.3):
 
 
 # ----------------------------------------------------------------- 양식 틀 (§2)
+def site_text(sh, text, x=84.0, maxw=132.0):
+    """표제란 SITE LOCATION 칸(폭 약 134mm): 한 줄에 들어가면 4.2, 길면 공백 기준 2줄(3.0)로 나눠 칸 안에 맞춘다."""
+    if tw(text, 4.2) <= maxw:
+        sh.text(x, 275.0, text, 4.2)
+        return
+    words = text.split(" ")
+    cut = [k for k in range(1, len(words)) if words[k - 1].isdigit() and not words[k].isdigit()]      # 도로명 번지(숫자) 뒤에서 끊기
+    best = cut[0] if cut else min(range(1, len(words)), key=lambda k: abs(tw(" ".join(words[:k]), 3.0) - tw(" ".join(words[k:]), 3.0)))
+    l1, l2 = " ".join(words[:best]), " ".join(words[best:])
+    if max(tw(l1, 3.0), tw(l2, 3.0)) > maxw:                      # 두 줄로도 넘치면 글자 축소
+        f = maxw / max(tw(l1, 3.0), tw(l2, 3.0))
+        sz = 3.0 * f
+    else:
+        sz = 3.0
+    sh.text(x, 271.9, l1, sz)
+    sh.text(x, 275.3, l2, sz)
+
+
+def title_block(sh, title, subject, sheet_no, scale_den):
+    L, R = 9.4, 410.6
+    sh.line(L, 267.5, R, 267.5, "SEC")
+
+    def tag(x, y, label, w):
+        sh.rect(x, y, x + w, y + 2.7, "OUT")
+        sh.fill([(x, y), (x + w, y), (x + w, y + 2.7), (x, y + 2.7)], (85, 85, 85))
+        sh.text(x + 0.8, y + 2.05, label, 1.7, "w", "l")
+
+    tag(58.2, 272.7, "SITE LOCATION", 22.0); sh.line(58.2, 276.2, 218.0, 276.2, "OUT")
+    tag(58.2, 283.4, "PROJECT TITLE", 22.0); sh.line(58.2, 286.4, 218.0, 286.4, "OUT")
+    tag(230.3, 272.7, "SHEET NO.", 22.0); sh.line(230.3, 276.2, 294.3, 276.2, "OUT")
+    tag(230.3, 283.4, "SUBJECT TITLE", 22.0); sh.line(230.3, 286.4, 294.3, 286.4, "OUT")
+    tag(306.9, 272.7, "DATE", 10.5); sh.line(306.9, 276.2, 363.4, 276.2, "OUT")
+    tag(306.9, 283.4, "SCALE", 10.5); sh.line(306.9, 286.4, 363.4, 286.4, "OUT")
+    site_text(sh, SITE_LOCATION)
+    sh.text(84.0, 285.2, title, 4.2)
+    sh.text(256.0, 275.0, sheet_no, 4.2)
+    sh.text(256.0, 285.2, subject, 3.4)
+    sh.text(321.0, 275.0, DATE_TEXT, 3.4)
+    sh.text(321.0, 285.2, f"1/{scale_den}" if scale_den else "", 4.2)
+
+
 def furniture_frame(sh, title, subject, sheet_no, scale_den, hdr, boundary=114.3, hdr2=("FRONT VIEW_ DOOR", "FRONT VIEW_ BODY")):
     L, R = 9.4, 410.6
     sh.rect(4.5, 3.2, 415.5, 293.9, "FR")
@@ -314,26 +355,62 @@ def furniture_frame(sh, title, subject, sheet_no, scale_den, hdr, boundary=114.3
     sh.line(L, boundary + 9.9, R, boundary + 9.9, "SEC")
     sh.text(17.2, boundary + 6.5, hdr2[0], 4.2, "k")
     sh.text(218.3, boundary + 6.5, hdr2[1], 4.2, "k")
-    # 표제란
-    sh.line(L, 267.5, R, 267.5, "SEC")
+    title_block(sh, title, subject, sheet_no, scale_den)
 
-    def tag(x, y, label, w):
-        sh.rect(x, y, x + w, y + 2.7, "OUT")
-        sh.fill([(x, y), (x + w, y), (x + w, y + 2.7), (x, y + 2.7)], (85, 85, 85))
-        sh.text(x + 0.8, y + 2.05, label, 1.7, "w", "l")
 
-    tag(58.2, 272.7, "SITE LOCATION", 22.0); sh.line(58.2, 276.2, 218.0, 276.2, "OUT")
-    tag(58.2, 283.4, "PROJECT TITLE", 22.0); sh.line(58.2, 286.4, 218.0, 286.4, "OUT")
-    tag(230.3, 272.7, "SHEET NO.", 22.0); sh.line(230.3, 276.2, 294.3, 276.2, "OUT")
-    tag(230.3, 283.4, "SUBJECT TITLE", 22.0); sh.line(230.3, 286.4, 294.3, 286.4, "OUT")
-    tag(306.9, 272.7, "DATE", 10.5); sh.line(306.9, 276.2, 363.4, 276.2, "OUT")
-    tag(306.9, 283.4, "SCALE", 10.5); sh.line(306.9, 286.4, 363.4, 286.4, "OUT")
-    sh.text(84.0, 275.0, SITE_LOCATION, 4.2)
-    sh.text(84.0, 285.2, title, 4.2)
-    sh.text(256.0, 275.0, sheet_no, 4.2)
-    sh.text(256.0, 285.2, subject, 3.4)
-    sh.text(321.0, 275.0, DATE_TEXT, 3.4)
-    sh.text(321.0, 285.2, f"1/{scale_den}", 4.2)
+DEFAULT_SITE_INFO = {
+    "address": ["경기도 수원시 영통구 광교호수공원로 80", "광교아이파크 101동 4601호"],
+    "cautions": [
+        {"text": "-. 정문으로 출입해주세요.", "red": False},
+        {"text": "-. 작업차량 B3 출입 꼭 지켜주세요.", "red": False},
+        {"text": "** 8시50분 차량 입차 불가 입니다. 꼭 8시 50분 이후 입차해주세요.", "red": True},
+        {"text": "주차차단기 호출로 공사차량이라고 해주세요", "red": False},
+        {"text": "공동현관비번  경비실호출", "red": False},
+        {"text": "현관번호 7777", "red": False},
+    ],
+    "schedule": "1. 가구 시공일정 : 11/13(금) ~ 11/17(화) 예상",
+    "special": "2. 특이사항 : 한솔 4*9 자재 발주할 것(11/2)",
+}
+
+
+def site_info_of(d):
+    """furniture.json 의 site_info 블록(없으면 None = 현장 안내 쪽 생략). {} / true 면 기본값."""
+    si = d.get("site_info") if isinstance(d, dict) else None
+    if si is None or si is False:
+        return None
+    out = dict(DEFAULT_SITE_INFO)
+    if isinstance(si, dict):
+        out.update({k: v for k, v in si.items() if v is not None})
+    return out
+
+
+def page_info(d, title):
+    """맨 앞 '현장 안내' 쪽: 헤더 SITE INFO(좌) / NOTE(우), 도곽·표제란은 다른 시트와 같은 양식."""
+    si = site_info_of(d)
+    sh = Sheet("info"); sh.den = SCALE_DEN
+    L, R = 9.4, 410.6
+    sh.rect(4.5, 3.2, 415.5, 293.9, "FR")
+    sh.rect(L, 8.1, R, 289.0, "FRTH")
+    sh.line(L, 18.0, R, 18.0, "SEC")
+    sh.text(17.2, 14.5, "SITE INFO", 4.2, "k")
+    sh.text(218.3, 14.5, "NOTE", 4.2, "k")
+    sh.line(210.3, 8.6, 210.3, 267.5, "SEC")
+    title_block(sh, title, "현장 안내", "", None)
+    y = 34.0
+    sh.text(17.2, y, "현장 주소", 4.6, "b"); y += 9.0
+    for ln in si["address"]:
+        sh.text(17.2, y, ln, 5.4, "k"); y += 8.6
+    y += 10.0
+    for key in ("schedule", "special"):
+        if si.get(key):
+            sh.text(17.2, y, si[key], 4.6, "k"); y += 9.0
+    y = 34.0
+    sh.text(218.3, y, "주의사항", 4.6, "b"); y += 9.0
+    for it in si["cautions"]:
+        t = it["text"] if isinstance(it, dict) else str(it)
+        red = bool(it.get("red")) if isinstance(it, dict) else False
+        sh.text(218.3, y, t, 4.6, "r" if red else "k"); y += 8.6
+    return sh
 
 
 def plan_frame(sh, room_title, sub_title, scale_den):
@@ -1681,7 +1758,8 @@ def _attr(st, bg="white"):
 
 
 def build_sheets(m):
-    return [page_floor(m, 20),
+    info = [page_info(m.d, FURNITURE_NAME)] if site_info_of(m.d) is not None else []
+    return info + [page_floor(m, 20),
             page_b(m, SCALE_DEN, "NO.001", FURNITURE_NAME),
             page_a(m, SCALE_DEN, "NO.002", FURNITURE_NAME),
             page_side(m, SCALE_DEN, "NO.003", FURNITURE_NAME),

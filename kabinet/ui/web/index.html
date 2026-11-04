@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabinet</title>
-  <link rel="stylesheet" href="styles.css?v=1.25.5">
+  <link rel="stylesheet" href="styles.css?v=1.25.6">
 </head>
 <body>
 
@@ -12,7 +12,7 @@
 <aside class="preset-sidebar">
   <div class="preset-sidebar-head">
     <span class="preset-sidebar-title">Kabinet</span>
-    <span class="version-badge">v1.25.5</span>
+    <span class="version-badge">v1.25.6</span>
   </div>
   <input type="search" id="preset-search" class="preset-search" placeholder="프리셋·도구 검색…"
          oninput="kabinet.renderPresetSidebar()">
@@ -477,10 +477,19 @@
       아래 목록에서 <b>순서(▲▼ 또는 끌어서)·숨김·제목·SHEET NO.·SCALE</b>을 바꾸세요. 구성은 이 모델에 저장됩니다.</p>
     <p class="ep-hint" id="sh-furniture-info"></p>
     <div class="ep-grid">
-      <label class="ep-field">현장명 (SITE LOCATION)<input id="sh-site" oninput="kabinetSheet.onField('site', this.value)" placeholder="예: 판교 푸르지오 그랑블"></label>
+      <label class="ep-field">현장명 (SITE LOCATION)<input id="sh-site" oninput="kabinetSheet.onField('site', this.value)" placeholder="예: 경기도 수원시 영통구 광교호수공원로 80 광교아이파크 101동 4601호"></label>
       <label class="ep-field">가구명 (PROJECT TITLE)<input id="sh-furniture_name" oninput="kabinetSheet.onField('furniture_name', this.value)" placeholder="비우면 가구 이름"></label>
       <label class="ep-field">DATE<input id="sh-date" oninput="kabinetSheet.onField('date', this.value)" placeholder="2026.04.10"></label>
     </div>
+  </div>
+  <div class="card" id="sh-info-card">
+    <div class="card-title">현장 안내 쪽 내용 <span class="dim-note">맨 앞 「현장 안내」 쪽에 들어갑니다 (순서 이동·숨김·삭제 가능)</span></div>
+    <label class="ep-field">현장 주소 (줄바꿈 가능)<textarea id="sh-si-address" rows="2" oninput="kabinetSheet.onSiteInfo('address', this.value)"></textarea></label>
+    <label class="ep-field">주의사항 (한 줄에 하나, 「**」로 시작하면 빨강 강조)<textarea id="sh-si-cautions" rows="4" oninput="kabinetSheet.onSiteInfo('cautions', this.value)"></textarea></label>
+    <label class="ep-field">공동현관/출입 정보<textarea id="sh-si-entrance" rows="2" oninput="kabinetSheet.onSiteInfo('entrance', this.value)"></textarea></label>
+    <label class="ep-field">시공일정<input id="sh-si-schedule" oninput="kabinetSheet.onSiteInfo('schedule', this.value)"></label>
+    <label class="ep-field">특이사항<input id="sh-si-special" oninput="kabinetSheet.onSiteInfo('special', this.value)"></label>
+    <p class="ep-hint">※ 현관 비밀번호 등이 DXF 파일에 그대로 들어갑니다. 외부에 전달할 때 주의하세요.</p>
   </div>
   <div class="card">
     <div class="card-title">페이지 구성 <span class="dim-note" id="sh-export-count"></span></div>
@@ -542,11 +551,11 @@
 
 </div><!-- /.main-col -->
 
-<script src="app.js?v=1.25.5"></script>
-<script src="modules.js?v=1.25.5"></script>
-<script src="live-preview.js?v=1.25.5"></script>
-<script src="drawing.js?v=1.25.5"></script>
-<script src="drawing_import.js?v=1.25.5"></script>
-<script src="sheet.js?v=1.25.5"></script>
+<script src="app.js?v=1.25.6"></script>
+<script src="modules.js?v=1.25.6"></script>
+<script src="live-preview.js?v=1.25.6"></script>
+<script src="drawing.js?v=1.25.6"></script>
+<script src="drawing_import.js?v=1.25.6"></script>
+<script src="sheet.js?v=1.25.6"></script>
 </body>
 </html>

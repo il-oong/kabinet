@@ -42,7 +42,7 @@ Dir.mktmpdir do |dir|
   path = File.join(dir, 'out.dxf')
   r = S::Builder.export(cfg, model, path)
   assert File.file?(path), 'dxf not written'
-  assert r[:pages] == 7, "pages #{r[:pages]}"            # 기본 구성: 사진·3D·평면도·가구·측면·상세·확인표
+  assert r[:pages] == 8, "pages #{r[:pages]}"            # 기본 구성: 현장 안내·사진·3D·평면도·가구·측면·상세·확인표
   sec = parse_dxf(path)
   assert %w[HEADER CLASSES TABLES BLOCKS ENTITIES OBJECTS].all? { |n| sec.key?(n) }, "sections #{sec.keys}"
   assert sec['HEADER'].include?([1, 'AC1018']), 'version'
@@ -52,7 +52,7 @@ Dir.mktmpdir do |dir|
   assert types['SOLID'].to_i >= 7 + 10, "solid (BG 7 + fills) #{types['SOLID']}"
   layers = ents.map { |e| e[:layer] }.uniq
   %w[OUTLINE DIM THIN NOTE_BLUE NOTE_RED FRAME TEXT BG].each { |l| assert layers.include?(l), "layer #{l} missing in #{layers}" }
-  assert ents.count { |e| e[:layer] == 'BG' } == 7, 'BG per sheet'
+  assert ents.count { |e| e[:layer] == 'BG' } == 8, 'BG per sheet'
   # 한글 텍스트 보존 (CP949 round trip)
   texts = ents.select { |e| e[:type] == 'TEXT' }.map { |e| e[:pairs].find { |c, _| c == 1 }[1] }
   assert texts.include?('판교 푸르지오 그랑블') && texts.include?('__-1') && texts.include?('SITE LOCATION'), 'texts'
@@ -80,7 +80,7 @@ Dir.mktmpdir do |dir|
       outl = ents.find { |e| e[:layer] == 'OUTLINE' && e[:type] == 'LINE' }
       assert outl[:pairs].include?([62, '7']), 'none: ACI 7'
     else
-      assert bgs.size == 7, "#{bg}: BG sheets"
+      assert bgs.size == 8, "#{bg}: BG sheets"
       col = bgs.first[:pairs].find { |c, _| c == 420 }[1].to_i
       assert(bg == 'white' ? col == 0xFFFFFF : col == ((33 << 16) | (37 << 8) | 43), "#{bg}: bg color #{col}")
       outl = ents.find { |e| e[:layer] == 'OUTLINE' && e[:type] == 'LINE' }
@@ -99,7 +99,7 @@ assert cv.size == 2 && cv.map(&:name) == %w[furniture side], 'only_ids'
 t = cv.first.items.select { |i| i[0] == :T }.map { |i| i[3] }
 assert t.include?('NO.001'), 'sheet no'
 hidden = S::Builder.normalize_config(cfg2.merge('pages' => pages.map { |p| p['type'] == 'table' ? p.merge('hidden' => true) : p }))
-assert S::Builder.build(hidden, model).size == 6, 'hidden'
+assert S::Builder.build(hidden, model).size == 7, 'hidden'
 
 # ── 이미지(IMAGE/IMAGEDEF) 포함 ──────────────────────────────────────
 require 'zlib'
@@ -233,6 +233,7 @@ Dir.mktmpdir do |dir|
   user = bnames.reject { |n| n.start_with?('*') }
   assert user.include?('FRAME_SHEET1') && user.any? { |n| n =~ /\AVIEW_TOP_S\d+\z/ } && user.any? { |n| n =~ /\AVIEW_FRONT_DOOR_S\d+\z/ } &&
          user.any? { |n| n =~ /\ASECTION_1_S\d+\z/ } && user.any? { |n| n =~ /\ANOTE_S\d+\z/ }, "block names #{user}"
+  assert user.count { |n| n =~ /\ADIM_\d+_S\d+\z/ } >= 10, "dimension blocks DIM_n #{user.grep(/DIM_/).size}"   # 치수선 1개 = 이름 있는 BLOCK 1개
   ents = entities(sec['ENTITIES'])
   inserts = ents.select { |e| e[:type] == 'INSERT' }
   assert inserts.size == user.size, "INSERT #{inserts.size} == blocks #{user.size}"
@@ -287,4 +288,26 @@ Dir.mktmpdir do |dir|
   assert stray == 0, "view elements in FRAME_SHEET blocks: #{stray}"
 end
 
+# ── 현장 안내 쪽: 맨 앞, 주소·주의사항(빨강 **)·일정·특이사항, 표제란 SITE LOCATION 새 주소(2줄 맞춤) ──
+Dir.mktmpdir do |dir|
+  c = S::Builder.normalize_config('blocks' => false)
+  assert c['pages'].first['type'] == 'info' && c['pages'][1]['type'] == 'photos', 'info page is first, before photos'
+  assert c['site'] == '경기도 수원시 영통구 광교호수공원로 80 광교아이파크 101동 4601호', 'default site address'
+  c['pages'] = [c['pages'].first]
+  path = File.join(dir, 'info.dxf'); S::Builder.export(c, model, path)
+  sec = parse_dxf(path); ents = entities(sec['ENTITIES'])
+  txt = ents.select { |e| e[:type] == 'TEXT' }.map { |e| [e[:pairs].find { |cc, _| cc == 1 }[1], e[:layer]] }
+  strs = txt.map(&:first)
+  ['SITE INFO', 'NOTE', '현장 주소', '경기도 수원시 영통구 광교호수공원로 80', '광교아이파크 101동 4601호', '-. 정문으로 출입해주세요.', '-. 작업차량 B3 출입 꼭 지켜주세요.',
+   '주차차단기 호출로 공사차량이라고 해주세요', '공동현관비번  경비실호출', '현관번호 7777', '1. 가구 시공일정 : 11/13(금) ~ 11/17(화) 예상', '2. 특이사항 : 한솔 4*9 자재 발주할 것(11/2)'].each do |t|
+    assert strs.include?(t), "info text missing: #{t}"
+  end
+  assert txt.any? { |t, l| t.start_with?('** 8시50분 차량 입차 불가') && l == 'NOTE_RED' }, 'red emphasis'
+  # 표제란 SITE LOCATION: 긴 주소는 2줄로 나눠 칸 안에
+  assert strs.include?('경기도 수원시 영통구 광교호수공원로 80') && strs.count('광교아이파크 101동 4601호') >= 2, 'title block 2-line address'
+  # 편집 필드 반영
+  c['site_info'] = { 'special' => '2. 특이사항 : 변경' }
+  S::Builder.export(c, model, path)
+  assert File.binread(path).force_encoding('CP949').encode('UTF-8').include?('2. 특이사항 : 변경'), 'edited field in DXF'
+end
 puts 'sheet_dxf_test OK'

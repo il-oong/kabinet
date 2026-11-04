@@ -2,6 +2,12 @@
 
 새 세션에서 이 파일부터 읽고 이어서 작업하세요. 사용자 선호: **한국어로 답변, 코드는 항상 PR 먼저 만든 뒤 머지, Railway 사용(이 저장소는 SketchUp 플러그인이라 해당 없음)**, 컨텍스트 70% 넘으면 중단하고 정리.
 
+## (v1.25.6) 힌지 제거 · DIMENSION · 천판 EP 제거 · 현장 주소/안내 쪽
+- Python 치수 = `dim_h/dim_v/inner_dim` → ("D",…) 항목 → DXF 는 `add_linear_dim(...).render()`(DIMSTYLE KAB), PDF 는 `expand_dims` 로 낱개 전개. Ruby 는 `Canvas#dim_scope` + `item_dims` → `DIM_nnn_S#` BLOCK(임시). 다음 과제: Ruby DxfWriter 에 DIMENSION + `*D` 익명 블록 이식(gen_dxf_skeleton.py 에 `*D` 훅 필요).
+- 천판 EP: 아일랜드/channel 가구는 제거(`ep_band` no-op, `TOP_IN=body_H-18`, 도어 상단 = body_H-25). generic/Ruby 는 channel 이면 ep top 자동 false.
+- 현장 안내(INFO) 쪽: Ruby `Pages.info`, `Frame.info`, UI 카드 `#sh-info-card`, cfg `site_info`; Python `page_info`/`site_info_of`/`DEFAULT_SITE_INFO`. 표제란 주소 2줄(`site_text`).
+- 남은 일: Ruby DIMENSION 이식, 실기 열림 확인(DIMENSION·블록), generic 의 inner_dim 류 소형 치수 DIMENSION 화 완료 여부 점검.
+
 ## (v1.25.5) EP·몸통 겹침 해소
 - `clip_span`(island)/`clipped`·`ep_bounds`·`ep_row`(generic·Ruby): EP 쪽 끝 모듈을 EP 안쪽으로 줄임, 가로 3단 치수(모듈/EP|몸통|EP/전체), 모듈선은 천판 EP 아래까지, 전판 상단은 천판 EP 아래. 검사 `verify_dxf.py --no-overlap-ep`, `test/sheet_no_overlap_ep_test.rb`. 남은 확인: 도면 모듈 폭이 EP 포함인지(현재 포함으로 가정, 확인표 '[변경] EP·몸통 폭').
 

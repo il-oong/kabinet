@@ -449,7 +449,7 @@ def page_table(d, den=25):
 def build(d, scale=None):
     d = norm(d)
     den = scale or d.get("scale") or pick_scale(d)
-    pages = [page_floor(d, ""), page_furniture(d, den, "NO.001"), page_side(d, den, "NO.002")]
+    pages = ([bs.page_info(d, d["furniture_name"])] if bs.site_info_of(d) is not None else []) + [page_floor(d, ""), page_furniture(d, den, "NO.001"), page_side(d, den, "NO.002")]
     if d["ep"].get("left") or d["ep"].get("right") or d["ep"].get("top") or d.get("channel"):
         pages.append(page_detail(d, den, "NO.003"))
     pages.append(page_table(d, den))

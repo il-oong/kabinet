@@ -10,13 +10,16 @@ module Kabinet
         attr_reader :name, :items, :meta
         attr_accessor :title
 
-        attr_reader :item_groups
+        attr_reader :item_groups, :item_dims
 
         def initialize(name, title: nil)
           @name = name
           @title = title || name
           @items = []
           @item_groups = []   # items 와 같은 길이: 블록(뷰) 이름. nil = 도곽/표제란(FRAME)
+          @item_dims = []     # items 와 같은 길이: 치수선 번호('DIM_3') 또는 nil — 치수선 1개 = 이름 있는 BLOCK 1개
+          @cur_dim = nil
+          @dim_seq = 0
           @cur_group = nil
           @meta = {}
         end
@@ -24,12 +27,14 @@ module Kabinet
         def add_item(it)
           @items << it
           @item_groups << @cur_group
+          @item_dims << @cur_dim
         end
 
         def remove_items
           keep = (0...@items.size).reject { |i| yield(@items[i]) }
           @items = keep.map { |i| @items[i] }
           @item_groups = keep.map { |i| @item_groups[i] }
+          @item_dims = keep.map { |i| @item_dims[i] }
         end
 
         # 이 블록 안에서 그리는 항목을 하나의 뷰(DXF BLOCK)로 묶는다. 예: c.group('VIEW_TOP') { ... }
@@ -105,7 +110,25 @@ module Kabinet
         # ── 치수 ─────────────────────────────────────────────────────────
         DSZ = 2.4
 
+        # 치수선 하나(보조선·치수선·눈금·문자)를 한 BLOCK(DIM_n)으로 묶는다
+        def dim_scope
+          @dim_seq += 1
+          prev = @cur_dim
+          @cur_dim = format('DIM_%03d', @dim_seq)
+          yield
+        ensure
+          @cur_dim = prev
+        end
+
         def dim_h(xs, y, labels, ref: nil, size: DSZ)
+          dim_scope { dim_h_raw(xs, y, labels, ref: ref, size: size) }
+        end
+
+        def dim_v(x, ys, labels, ref: nil, size: DSZ, side: -1)
+          dim_scope { dim_v_raw(x, ys, labels, ref: ref, size: size, side: side) }
+        end
+
+        def dim_h_raw(xs, y, labels, ref: nil, size: DSZ)
           sgn = ref.nil? ? 0 : (y > ref ? 1 : -1)
           xs.each do |x|
             line(x, ref + sgn * 0.8, x, y + sgn * 1.2, 'DIM') unless ref.nil?
@@ -125,7 +148,7 @@ module Kabinet
           end
         end
 
-        def dim_v(x, ys, labels, ref: nil, size: DSZ, side: -1)
+        def dim_v_raw(x, ys, labels, ref: nil, size: DSZ, side: -1)
           sgn = ref.nil? ? 0 : (x > ref ? 1 : -1)
           ys.each do |y|
             line(ref + sgn * 0.8, y, x + sgn * 1.2, y, 'DIM') unless ref.nil?

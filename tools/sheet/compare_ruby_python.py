@@ -101,7 +101,7 @@ def compare(json_path, keep=None):
             if not within(ca, cb, tol):
                 probs.append(f"{k} {ca} vs {cb}")
         na = sum(a["nums"].values()); common = sum((a["nums"] & b["nums"]).values())
-        rate = common / max(na, 1)
+        rate = common / na if na else 1.0
         only_py = sorted((a["words"] - b["words"]).elements())
         only_rb = sorted((b["words"] - a["words"]).elements())
         if rate < 0.85:

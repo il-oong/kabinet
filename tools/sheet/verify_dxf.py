@@ -408,7 +408,9 @@ def main():
         t_ = (e.dxf.get("text") or "").strip()
         if t_ and t_ != "<>":
             mm = re.match(r"^([\d,]+)\s*$", t_)
-            if mm and abs(float(mm.group(1).replace(",", "")) - m_) > TOL and not any("1/" in x for x in sheets_names()):
+            lab_ = float(mm.group(1).replace(",", "")) if mm else 0.0
+            # 확대 상세(1/5·1/2 등)는 표기값 < 측정값(배율 차이)이라 제외: 표기값이 더 크거나(역방향) 비슷한데 다르면 불일치
+            if mm and abs(lab_ - m_) > TOL and not (lab_ > 0 and m_ / lab_ >= 1.5):
                 badtxt += 1
     print(f"치수 엔티티: DIMENSION {len(dims)}개, 낱개 DIM 레이어 LINE {len(loose_dim)}개, 문자 덮어쓰기 불일치 {badtxt}")
     if dims:
