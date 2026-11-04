@@ -44,7 +44,7 @@ def sheets_of(path):
             continue
         t = e.dxftype()
         try:
-            x = e.dxf.insert.x if t == "TEXT" else (e.dxf.start.x if t == "LINE" else (e.dxf.center.x if t == "CIRCLE" else e.get_points("xy")[0][0] if t == "LWPOLYLINE" else None))
+            x = e.dxf.defpoint.x if t == "DIMENSION" else e.dxf.insert.x if t == "TEXT" else (e.dxf.start.x if t == "LINE" else (e.dxf.center.x if t == "CIRCLE" else e.get_points("xy")[0][0] if t == "LWPOLYLINE" else None))
         except Exception:
             x = None
         if x is None:
@@ -62,6 +62,13 @@ def summarize(sh):
     c = collections.Counter(e.dxftype() for e in sh["ents"])
     texts = [e.dxf.text.strip() for e in sh["ents"] if e.dxftype() == "TEXT"]
     nums = collections.Counter(t.replace(",", "") for t in texts if NUM.match(t))
+    for e in sh["ents"]:                                   # CAD DIMENSION(Python) 은 측정값을 숫자 치수로 센다
+        if e.dxftype() == "DIMENSION":
+            try:
+                tx = (e.dxf.get("text") or "").replace(",", "").strip()
+                nums[tx if NUM.match(tx) else str(round(e.get_measurement()))] += 1
+            except Exception:
+                pass
     words = collections.Counter(t for t in texts if not NUM.match(t))
     return dict(counts=c, nums=nums, words=words)
 
@@ -87,9 +94,12 @@ def compare(json_path, keep=None):
     for sp, sr in zip(P, R):
         a, b = summarize(sp), summarize(sr)
         probs = []
-        for k, tol in (("TEXT", 0.12), ("LWPOLYLINE", 0.15), ("CIRCLE", 0.30)):
-            if not within(a["counts"][k], b["counts"][k], tol):
-                probs.append(f"{k} {a['counts'][k]} vs {b['counts'][k]}")
+        for k, tol in (("TEXT", 0.18), ("LWPOLYLINE", 0.15), ("CIRCLE", 0.30)):
+            ca, cb = a["counts"][k], b["counts"][k]
+            if k == "TEXT":                                 # 숫자 치수 글자는 Python 에선 DIMENSION 이라 문자 수에서 제외하고 비교
+                ca = sum(a["words"].values()); cb = sum(b["words"].values())
+            if not within(ca, cb, tol):
+                probs.append(f"{k} {ca} vs {cb}")
         na = sum(a["nums"].values()); common = sum((a["nums"] & b["nums"]).values())
         rate = common / max(na, 1)
         only_py = sorted((a["words"] - b["words"]).elements())

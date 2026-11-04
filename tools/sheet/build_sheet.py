@@ -7,7 +7,7 @@ PDF / DXF 렌더러가 같은 모델을 그린다.  양식 좌표는 SHEET_FORMA
 실행:  python3 -I tools/sheet/build_sheet.py --json output_samples/furniture.json --out output_samples
        (옵션) --name 가구명  --site 현장명  --scale 25  --font C:/Windows/Fonts/malgun.ttf
 """
-import argparse, contextlib, datetime, functools, json, math, os, sys
+import argparse, contextlib, datetime, functools, json, math, os, re, sys
 
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
@@ -1553,6 +1553,11 @@ def render_dxf(sheets, path, bg="white", real=True, default_den=None, blocks=Tru
     doc.header["$EXTMIN"] = (0.0, 0.0, 0.0)
     doc.header["$EXTMAX"] = (offs[-1] + PW * dens[-1], PH * max(dens) + 10 * max(dens), 0.0)
     doc.styles.add("MALGUN", font=DXF_FONT_FILE)
+    # 치수 스타일(종이 mm 기준 값 + 시트별 DIMSCALE=배수 로 실치수화): 건축 눈금(DIMTSZ), 맑은 고딕 문자, 색은 BYBLOCK(엔티티 색 따름)
+    doc.dimstyles.new("KAB", dxfattribs={
+        "dimtxsty": "MALGUN", "dimtxt": 1.73, "dimtsz": 0.7, "dimexo": 0.8, "dimexe": 1.2, "dimgap": 0.8, "dimtad": 1,
+        "dimdec": 0, "dimzin": 8, "dimlfac": 1.0, "dimscale": float(dens[0]), "dimclrd": 256, "dimclre": 256, "dimclrt": 256,
+        "dimtih": 0, "dimtoh": 0, "dimdle": 0.0, "dimasz": 0.0})
     layer_rgb = {}
     for st, (lay, w, rgb) in STY.items():
         layer_rgb.setdefault(lay, (rgb, w))
@@ -1591,6 +1596,34 @@ def render_dxf(sheets, path, bg="white", real=True, default_den=None, blocks=Tru
         elif k == "C":
             _, cx, cy, r, st = it
             tgt.add_circle((Xf(cx), Yf(cy)), r * kk, dxfattribs=_attr(st, bg))
+        elif k == "D":                                   # 치수선 = 구간마다 CAD DIMENSION 1개(측정값 자동 표시)
+            kind, pts, pos, labels, ref, size, side = it[1:8]
+            inner = len(it) > 8 and it[8] == "inner"
+            st = it[9] if inner else "DIM"
+            for i2, lab in enumerate(labels):
+                a1, a2 = pts[i2], pts[i2 + 1]
+                at = _attr("DIMT" if st in ("DIMT", "DIM") else st, bg)
+                at["layer"] = "DIM" if st in ("DIMT", "DIM") else at["layer"]
+                m_ = re.match(r"^\s*([\d,]+)(.*)$", lab or "")
+                meas_ = abs(a2 - a1) * kk
+                if m_ and real and abs(float(m_.group(1).replace(",", "")) - meas_) <= 1.5:
+                    rest = m_.group(2)
+                    text = "<>" + rest if rest.strip() else "<>"           # 표기값 = 측정값이면 자동 표시(접미 글자만 덮어씀)
+                else:
+                    text = lab                                              # 확대 상세 등 표기값 ≠ 측정값은 글자 그대로
+                ov = {"dimscale": float(kk), "dimtxt": size * 0.72, "dimtsz": 0.5 if inner else 0.7}
+                if ref is None or inner:
+                    ov.update({"dimse1": 1, "dimse2": 1})
+                if kind == "h":
+                    yy = Yf(ref if (ref is not None and not inner) else pos)
+                    p1, p2 = (Xf(a1), yy), (Xf(a2), yy)
+                    base, ang = (Xf((a1 + a2) / 2), Yf(pos)), 0
+                else:
+                    xx = Xf(ref if (ref is not None and not inner) else pos)
+                    p1, p2 = (xx, Yf(a1)), (xx, Yf(a2))
+                    base, ang = (Xf(pos), Yf((a1 + a2) / 2)), 90
+                d_ = tgt.add_linear_dim(base=base, p1=p1, p2=p2, angle=ang, text=text, dimstyle="KAB", override=ov, dxfattribs=at)
+                d_.render()
         elif k == "H":                                   # 해칭 영역마다 HATCH 1개(ANSI31). 패턴 배율 = 간격 x 시트 배수
             _, pts, st, step = it
             h = tgt.add_hatch(dxfattribs=_attr(st, bg))

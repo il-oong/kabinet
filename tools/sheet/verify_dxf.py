@@ -183,6 +183,10 @@ def raw_pairs(path):
     return [(lines[i].strip(), lines[i + 1].strip()) for i in range(0, len(lines) - 1, 2)]
 
 
+def sheets_names():
+    return []
+
+
 def check_structure(path, verbose=True):
     """핸들 중복 / 미해결 참조(330·340·350·360·390) / HANDSEED / 필수 OBJECTS·CLASSES·DIMSTYLE·레이아웃 검사.
     반환: (통과 여부, 문제 목록)"""
@@ -388,20 +392,33 @@ def main():
                 bad += 1
                 if bad <= 8:
                     print(f"  MISMATCH {sname}: 측정 {seg:.1f} mm @({x1:.0f},{y1:.0f})-({x2:.0f},{y2:.0f}), 근처 문자 {cand[:5]}")
-    print(f"치수 문자 검사: {checked} 구간, 불일치 {bad}")
+    print(f"치수 문자 검사(낱개 LINE+TEXT 방식): {checked} 구간, 불일치 {bad}")
     ok &= bad == 0
+    # ── DIMENSION 검사: 낱개 치수 LINE 0, 측정값 = 가구 치수, 문자 덮어쓰기 값 = 측정값
+    dims = [e for e in ents if e.dxftype() == "DIMENSION"]
+    loose_dim = [e for e in ents if e.dxftype() == "LINE" and e.dxf.layer == "DIM"]
+    meas = []
+    badtxt = 0
+    for e in dims:
+        try:
+            m_ = float(e.get_measurement())
+        except Exception:
+            continue
+        meas.append(round(m_))
+        t_ = (e.dxf.get("text") or "").strip()
+        if t_ and t_ != "<>":
+            mm = re.match(r"^([\d,]+)\s*$", t_)
+            if mm and abs(float(mm.group(1).replace(",", "")) - m_) > TOL and not any("1/" in x for x in sheets_names()):
+                badtxt += 1
+    print(f"치수 엔티티: DIMENSION {len(dims)}개, 낱개 DIM 레이어 LINE {len(loose_dim)}개, 문자 덮어쓰기 불일치 {badtxt}")
+    if dims:
+        ok &= len(loose_dim) == 0 and badtxt == 0
     if fj:
         o = fj["overall"]
-        want = {"W": o["W"], "H": o["H"], "D": o["D"]}
-        alllen = collections.Counter()
-        for ln in lines:
-            (x1, y1, _), (x2, y2, _) = ln.dxf.start, ln.dxf.end
-            L = max(abs(x2 - x1), abs(y2 - y1))
-            for k in set(allk):
-                alllen[round(L - 1.6 * k)] += 1
-        for key, v in want.items():
-            hit = alllen.get(round(v), 0)
-            print(f"  치수선 {key}={v}: {'있음' if hit else '없음'} ({hit})")
+        cnt = collections.Counter(meas)
+        for key in ("W", "H", "D"):
+            hit = cnt.get(round(o[key]), 0)
+            print(f"  치수 {key}={o[key]}: {'있음' if hit else '없음'} ({hit})")
             ok &= hit > 0
     print("RESULT:", "PASS" if ok else "FAIL")
     sys.exit(0 if ok else 1)
