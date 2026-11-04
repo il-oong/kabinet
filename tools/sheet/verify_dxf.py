@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """생성 DXF 검증 (수동 교차검증, ezdxf 필요).
 
-사용:  python3 -I tools/sheet/verify_dxf.py out.dxf [furniture.json] [--structure-only]
+사용:  python3 -I tools/sheet/verify_dxf.py out.dxf [furniture.json] [--structure-only] [--no-hinge]
  0) 구조 검사: 핸들 중복·미해결 참조(330/340/350/360)·$HANDSEED·LAYOUT/CLASSES/DIMSTYLE/필수 OBJECTS
  1) ezdxf audit 오류 0
  2) 시트 도곽(FRAME 굵은 사각) 폭 = 420 x 시트 배수 (1:1 실치수 규칙) -> 시트별 배수 출력
@@ -18,6 +18,61 @@ import ezdxf
 HANDLE_DEF = {"5", "105"}
 HANDLE_REF = {"330", "340", "350", "360", "390", "391", "380", "331"}
 REQUIRED_OBJECTS = {"ACAD_GROUP", "ACAD_LAYOUT", "ACAD_MLINESTYLE", "ACAD_PLOTSETTINGS", "ACAD_PLOTSTYLENAME", "ACAD_MATERIAL", "ACAD_COLOR", "ACAD_VISUALSTYLE"}
+
+
+HINGE_RE = re.compile(r"힌지|hinge|경첩", re.I)
+
+
+def check_no_hinge(path, verbose=True):
+    """생성 DXF 에 힌지 문자·도어 열림(여닫이) 사선이 없는지 검사. 사선 = DIM·해칭 색이 아닌 비축각 LINE 중 종이 4mm(x시트 배수) 이상 긴 것,
+    또는 같은 선분이 이어진 호 모양(THIN 비축각 짧은 선 12개 이상 연속). 반환 (통과, 문제 목록)"""
+    d = ezdxf.readfile(path)
+    ents = []
+    for e in d.modelspace():
+        if e.dxftype() == "INSERT":
+            ents += list(e.virtual_entities())
+        else:
+            ents.append(e)
+    infos = []
+    for e in ents:
+        if e.dxftype() == "TEXT" and e.dxf.layer == "SHEET_FRAME_INFO":
+            m = re.search(r"\(1/(\d+)", e.dxf.text)
+            infos.append((e.dxf.insert.x, float(m.group(1)) if m else 1.0))
+    infos.sort()
+    def kof(x):
+        k = 1.0
+        for ix, ik in infos:
+            if x >= ix - 5 * ik:
+                k = ik
+        return k
+    probs = []
+    texts = [e.dxf.text for e in ents if e.dxftype() == "TEXT" and HINGE_RE.search(e.dxf.text)]
+    if texts:
+        probs.append(f"힌지 문자 {len(texts)}개 (예 {texts[:3]})")
+    diag = []
+    for e in ents:
+        if e.dxftype() != "LINE" or e.dxf.layer in ("DIM", "SHEET_FRAME_INFO", "NOTE_BLUE", "NOTE_RED"):   # 지시선(leader)은 주석
+            continue
+        a, b = e.dxf.start, e.dxf.end
+        dx, dy = abs(b.x - a.x), abs(b.y - a.y)
+        if dx < 1e-3 or dy < 1e-3:
+            continue
+        if e.dxf.hasattr("true_color") and ezdxf.colors.int2rgb(e.dxf.true_color) in ((165, 165, 165), (120, 120, 120), (130, 130, 130)):
+            continue                                   # 해칭 색
+        L = math.hypot(dx, dy)
+        k = kof(min(a.x, b.x))
+        if L > 4.0 * k:
+            diag.append((round(a.x), round(a.y), round(L / k, 1)))
+    if diag:
+        probs.append(f"긴 사선 LINE(도어 열림 의심) {len(diag)}개 (예 {diag[:3]})")
+    arcs = [e for e in ents if e.dxftype() == "ARC"]
+    if arcs:
+        probs.append(f"ARC {len(arcs)}개(도어 열림 호 의심)")
+    if verbose:
+        print("힌지/도어 열림 표기 검사:", "0건 OK" if not probs else "문제 %d건" % len(probs))
+        for pr in probs:
+            print("  -", pr)
+    return not probs, probs
 
 
 def raw_pairs(path):
@@ -129,6 +184,8 @@ def main():
     a = d.audit()
     print("audit errors:", len(a.errors)); ok &= len(a.errors) == 0
     good, _ = check_structure(path); ok &= good
+    if "--no-hinge" in sys.argv:
+        good, _ = check_no_hinge(path); ok &= good
     if "--structure-only" in sys.argv:
         print("RESULT:", "PASS" if ok else "FAIL"); sys.exit(0 if ok else 1)
     print("INSUNITS:", d.header.get("$INSUNITS"), "layers:", sorted(l.dxf.name for l in d.layers))

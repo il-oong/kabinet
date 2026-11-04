@@ -318,7 +318,8 @@ CH_H, CH_W, CH_GAP = 60, 40, 25    # 목찬넬 60*40, 상판 하단과 도어 �
 TOP_IN = 782                       # 몸통 상판(18T) 하단 (= body_H - 38; Model 이 갱신). 천판 EP = body_H-20 ~ body_H
 BOT_IN = 118                       # 하판 100~118 (= kick + 18)
 HH = 900                           # 가구 총높이 (Model 이 갱신)
-DW_H, DW_FOOT = 815, 40            # 식기세척기 제품 높이 / 하부 발 높이(추정)
+DW_H, DW_FOOT = 815, 40
+ROBOT_BAY = 450                    # 로봇청소기장 하단 비움 높이(걸레받이 위 기준, 추정)            # 식기세척기 제품 높이 / 하부 발 높이(추정)
 RAIL = 13                          # 서랍 레일 한쪽 여유
 
 
@@ -351,7 +352,7 @@ class Model:
 
 
 SHORT = {"서랍장(2단)M": "서랍장\n(2단)M", "장(2단)": "장\n(2단)", "조리장(1D)L/R": "조리장\n(1D)L/R",
-         "식기세척기 M": "식기\n세척기 M", "조리장(1D)L/R (싱크)": "조리장\n(1D)L/R", "로봇청소기서랍장(1D)L/R": "로봇청소기\n장(1D)", "인출장(1D)": "인출장\n(1D)",
+         "식기세척기 M": "식기\n세척기 M", "조리장(1D)L/R (싱크)": "조리장\n(1D)L/R", "로봇청소기서랍장(1D)L/R": "로봇청소기\n장(1D)\n하부 450", "인출장(1D)": "인출장\n(1D)",
          "OPEN(EP 판넬/벽장용 20T)": "OPEN\n(찬넬 없음)"}
 
 
@@ -657,11 +658,12 @@ def draw_b_body(sh, m, ox, gy, s):
             sh.rect(X(x0 - 9), Z(TOP_IN), X(x0 + 9), Z(BOT_IN), "THIN")      # 칸막이 18T
         cx = X(x0 + w / 2)
         ms = m.mid_shelf()
-        if t == "robot":                                                     # 원도어: 서랍통·레일 없음, 선반 1단(추정)
-            sh.rect(X(xl), Z(ms + 9), X(xr), Z(ms - 9), "THIN"); pins(sh, X, Z, xl + 25, xr - 25, 200, TOP_IN - 80)
-            red_note(sh, cx, Z(ms + 130), "로봇청소기", "c", 1.8); red_note(sh, cx, Z(ms + 130) - 2.2, "수납(확인필요)", "c", 1.6)
-            red_note(sh, cx, Z(ms - 120), "원도어·선반 구성 추정", "c", 1.5)
-            inner_dim(sh, X, Z, x0 + 30, BOT_IN, ms - 9, fmt(ms - 9 - BOT_IN)); inner_dim(sh, X, Z, x0 + 30, ms + 9, TOP_IN, fmt(TOP_IN - ms - 9))
+        if t == "robot":                                                     # 원도어: 하단 450 로봇청소기 베이(비움) → 선반 18T → 상부 칸 252
+            sz0, sz1 = k + ROBOT_BAY, k + ROBOT_BAY + 18
+            sh.rect(X(xl), Z(sz1), X(xr), Z(sz0), "THIN"); pins(sh, X, Z, xl + 25, xr - 25, sz1 + 40, m.body_H - 80)
+            inner_dim(sh, X, Z, x0 + 30, k, sz0, fmt(ROBOT_BAY)); inner_dim(sh, X, Z, x0 + 30, sz1, m.body_H, fmt(m.body_H - sz1))
+            red_note(sh, cx, Z(k + ROBOT_BAY / 2), "로봇청소기 베이", "c", 1.8); red_note(sh, cx, Z(k + ROBOT_BAY / 2) - 2.2, "H450 비움(추정)", "c", 1.6)
+            sh.text(cx, Z((sz1 + m.body_H) / 2), "상부 수납(추정)", 1.6, "g", "c")
         elif t == "pullout":                                                 # 인출장(추정): 원도어 + 인출 레일 + 바스켓 2단
             bx0, bx1 = xl + RAIL, xr - RAIL
             for zb in (BOT_IN + 60, ms + 40):
@@ -871,13 +873,16 @@ def draw_section(sh, m, ox, gy, s, xc):
         sh.rect(X(0), Z(h - EP - CH_GAP), X(DT), Z(k + 4), "OUT")               # 도어 20T (상단 = 천판 하단 25 아래)
         channel_poly(sh, X, Z, DT, h - EP, +1)                                  # 목찬넬
     ms = m.mid_shelf()
-    if t in ("door", "cabinet", "robot"):
+    if t == "robot":
+        sz0, sz1 = k + ROBOT_BAY, k + ROBOT_BAY + 18
+        sh.rect(X(DT), Z(sz1), X(dB - 9), Z(sz0), "OUT")                       # 선반 18T
+        inner_dim(sh, X, Z, 300, k, sz0, fmt(ROBOT_BAY)); inner_dim(sh, X, Z, 300, sz1, h, fmt(h - sz1))
+        red_note(sh, X(100), Z(k + ROBOT_BAY / 2), "로봇청소기 베이 H450(추정)", "l", 1.6)
+    elif t in ("door", "cabinet"):
         sh.rect(X(DT), Z(ms + 9), X(dB - 9), Z(ms - 9), "OUT")
         for y in (DT + 30, dB - 9 - 30):
             sh.circ(X(y), Z(ms), 0.3, "THIN")
         inner_dim(sh, X, Z, 300, BOT_IN, ms - 9, fmt(ms - 9 - BOT_IN)); inner_dim(sh, X, Z, 300, ms + 9, TOP_IN, fmt(TOP_IN - ms - 9))
-        if t == "robot":
-            red_note(sh, X(100), Z(ms - 110), "로봇청소기 수납(원도어)", "l", 1.7)
     elif t == "pullout":
         for zb in (BOT_IN + 60, ms + 40):
             sh.rect(X(DT + RAIL), Z(zb + 140), X(DT + 500), Z(zb), "THIN")        # 인출 바스켓 D500(추정)
@@ -1128,7 +1133,7 @@ def note_block(sh, d, lines):
 NOTE_B = [("*EP = 마감판 20T (측판 양단·천판) / 몸통 18T / 도어 20T / 상판 T{TOP}", "b"),
           ("*싱크볼 컷 W850*D450 (상판 시트 판독, 추정) / 수전 Φ35", "r"),
           ("*식기세척기 W600 빌트인 : 제품 W598*H815*D572 / 상판 하단 820 기준 개구 780 → 높이 부족(확인필요)", "r"),
-          ("*로봇청소기장·인출장(폭 300, 추정) = 원도어(서랍 앞판 없음) / 선반·인출 구성 추정", "r"),
+          ("*로봇청소기장 = 원도어, 하단 H450 비움(베이) + 선반 18T + 상부 H252 (추정) / 인출장(폭 300, 추정) = 원도어", "r"),
           ("*쿡탑 스트로만 후드일체형 4구 JJ-HI01 (위치 확인필요)", "r"),
           ("*상판 1,800 x 2분할 이음 / 상판 하부 보강대 60*18 (추정)", "k"),
           ("*도어 : 주방장 도어 공용 부엌 도어 - KK DR 112", "k"),
@@ -1158,7 +1163,6 @@ def page_floor(m, scale_den):
         for (a, b, c, d) in ((-wt, -wt, RW + wt, 0), (-wt, RD, RW + wt, RD + wt), (RW, 0, RW + wt, RD), (-wt, 0, 0, 2300), (-wt, 3200, 0, RD)):
             sh.rect(X(a), Y(b), X(c), Y(d), "OUT"); sh.hatch_rect(X(a), Y(b), X(c), Y(d))
         sh.line(X(0), Y(2300), X(900), Y(2300), "OUT")
-        sh.arc(X(0), Y(2300), 900 * s, 0, 90, "THIN", 18)
         ix, iy = (RW - m.W) / 2, 1100
         draw_plan(sh, m, X(ix), Y(iy), s, True, 2.1)
         Xi = lambda x: X(ix) + x * s
@@ -1336,7 +1340,7 @@ _TABLE_ROWS = [
     ("식기세척기 높이 [경고]", "제품 H815 + 발 40 = 855 > 상판 하단 820 (35 초과) / 개구 H780", "모델 변경 또는 발·상판 높이 조정 필수"),
     ("식기세척기", "제품 W598*H815*D572 / 설치 W600, 후 49", "모델 확정 후 제품 설치도 대조"),
     ("쿡탑", "4구 W590*D520 JJ-HI01, 위치 미상", "설치 위치·컷 치수 도면 확인"),
-    ("로봇청소기 수납", "원도어(상단 서랍 없음), 선반 1단 추정, 내부 여유 미정", "기기 규격 확인"),
+    ("로봇청소기 수납", "원도어, 하단 베이 H450 비움(걸레받이 위) → 선반 18T(550~568) → 상부 칸 H252 (추정)", "로봇청소기 규격·베이 치수 확인"),
     ("인출장(폭 300) [추정]", "도면 라벨에 '인출' 없음 → 폭 300 '장(2단)' 을 인출장으로 추정, 원도어 + 인출 레일·바스켓 2단(추정)", "인출 사양·대상 모듈 확인"),
     ("서랍 레일", "좌우 13 여유, 싱크면 L500(서랍통은 서랍면만) / 서랍면 L400", "레일 제품 규격 확인"),
     ("전판 높이·간격", "서랍 {FH} x 2단, 단간 25(찬넬 틈), 걸레받이 위 4, 상단 = 천판 하단 25 아래(775)", "설계 확정 후 재단도 반영"),
@@ -1344,7 +1348,7 @@ _TABLE_ROWS = [
     ("목찬넬(손잡이)", "60*40, 전판 상단, 상판 하단 25 이격 (기본값)", "손잡이 사양 확인(샘플 11~13쪽 참조)"),
     ("EP 20T 위치", "서랍면 좌단, 싱크면 좌단(326 후퇴), 우단 전체, 천판(상판 하부 800~820)", "원본 EP 지시(`EP 판넬 [20T]`)와 위치 대조"),
     ("뒷판·후면 마감", "등 맞댐 면 뒷판 9T (추정)", "후면 마감 사양 확인"),
-    ("선반", "18T, 싱크면 높이 약 450(칸 가운데, 추정) / OPEN 357, 핀 96 간격", "선반 위치 확정"),
+    ("선반", "18T, 싱크면 칸 가운데 약 450(로봇청소기장 제외, 추정) / OPEN 357, 핀 96 간격", "선반 위치 확정"),
     ("콘센트·배선 타공", "Φ60~80, 위치 미정", "전기 도면 확인"),
     ("도어 재질·색상", "목림 지정 자재 / 안도크림 색상 (샘플 문구)", "지정 자재 확인"),
     ("단면 절단 위치", "단면 1 : X=2,300 / 단면 2 : X=2,900 (추정)", "제작 협의 후 확정"),

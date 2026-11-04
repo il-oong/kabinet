@@ -162,7 +162,7 @@ module Kabinet
                   if md['channel']
                     c.rect(x.call(xa), z.call(z1 + CH_GAP), x.call(xa + dw), z.call(z1), 'OUT')     # 전판(찬넬 가림)
                   else
-                    hx = (n == 1 || i.zero?) ? xa + dw - 40 : xa + 40                              # 손잡이 위치 표시(힌지 표기 없음)
+                    hx = (n == 1 || i.zero?) ? xa + dw - 40 : xa + 40                              # 손잡이 위치 표시(도어는 단순 도어선만)
                     c.line(x.call(hx), z.call((z0 + z1) / 2 - 60), x.call(hx), z.call((z0 + z1) / 2 + 60), 'THIN')
                   end
                 end
