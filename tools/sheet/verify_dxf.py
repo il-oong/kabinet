@@ -116,7 +116,7 @@ TOL = 1.5
 
 
 def num(s):
-    m = re.fullmatch(r"\s*(-?[\d,]+(?:\.\d+)?)\s*", s or "")
+    m = re.fullmatch(r"\s*(-?[\d,]+(?:\.\d+)?)\s*(?:싱크면|서랍면)?\s*", s or "")
     return float(m.group(1).replace(",", "")) if m else None
 
 
