@@ -155,9 +155,10 @@ def elev_dims(sh, d, X, Z):
 
 def ep_strips(sh, d, X, Z, body, k):
     ep = d["ep"]; t = ep["thickness"]; o = d["overall"]
-    if ep.get("left"): bs.ep_rect(sh, X(0), Z(body), X(t), Z(k), 0.5)
-    if ep.get("right"): bs.ep_rect(sh, X(o["W"] - t), Z(body), X(o["W"]), Z(k), 0.5)
-    if ep.get("top"): bs.ep_rect(sh, X(0), Z(body), X(o["W"]), Z(body - t), 0.5)
+    # 측판 EP 는 상판 하면(body)부터 바닥(0)까지 걸레받이 구간 포함 연속 한 장, 천판 EP 는 측판 EP 사이
+    if ep.get("left"): bs.ep_rect(sh, X(0), Z(body), X(t), Z(0), 0.5)
+    if ep.get("right"): bs.ep_rect(sh, X(o["W"] - t), Z(body), X(o["W"]), Z(0), 0.5)
+    if ep.get("top"): bs.ep_rect(sh, X(t if ep.get("left") else 0), Z(body), X(o["W"] - (t if ep.get("right") else 0)), Z(body - t), 0.5)
 
 
 @view("VIEW_FRONT_DOOR")
@@ -165,7 +166,7 @@ def door_view(sh, d, ox, gy, s):
     o = d["overall"]; X, Z = elev_frame(sh, d, ox, gy, s)
     body = o["H"] - o["top_thickness"]; k = o["kick"]
     if body > k: sh.rect(X(0), Z(body), X(o["W"]), Z(k), "OUT")
-    if k > 0: sh.rect(X(10), Z(k), X(o["W"] - 10), Z(0), "OUT")
+    if k > 0: sh.rect(X(d["ep"]["thickness"] if d["ep"].get("left") else 10), Z(k), X(o["W"] - (d["ep"]["thickness"] if d["ep"].get("right") else 10)), Z(0), "OUT")   # 걸레받이: 측판 EP 사이
     for md in d["modules"]:
         zb, zt = md["z"], md["z"] + md["h"]
         if md["x"] > 0: sh.line(X(md["x"]), Z(zb), X(md["x"]), Z(zt), "OUT")
@@ -202,7 +203,7 @@ def body_view(sh, d, ox, gy, s):
     o = d["overall"]; X, Z = elev_frame(sh, d, ox, gy, s)
     body = o["H"] - o["top_thickness"]; k = o["kick"]
     if body > k: sh.rect(X(0), Z(body), X(o["W"]), Z(k), "OUT")
-    if k > 0: sh.rect(X(10), Z(k), X(o["W"] - 10), Z(0), "OUT")
+    if k > 0: sh.rect(X(d["ep"]["thickness"] if d["ep"].get("left") else 10), Z(k), X(o["W"] - (d["ep"]["thickness"] if d["ep"].get("right") else 10)), Z(0), "OUT")   # 걸레받이: 측판 EP 사이
     for md in d["modules"]:
         zb, zt = md["z"], md["z"] + md["h"]
         if md["x"] > 0: sh.rect(X(md["x"] - 9), Z(zt), X(md["x"] + 9), Z(zb), "THIN")
@@ -292,9 +293,9 @@ def page_side(d, den, no):
         a, b = sorted((Y(0), Y(D)))
         ep = d["ep"]; has = ep.get("left") if idx == 0 else ep.get("right")
         if o["top_thickness"] > 0: sh.rect(a, Z(o["H"]), b, Z(body), "OUT")
-        if has: bs.ep_rect(sh, a, Z(body), b, Z(k), 0.5)
+        if has: bs.ep_rect(sh, a, Z(body), b, Z(0), 0.5)               # 측판 EP 바닥까지
         else: sh.rect(a, Z(body), b, Z(k), "OUT")
-        if k > 0: sh.rect(*sorted((Y(60), Y(D - 60)))[:1], Z(k), sorted((Y(60), Y(D - 60)))[1], Z(0), "OUT")
+        if k > 0 and not has: sh.rect(*sorted((Y(60), Y(D - 60)))[:1], Z(k), sorted((Y(60), Y(D - 60)))[1], Z(0), "OUT")
         bs.dim_v(sh, a - 6.0, [Z(o["H"]), Z(0)], [fmt(o["H"])], ref=a)
         bs.dim_h(sh, [a, b], Z(o["H"]) - 8.0, [fmt(D)], ref=Z(o["H"]))
         bs.marker(sh, (a + b) / 2, gy + 16.0, "D" if flip else "C", "up")

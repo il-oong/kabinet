@@ -136,9 +136,10 @@ module Kabinet
 
         def ep_strips(c, m, x, z, body, k)
           o = m['overall']; ep = m['ep']; t = ep['thickness']
-          c.ep_rect(x.call(0), z.call(body), x.call(t), z.call(k), 0.5) if ep['left']
-          c.ep_rect(x.call(o['W'] - t), z.call(body), x.call(o['W']), z.call(k), 0.5) if ep['right']
-          c.ep_rect(x.call(0), z.call(body), x.call(o['W']), z.call(body - t), 0.5) if ep['top']
+          # 측판 EP: 상판 하면부터 바닥까지 걸레받이 구간 포함 연속 한 장 / 천판 EP: 측판 EP 사이
+          c.ep_rect(x.call(0), z.call(body), x.call(t), z.call(0), 0.5) if ep['left']
+          c.ep_rect(x.call(o['W'] - t), z.call(body), x.call(o['W']), z.call(0), 0.5) if ep['right']
+          c.ep_rect(x.call(ep['left'] ? t : 0), z.call(body), x.call(o['W'] - (ep['right'] ? t : 0)), z.call(body - t), 0.5) if ep['top']
         end
 
         def draw_door_view(c, m, ox, gy, s)
@@ -146,7 +147,7 @@ module Kabinet
           x, z = elev_frame(c, m, ox, gy, s)
           body = o['H'] - o['top_thickness']; k = o['kick']
           c.rect(x.call(0), z.call(body), x.call(o['W']), z.call(k), 'OUT') if body > k
-          c.rect(x.call(10), z.call(k), x.call(o['W'] - 10), z.call(0), 'OUT') if k > 0
+          c.rect(x.call(m['ep']['left'] ? m['ep']['thickness'] : 10), z.call(k), x.call(o['W'] - (m['ep']['right'] ? m['ep']['thickness'] : 10)), z.call(0), 'OUT') if k > 0   # 걸레받이: 측판 EP 사이
           m['modules'].each do |md|
             zb = md['z']; zt = md['z'] + md['h']
             c.line(x.call(md['x']), z.call(zb), x.call(md['x']), z.call(zt), 'OUT') if md['x'] > 0
@@ -197,7 +198,7 @@ module Kabinet
           x, z = elev_frame(c, m, ox, gy, s)
           body = o['H'] - o['top_thickness']; k = o['kick']
           c.rect(x.call(0), z.call(body), x.call(o['W']), z.call(k), 'OUT') if body > k
-          c.rect(x.call(10), z.call(k), x.call(o['W'] - 10), z.call(0), 'OUT') if k > 0
+          c.rect(x.call(m['ep']['left'] ? m['ep']['thickness'] : 10), z.call(k), x.call(o['W'] - (m['ep']['right'] ? m['ep']['thickness'] : 10)), z.call(0), 'OUT') if k > 0   # 걸레받이: 측판 EP 사이
           m['modules'].each do |md|
             zb = md['z']; zt = md['z'] + md['h']
             c.rect(x.call(md['x'] - 9), z.call(zt), x.call(md['x'] + 9), z.call(zb), 'THIN') if md['x'] > 0   # 칸막이 18T
@@ -315,8 +316,8 @@ module Kabinet
             a, b = [yx.call(0), yx.call(d)].sort
             c.rect(a, zz.call(o['H']), b, zz.call(body), 'OUT') if o['top_thickness'] > 0
             ep_here = idx.zero? ? m['ep']['left'] : m['ep']['right']
-            if ep_here then c.ep_rect(a, zz.call(body), b, zz.call(k), 0.5) else c.rect(a, zz.call(body), b, zz.call(k), 'OUT') end
-            if k > 0
+            if ep_here then c.ep_rect(a, zz.call(body), b, zz.call(0), 0.5) else c.rect(a, zz.call(body), b, zz.call(k), 'OUT') end
+            if k > 0 && !ep_here
               p1, p2 = [yx.call(60), yx.call(d - 60)].sort
               c.rect(p1, zz.call(k), p2, zz.call(0), 'OUT')
             end

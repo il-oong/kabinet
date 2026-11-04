@@ -672,47 +672,6 @@ def draw_b_body(sh, m, ox, gy, s):
             inner_dim(sh, X, Z, x0 + 30, sz1, m.body_H, fmt(m.body_H - sz1))
             red_note(sh, cx, Z(ROBOT_BAY / 2), "로봇청소기 베이", "c", 1.8); red_note(sh, cx, Z(ROBOT_BAY / 2) - 2.2, "H500 개방(걸레받이 포함·추정)", "c", 1.5)
             sh.text(cx, Z((sz1 + m.body_H) / 2), "상부 수납(추정)", 1.6, "g", "c")
-        elif t == "pullout":
-            sh.text(cx, Z((k + 4 + b_fronts(m, md)[0][1]) / 2), "원도어(인출)", 1.8, "g", "c")
-    drw = next(md for md in mods if md["type"] == "drawer2")
-    drs = next(md for md in mods if md["type"] == "door_sink")
-    chan_label(sh, X, Z, drw["vx"], drw["w"], b_fronts(m, drw)[1][1])
-    chan_label(sh, X, Z, drs["vx"], drs["w"], b_fronts(m, drs)[0][1])
-    chan_dims(sh, X, Z, drw["vx"] + 40, m)
-    faucet(sh, X, Z, mods_sink_vx(m) + 425)
-    sh.text(X(bodyW / 2), Z(k / 2) + 0.6, "걸레받이 H100", 1.7, "g", "c")
-    return X, Z
-
-
-@view("VIEW_FRONT_BODY")
-def draw_b_body(sh, m, ox, gy, s):
-    X, Z = elev_frame(sh, m, ox, gy, s)
-    mods = b_view_modules(m)
-    bodyW = m.W - m.ovl
-    k, h = m.kick, m.body_H
-    sh.rect(X(0), Z(h), X(bodyW), Z(k), "OUT")
-    robot_x1 = next((md["vx"] + md["w"] for md in mods if md["type"] == "robot"), EP)       # 로봇청소기장 구간은 걸레받이 없음(바닥 개방)
-    sh.rect(X(robot_x1), Z(k), X(bodyW - EP), Z(0), "OUT")                                  # 걸레받이: 측판 EP 사이(안쪽 후퇴·추정)
-    ep_band(sh, X, Z, m, 0, bodyW)
-    ep_ends(sh, m, X, Z, [0, bodyW - EP])
-    sh.rect(X(EP), Z(TOP_IN + 18), X(bodyW - EP), Z(TOP_IN), "THIN")       # 상판(18T)
-    rob = next((md for md in mods if md["type"] == "robot"), None)
-    rx1 = rob["vx"] + rob["w"] if rob else EP
-    sh.rect(X(max(rx1, EP)), Z(BOT_IN), X(bodyW - EP), Z(k), "THIN")        # 하판(18T) — 로봇청소기장 구간은 바닥 개방이라 없음
-    for md in mods:
-        x0, w, t = md["vx"], md["w"], md["type"]
-        xl = max(x0, EP) + (9 if x0 > 0 else 0)
-        xr = min(x0 + w, bodyW - EP) - (9 if x0 + w < bodyW else 0)
-        if x0 > 0:
-            sh.rect(X(x0 - 9), Z(TOP_IN), X(x0 + 9), Z(0 if rob and x0 == rx1 else BOT_IN), "THIN")      # 칸막이 18T (로봇청소기장 쪽은 바닥까지)
-        cx = X(x0 + w / 2)
-        ms = m.mid_shelf()
-        if t == "robot":                                                     # 원도어: 하단 450 로봇청소기 베이(비움) → 선반 18T → 상부 칸 252
-            sz0, sz1 = k + ROBOT_BAY, k + ROBOT_BAY + 18
-            sh.rect(X(xl), Z(sz1), X(xr), Z(sz0), "THIN"); pins(sh, X, Z, xl + 25, xr - 25, sz1 + 40, m.body_H - 80)
-            inner_dim(sh, X, Z, x0 + 30, k, sz0, fmt(ROBOT_BAY)); inner_dim(sh, X, Z, x0 + 30, sz1, m.body_H, fmt(m.body_H - sz1))
-            red_note(sh, cx, Z(k + ROBOT_BAY / 2), "로봇청소기 베이", "c", 1.8); red_note(sh, cx, Z(k + ROBOT_BAY / 2) - 2.2, "H450 비움(추정)", "c", 1.6)
-            sh.text(cx, Z((sz1 + m.body_H) / 2), "상부 수납(추정)", 1.6, "g", "c")
         elif t == "pullout":                                                 # 인출장(추정): 원도어 + 인출 레일 + 바스켓 2단
             bx0, bx1 = xl + RAIL, xr - RAIL
             for zb in (BOT_IN + 60, ms + 40):
