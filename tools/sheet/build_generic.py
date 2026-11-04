@@ -111,6 +111,8 @@ def draw_plan(sh, d, ox, oy, s, labels=True):
         x0, x1 = ox + md["x"] * s, ox + (md["x"] + md["w"]) * s
         y1 = oy + md["d"] * s
         sh.rect(x0, oy + (D - md["d"]) * s, x1, oy + D * s, "THIN")
+        if md["type"] != "appliance":
+            sh.rect(x0, oy + (D - md["d"]) * s, x0 + BT * s, oy + D * s, "THIN"); sh.rect(x1 - BT * s, oy + (D - md["d"]) * s, x1, oy + D * s, "THIN")   # 장마다 측판 18T 2장
         if md["type"] in ("doors", "drawers"):
             sh.line(x0, oy + (D - DT) * s, x1, oy + (D - DT) * s, "THIN")
         if labels and md["w"] * s > 8:
@@ -127,8 +129,9 @@ def draw_plan(sh, d, ox, oy, s, labels=True):
 @view("VIEW_TOP")
 def plan_dims(sh, d, ox, oy, s):
     o = d["overall"]; W, D = o["W"], o["D"]
-    xs = sorted({0, W} | {round(m["x"]) for m in d["modules"]} | {round(m["x"] + m["w"]) for m in d["modules"]})
-    if len(xs) > 2:
+    cl = clipped(d); lo_, hi_ = ep_bounds(d)
+    xs = sorted({round(lo_), round(hi_)} | {round(m["x"]) for m in cl} | {round(m["x"] + m["w"]) for m in cl})        # 모듈 외곽 폭(측판 2장 포함, EP 제외)
+    if len(xs) > 1:
         bs.dim_h(sh, [ox + x * s for x in xs], oy - 5.5, [fmt(b - a) for a, b in zip(xs, xs[1:])], ref=oy)
     top_y = 11.5
     if ep_row(sh, d, lambda x: ox + x * s, oy - 11.5, oy):
@@ -183,8 +186,9 @@ def elev_frame(sh, d, ox, gy, s):
 
 def elev_dims(sh, d, X, Z):
     o = d["overall"]; top = Z(o["H"]); body = o["H"] - o["top_thickness"]
-    xs = sorted({0, o["W"]} | {round(m["x"]) for m in d["modules"]} | {round(m["x"] + m["w"]) for m in d["modules"]})
-    if len(xs) > 2:
+    cl = clipped(d); lo_, hi_ = ep_bounds(d)
+    xs = sorted({round(lo_), round(hi_)} | {round(m["x"]) for m in cl} | {round(m["x"] + m["w"]) for m in cl})
+    if len(xs) > 1:
         bs.dim_h(sh, [X(x) for x in xs], top - 11.0, [fmt(b - a) for a, b in zip(xs, xs[1:])], ref=top)
     if ep_row(sh, d, X, top - 17.0, top):
         bs.dim_h(sh, [X(0), X(o["W"])], top - 23.0, [fmt(o["W"])], ref=top)
@@ -252,14 +256,19 @@ def body_view(sh, d, ox, gy, s):
     body = o["H"] - o["top_thickness"]; k = o["kick"]
     if body > k: sh.rect(X(ep_bounds(d)[0]), Z(body), X(ep_bounds(d)[1]), Z(k), "OUT")        # 몸통 외곽 = 측판 EP 안쪽면 사이
     if k > 0: sh.rect(X(d["ep"]["thickness"] if d["ep"].get("left") else 10), Z(k), X(o["W"] - (d["ep"]["thickness"] if d["ep"].get("right") else 10)), Z(0), "OUT")   # 걸레받이: 측판 EP 사이
+    inner_row = []
     for md in clipped(d):
         lo_, hi_ = ep_bounds(d)
         zb, zt = md["z"], md["z"] + md["h"]
-        if md["x"] > lo_: sh.rect(X(md["x"] - 9), Z(zt - (d["ep"]["thickness"] if d["ep"].get("top") else 0)), X(md["x"] + 9), Z(zb), "THIN")
+        ztp = zt - (d["ep"]["thickness"] if d["ep"].get("top") else 0)
+        if md["type"] != "appliance":                                                           # 가전 자리는 장(몸통)이 아님
+            sh.rect(X(md["x"]), Z(ztp), X(md["x"] + BT), Z(zb), "THIN")                          # 장의 좌측판 18T
+            sh.rect(X(md["x"] + md["w"] - BT), Z(ztp), X(md["x"] + md["w"]), Z(zb), "THIN")        # 장의 우측판 18T (이웃 장 좌측판과 맞닿음 = 경계 2장)
+            inner_row.append((md["x"], md["x"] + md["w"]))
         sh.line(X(md["x"]), Z(zb), X(md["x"] + md["w"]), Z(zb), "THIN")
         for sv in md["shelves"]:
             zz = zb + sv
-            sh.rect(X(md["x"] + (9 if md["x"] > lo_ else 0)), Z(zz + 9), X(md["x"] + md["w"] - (9 if md["x"] + md["w"] < hi_ else 0)), Z(zz - 9), "THIN")
+            sh.rect(X(md["x"] + BT), Z(zz + 9), X(md["x"] + md["w"] - BT), Z(zz - 9), "THIN")              # 선반 폭 = 내경
         for rv in md["rods"]:
             sh.dashed(X(md["x"] + 12), Z(zb + rv), X(md["x"] + md["w"] - 12), Z(zb + rv), "BLUE", 2.0, 1.0)
             if md["w"] * s > 14: sh.text(X(md["x"] + md["w"] / 2), Z(zb + rv) - 1.0, "옷걸이봉", 1.6, "b", "c")
@@ -278,6 +287,8 @@ def body_view(sh, d, ox, gy, s):
                     sh.rect(X(md["x"] + 4.5), Z(z0 - CH_GAP + CH_H), X(md["x"] + md["w"] - 4.5), Z(z0 - CH_GAP), "BLUE")
     ep_strips(sh, d, X, Z, body, k)
     elev_dims(sh, d, X, Z)
+    for a_, b_ in inner_row:                                                                         # 모듈 내경(= 외곽 − 36) DIMENSION
+        bs.dim_h(sh, [X(a_ + BT), X(b_ - BT)], Z(0) + 7.0, [fmt(b_ - a_ - 2 * BT) + " 내경"], ref=Z(0), size=1.7)
     x = X(cut_x(d)); yt = Z(o["H"]) - 29.0; yb = gy + 9.5
     sh.chain(x, yt + 3.3, x, yb - 3.3, "FR")
     sh.line(x - 2.2, yt + 5.0, x + 2.2, yt + 5.0, "SEC"); sh.line(x - 2.2, yb - 5.0, x + 2.2, yb - 5.0, "SEC")
@@ -303,6 +314,7 @@ def default_notes(d):
         L.append((f"*EP = 마감판 {d['ep']['thickness']}T (측판·천판) / 몸통 18T / 도어 20T", "b"))
     if d.get("channel"): L.append(("*목찬넬 60*40 : 전판 상단(상판 하면 25 이격) (확인필요)", "r"))
     if any(tb(d, m) for m in d["modules"]): L.append(("*상·하부 목찬넬: 전판 위 찬넬(상향 개구) + 아래 거꾸로 찬넬(하향 개구), 전판 상하 25 틈 (추정)", "b"))
+    L.append(("*장 결합 시공: 장마다 측판 18T x 2 (인접 장 사이 36), 모듈 폭 = 측판 포함 외곽, 내경 = 외곽 − 36", "b"))
     L.append(("*선반 18T · 뒷판 9T · 서랍 레일 13*2 (일반 기준, 추정)", "k"))
     for f in d["flags"][:5]: L.append(("*" + f, "r"))
     L.append(("*단면 1 : SIDE VIEW 시트 / 확인 목록 : 생산 확인표", "k"))
@@ -319,15 +331,15 @@ def page_furniture(d, den, no):
     ox, oy = max(40.0, 110.0 - pw / 2), 50.0        # TOP VIEW 패널(9.4~210.3) 가운데 (작은 가구가 왼쪽 모서리로 쏠리지 않게)
     draw_plan(sh, d, ox, oy, s); plan_dims(sh, d, ox, oy, s); plan_markers(sh, d, ox, oy, s)
     note_block(sh, d, default_notes(d))
-    gy = min(124.2 + 26.0 + o["H"] * s, 262.0)
+    gy = min(124.2 + 26.0 + o["H"] * s, 238.0)
     with sh.group("VIEW_FRONT_DOOR"):             # 마커·캡션도 뷰 블록 안에
         door_x = max(30.0, 110.0 - pw / 2)
-        door_view(sh, d, door_x, gy, s); bs.marker(sh, door_x + o["W"] * s / 2, gy + 10.0, "A", "up")
-        sh.text(door_x, gy + 19.0, "도어 20T / 전판 간격 3 / 걸레받이 (추정)", 2.0, "b")
+        door_view(sh, d, door_x, gy, s); bs.marker(sh, door_x + o["W"] * s / 2, gy + 17.0, "A", "up")
+        sh.text(door_x, gy + 25.0, "도어 20T / 전판 간격 3 / 걸레받이 (추정)", 2.0, "b")
     with sh.group("VIEW_FRONT_BODY"):
         body_x = max(240.0, 310.0 - pw / 2)
-        body_view(sh, d, body_x, gy, s); bs.marker(sh, body_x + o["W"] * s / 2, gy + 10.0, "A", "up")
-        sh.text(body_x, gy + 19.0, "몸통 18T · 칸막이 18T · 선반 18T · 뒷판 9T (추정)", 2.0, "b")
+        body_view(sh, d, body_x, gy, s); bs.marker(sh, body_x + o["W"] * s / 2, gy + 17.0, "A", "up")
+        sh.text(body_x, gy + 25.0, "몸통 18T · 장마다 측판 18T x 2(인접 장 사이 36) · 선반 18T · 뒷판 9T (추정)", 2.0, "b")
     return sh
 
 
@@ -464,6 +476,13 @@ def page_table(d, den=25):
         nf = sum(len(fronts(d, m)) * (2 if m["type"] == "doors" and m.get("doors", 1) == 2 else 1) for m in tbm)
         rows = rows + [["목찬넬 수량(상/하)", f"상부 {nf} + 하부 {nf} 개 (전판 수 기준 폭=전판 폭, 추정)", "찬넬 길이·수량 확정"],
                        ["전판 상하 틈", "상 25(상판 하면) / 하 25(걸레받이 위) / 단간 25 (추정)", "찬넬 개구 25 확인"]]
+    cl = clipped(d)
+    rows = rows + [["장 결합 시공 [변경]", "장마다 측판 18T x 2(인접 장 사이 36). 외곽/내경: " + ", ".join(f"{fmt(m['w'])}/{fmt(m['w'] - 36)}" for m in cl), "장 결합·측판 2장 확인"]]
+    lo_, hi_ = ep_bounds(d)
+    raw = sum(m["w"] for m in d["modules"]); outer = sum(m["w"] for m in cl)
+    if abs(raw - outer) > 0.5:
+        rows.append(["합계 불일치 [추정]", f"원본 Σ모듈={fmt(raw)}, EP 제외 Σ외곽={fmt(outer)} (전체 {fmt(d['overall']['W'])}) → 끝 모듈을 EP 두께만큼 보정(원본 전체 유지)", "원본 모듈 폭의 EP 포함 여부 확인"])
+    rows.append(["판재 목록(장당)", "측판 18T 2장, 상·하판 18T 폭 = 내경, 뒷판 9T 폭 = 내경, 선반 18T 폭 = 내경 − 여유(추정)", "재단도 확정"])
     rows = rows + [[f, "도면에서 읽지 못함/추정", "확인 필요"] for f in d["flags"]] + base
     sh = Sheet("table"); sh.den = den
     sh.rect(4.5, 3.2, 415.5, 293.9, "FR")

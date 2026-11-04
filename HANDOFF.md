@@ -2,6 +2,9 @@
 
 새 세션에서 이 파일부터 읽고 이어서 작업하세요. 사용자 선호: **한국어로 답변, 코드는 항상 PR 먼저 만든 뒤 머지, Railway 사용(이 저장소는 SketchUp 플러그인이라 해당 없음)**, 컨텍스트 70% 넘으면 중단하고 정리.
 
+## (v1.25.9) 장 결합 시공(측판 2장)
+- island: `inner_widths_row`, 측판 쌍 rect(BODY·평면), 모듈 외곽 폭 dims(clip_span), generic/Ruby 동일(`clipped`, `inner_row`). verify `--twin-panels`. core 는 이미 독립 박스(조사 결과 INSTALL.md). 남은 확인: 원본 모듈 폭의 EP 포함 여부, 가전 자리(식기세척기) 양옆 측판 처리.
+
 ## (v1.25.8) 아일랜드 서랍면 걸레받이 50 + 페이크도어
 - `Model.kickA`(overall.kick_A=50), `fronts(m,n,k,bot)`, A면 모듈 type `fake`(페이크도어), `a_fronts` = (kickA,25), 단면 B/A 걸레받이 단차, 확인표 갱신. 남은 확인: 서랍면/싱크면 걸레받이 단차 처리, 페이크도어 고정 방식, 장식 찬넬 수량.
 

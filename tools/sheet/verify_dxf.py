@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """생성 DXF 검증 (수동 교차검증, ezdxf 필요).
 
-사용:  python3 -I tools/sheet/verify_dxf.py out.dxf [furniture.json] [--structure-only] [--no-hinge] [--no-overlap-ep]
+사용:  python3 -I tools/sheet/verify_dxf.py out.dxf [furniture.json] [--structure-only] [--no-hinge] [--no-overlap-ep] [--twin-panels]
  0) 구조 검사: 핸들 중복·미해결 참조(330/340/350/360)·$HANDSEED·LAYOUT/CLASSES/DIMSTYLE/필수 OBJECTS
  1) ezdxf audit 오류 0
  2) 시트 도곽(FRAME 굵은 사각) 폭 = 420 x 시트 배수 (1:1 실치수 규칙) -> 시트별 배수 출력
@@ -173,6 +173,74 @@ def check_no_overlap_ep(path, tol=0.5, verbose=True):
     return not bad, bad
 
 
+def check_twin_panels(path, fj=None, verbose=True):
+    """장(모듈) 결합 시공: 이웃 장 경계마다 18T 판 2장(폭 18 사각 두 개가 맞닿음), 공용 36T 한 장 없음,
+    모듈 외곽 폭(입력) 및 내경(외곽−36) DIMENSION 값 존재. 1:1 실치수 DXF 기준."""
+    d = ezdxf.readfile(path)
+    ents = []
+    for e in d.modelspace():
+        if e.dxftype() == "INSERT":
+            ents += list(e.virtual_entities())
+        else:
+            ents.append(e)
+    rects = []
+    for e in ents:
+        if e.dxftype() == "LWPOLYLINE" and e.dxf.layer == "THIN" and e.closed:
+            p = [(float(x), float(y)) for x, y in e.get_points("xy")]
+            xs = [a for a, b in p]; ys = [b for a, b in p]
+            if len(p) == 4:
+                rects.append((min(xs), min(ys), max(xs), max(ys)))
+    plates = [r for r in rects if abs((r[2] - r[0]) - 18) < 0.6 and (r[3] - r[1]) > 150]
+    single36 = [r for r in rects if abs((r[2] - r[0]) - 36) < 0.6 and (r[3] - r[1]) > 150]
+    twins = 0
+    for a in plates:
+        for b in plates:
+            if a is not b and abs(a[2] - b[0]) < 0.6 and min(a[3], b[3]) - max(a[1], b[1]) > 100:
+                twins += 1
+    probs = []
+    if single36:
+        probs.append(f"공용 36T 한 장으로 그려진 판 {len(single36)}개")
+    meas = collections.Counter()
+    for e in ents:
+        if e.dxftype() == "DIMENSION":
+            try:
+                meas[round(e.get_measurement())] += 1
+            except Exception:
+                pass
+    outer = []
+    adjacent = None
+    if fj:
+        ep = fj.get("ep") or {}
+        t = ep.get("thickness", 20); W = fj["overall"]["W"]
+        if "modules" in fj:
+            lo = t if ep.get("left") else 0; hi = W - t if ep.get("right") else W
+            cabs = [m for m in fj["modules"] if m.get("type") != "appliance"]
+            for m in cabs:
+                a, b = max(m["x"], lo), min(m["x"] + m["w"], hi)
+                outer.append(b - a)
+            adjacent = sum(1 for m in cabs for n_ in cabs if abs(m["x"] + m["w"] - n_["x"]) < 1)
+        elif "A_side" in fj:
+            ovl = fj["B_side"]["left_overhang"]
+            outer += [b["w"] for b in fj["A_side"]["bays"]]
+            for m in fj["B_side"]["plan_modules"]:
+                a, b = max(m["x"], ovl + t), min(m["x"] + m["w"], W - t)
+                if m.get("type") != "dishwasher":
+                    outer.append(b - a)
+            adjacent = 3
+    if twins == 0 and (adjacent is None or adjacent > 0):
+        probs.append("경계마다 18T 판 2장(맞닿은 폭 18 사각 두 개)이 없음")
+    for w in sorted(set(round(v) for v in outer)):
+        if meas.get(w, 0) == 0:
+            probs.append(f"모듈 외곽 폭 {w} DIMENSION 없음")
+        if meas.get(w - 36, 0) == 0:
+            probs.append(f"내경 {w - 36}(= 외곽 {w} − 36) DIMENSION 없음")
+    if verbose:
+        print(f"장 결합(측판 2장) 검사: 18T 판 {len(plates)}개, 맞닿은 쌍 {twins}, 공용 36T {len(single36)}, 외곽 폭 {sorted(set(round(v) for v in outer))} ->", "OK" if not probs else "문제")
+        for pr in probs:
+            print("  -", pr)
+    return not probs, probs
+
+
 def raw_pairs(path):
     raw = open(path, "rb").read()
     try:
@@ -286,6 +354,8 @@ def main():
     a = d.audit()
     print("audit errors:", len(a.errors)); ok &= len(a.errors) == 0
     good, _ = check_structure(path); ok &= good
+    if "--twin-panels" in sys.argv:
+        good, _ = check_twin_panels(path, fj); ok &= good
     if "--no-overlap-ep" in sys.argv:
         good, _ = check_no_overlap_ep(path); ok &= good
     if "--no-hinge" in sys.argv:

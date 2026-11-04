@@ -54,6 +54,10 @@ module Kabinet
           clipped(m).each do |md|
             x0 = ox + md['x'] * s; x1 = ox + (md['x'] + md['w']) * s
             c.rect(x0, oy + (d - md['d']) * s, x1, oy + d * s, 'THIN')
+            unless md['type'] == 'appliance'                                                                     # 장마다 측판 18T 2장(좌·우)
+              c.rect(x0, oy + (d - md['d']) * s, x0 + BT * s, oy + d * s, 'THIN')
+              c.rect(x1 - BT * s, oy + (d - md['d']) * s, x1, oy + d * s, 'THIN')
+            end
             c.line(x0, oy + (d - DT) * s, x1, oy + (d - DT) * s, 'THIN') if %w[doors drawers].include?(md['type'])   # 도어 20T
             c.text((x0 + x1) / 2, oy + (d - md['d'] / 2) * s + 0.6, lbl(md), 1.8, 'g', 'c') if labels && md['w'] * s > 8
           end
@@ -69,8 +73,9 @@ module Kabinet
 
         def plan_dims(c, m, ox, oy, s)
           o = m['overall']; w = o['W']; d = o['D']
-          xs = ([0.0, w] + m['modules'].flat_map { |md| [md['x'], md['x'] + md['w']] }).map(&:round).uniq.sort
-          c.dim_h(xs.map { |x| ox + x * s }, oy - 5.5, xs.each_cons(2).map { |a, b| f(b - a) }, ref: oy) if xs.size > 2
+          lo, hi = ep_bounds(m)
+          xs = ([lo, hi] + clipped(m).flat_map { |md| [md['x'], md['x'] + md['w']] }).map(&:round).uniq.sort     # 모듈 외곽 폭(측판 2장 포함, EP 제외)
+          c.dim_h(xs.map { |x| ox + x * s }, oy - 5.5, xs.each_cons(2).map { |a, b| f(b - a) }, ref: oy) if xs.size > 1
           top_y = 11.5
           top_y = 17.5 if ep_row(c, m, ->(v) { ox + v * s }, oy - 11.5, oy)
           c.dim_h([ox, ox + w * s], oy - top_y, [f(w)], ref: oy)
@@ -157,8 +162,9 @@ module Kabinet
         def elev_dims(c, m, x, z)
           o = m['overall']
           top = z.call(o['H'])
-          xs = ([0.0, o['W']] + m['modules'].flat_map { |md| [md['x'], md['x'] + md['w']] }).map(&:round).uniq.sort
-          c.dim_h(xs.map { |v| x.call(v) }, top - 11.0, xs.each_cons(2).map { |a, b| f(b - a) }, ref: top) if xs.size > 2
+          lo, hi = ep_bounds(m)
+          xs = ([lo, hi] + clipped(m).flat_map { |md| [md['x'], md['x'] + md['w']] }).map(&:round).uniq.sort
+          c.dim_h(xs.map { |v| x.call(v) }, top - 11.0, xs.each_cons(2).map { |a, b| f(b - a) }, ref: top) if xs.size > 1
           ow_y = ep_row(c, m, x, top - 17.0, top) ? 23.0 : 17.0
           c.dim_h([x.call(0), x.call(o['W'])], top - ow_y, [f(o['W'])], ref: top)
           body = o['H'] - o['top_thickness']
@@ -236,14 +242,20 @@ module Kabinet
           body = o['H'] - o['top_thickness']; k = o['kick']
           c.rect(x.call(ep_bounds(m)[0]), z.call(body), x.call(ep_bounds(m)[1]), z.call(k), 'OUT') if body > k   # 몸통 외곽 = 측판 EP 안쪽면 사이
           c.rect(x.call(m['ep']['left'] ? m['ep']['thickness'] : 10), z.call(k), x.call(o['W'] - (m['ep']['right'] ? m['ep']['thickness'] : 10)), z.call(0), 'OUT') if k > 0   # 걸레받이: 측판 EP 사이
+          inner_row = []
           clipped(m).each do |md|
             lo_, hi_ = ep_bounds(m)
             zb = md['z']; zt = md['z'] + md['h']
-            c.rect(x.call(md['x'] - 9), z.call(zt - (m['ep']['top'] ? m['ep']['thickness'] : 0)), x.call(md['x'] + 9), z.call(zb), 'THIN') if md['x'] > lo_   # 칸막이 18T
+            ztp = zt - (m['ep']['top'] ? m['ep']['thickness'] : 0)
+            unless md['type'] == 'appliance'                                                                     # 가전 자리는 장이 아님
+              c.rect(x.call(md['x']), z.call(ztp), x.call(md['x'] + BT), z.call(zb), 'THIN')                       # 장의 좌측판 18T
+              c.rect(x.call(md['x'] + md['w'] - BT), z.call(ztp), x.call(md['x'] + md['w']), z.call(zb), 'THIN')   # 장의 우측판 18T (이웃 장 좌측판과 맞닿음 = 경계 2장)
+              inner_row << [md['x'], md['x'] + md['w']]
+            end
             c.line(x.call(md['x']), z.call(zb), x.call(md['x'] + md['w']), z.call(zb), 'THIN')                # 모듈 하판/경계
             md['shelves'].each do |sh|
               zz = zb + sh
-              c.rect(x.call(md['x'] + (md['x'] > lo_ ? 9 : 0)), z.call(zz + 9), x.call(md['x'] + md['w'] - (md['x'] + md['w'] < hi_ ? 9 : 0)), z.call(zz - 9), 'THIN')
+              c.rect(x.call(md['x'] + BT), z.call(zz + 9), x.call(md['x'] + md['w'] - BT), z.call(zz - 9), 'THIN')      # 선반 폭 = 내경
               c.text(x.call(md['x'] + md['w'] / 2), z.call(zz) - 1.0, "선반 #{f(zz - zb)}", 1.6, 'g', 'c') if md['w'] * s > 14
             end
             md['rods'].each do |rr|
@@ -271,6 +283,9 @@ module Kabinet
           end
           ep_strips(c, m, x, z, body, k)
           elev_dims(c, m, x, z)
+          inner_row.each do |a_, b_|                                                                              # 모듈 내경(= 외곽 − 36)
+            c.dim_h([x.call(a_ + BT), x.call(b_ - BT)], z.call(0) + 7.0, ["#{f(b_ - a_ - 2 * BT)} 내경"], ref: z.call(0), size: 1.7)
+          end
           # 단면 절단선 + 번호 마커 양끝 (평면의 절단선과 같은 번호)
           cut_list(m).each_with_index do |cx, i|
             xx = x.call(cx); yt = z.call(o['H']) - 29.0; yb = gy + 9.5
@@ -296,6 +311,7 @@ module Kabinet
           lines << ["*EP = 마감판 #{m['ep']['thickness'].round}T (#{m['ep']['top'] ? '측판·천판' : '측판'}) / 몸통 18T / 도어 20T", 'b'] if has_ep?(m)
           lines << ['*목찬넬 60*40 : 전판 상단(상판 하면 25 이격, 천판 EP 없음) (확인필요)', 'r'] if m['channel']
           lines << ['*상·하부 목찬넬: 전판 위 찬넬(상향 개구) + 아래 거꾸로 찬넬(하향 개구), 전판 상하 25 틈 (추정)', 'b'] if m['modules'].any? { |md| tb?(md) }
+          lines << ['*장 결합 시공: 장마다 측판 18T x 2 (인접 장 사이 36), 모듈 폭 = 측판 포함 외곽, 내경 = 외곽 − 36', 'b']
           lines << ['*선반 18T · 뒷판 9T · 서랍 레일 13*2 (일반 기준, 추정)', 'k']
           m['flags'].first(5).each { |t| lines << ["*#{t}", 'r'] }
           lines << ["*단면 #{cut_list(m).size > 1 ? '1~2' : '1'} : SIDE VIEW 시트 / 확인 목록 : 생산 확인표", 'k']
@@ -321,16 +337,16 @@ module Kabinet
             plan_markers(c, m, ox, oy, s)
           end
           c.group('NOTE') { note_block(c, m, default_notes(m)) }
-          gy = [124.2 + 26.0 + o['H'] * s, 262.0].min
+          gy = [124.2 + 26.0 + o['H'] * s, 238.0].min
           c.group('VIEW_FRONT_DOOR') do
             draw_door_view(c, m, door_x, gy, s)
-            c.marker(door_x + o['W'] * s / 2, gy + 10.0, 'A', :up)
-            c.text(door_x, gy + 19.0, '도어 20T / 전판 간격 3 / 걸레받이 (추정)', 2.0, 'b')
+            c.marker(door_x + o['W'] * s / 2, gy + 17.0, 'A', :up)
+            c.text(door_x, gy + 25.0, '도어 20T / 전판 간격 3 / 걸레받이 (추정)', 2.0, 'b')
           end
           c.group('VIEW_FRONT_BODY') do
             draw_body_view(c, m, body_x, gy, s)
-            c.marker(body_x + o['W'] * s / 2, gy + 10.0, 'A', :up)
-            c.text(body_x, gy + 19.0, '몸통 18T · 칸막이 18T · 선반 18T · 뒷판 9T (추정)', 2.0, 'b')
+            c.marker(body_x + o['W'] * s / 2, gy + 17.0, 'A', :up)
+            c.text(body_x, gy + 25.0, '몸통 18T · 장마다 측판 18T x 2(인접 장 사이 36) · 선반 18T · 뒷판 9T (추정)', 2.0, 'b')
           end
           c
         end
@@ -599,6 +615,8 @@ module Kabinet
 
         # ── 생산 확인표 ────────────────────────────────────────────────────
         DEFAULT_TABLE = [
+          ['장 결합 시공', '장마다 측판 18T x 2 (인접 장 사이 36), 외곽 폭 = 측판 포함, 내경 = 외곽 − 36', '장 결합·측판 2장 확인'],
+          ['판재 목록(장당)', '측판 18T 2장, 상·하판 18T 폭 = 내경, 뒷판 9T 폭 = 내경, 선반 18T 폭 = 내경 − 여유(추정)', '재단도 확정'],
           ['도어 재질·색상', '목림 지정 자재 / 안도크림 색상 (샘플 문구)', '지정 자재 확인'],
           ['손잡이', '목찬넬 60*40 또는 지정 손잡이 (기본값)', '손잡이 사양 확인'],
           ['EP 20T 위치', '측판 양단·천판 (추정)', '원본 도면 EP 지시 대조'],

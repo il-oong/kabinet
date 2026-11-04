@@ -65,3 +65,19 @@ assert cl.first['x'] == 20 && cl.first['w'] == 880 && cl.last['x'] + cl.last['w'
 m2 = S::Model.normalize(model.merge('ep' => {}))
 assert S::Pages.clipped(m2).map { |c| [c['x'], c['w']] } == [[0, 900], [900, 900]], 'no EP -> unchanged'
 puts 'sheet_no_overlap_ep_test OK'
+
+# ── 장(모듈) 결합 시공: 경계마다 측판 18T 2장 + 모듈 외곽 폭/내경(외곽−36) 치수 ──
+cv = S::Pages.furniture(m, info)
+rects = cv.items.each_with_index.select { |it, i| it[0] == :P && it[2] == 'THIN' && it[3] && cv.item_groups[i] == 'VIEW_FRONT_BODY' }.map do |it, _|
+  xs = it[1].map(&:first); ys = it[1].map(&:last)
+  [xs.min, ys.min, xs.max, ys.max]
+end
+w18 = 18.0 / 25
+plates = rects.select { |r| (r[2] - r[0] - w18).abs < 0.01 && (r[3] - r[1]) > 6 }
+twins = plates.count { |a| plates.any? { |b| !a.equal?(b) && (a[2] - b[0]).abs < 0.01 } }
+assert twins >= 1, "경계마다 18T 판 2장(맞닿음) — twins #{twins}"
+assert rects.none? { |r| (r[2] - r[0] - 2 * w18).abs < 0.01 && (r[3] - r[1]) > 6 }, '공용 36T 한 장 없음'
+texts = cv.items.select { |it| it[0] == :T }.map { |it| it[3] }
+assert texts.include?('844 내경'), "내경 치수 844 (= 외곽 880 − 36): #{texts.grep(/내경/)}"
+assert texts.include?('880'), '모듈 외곽 폭 880 (끝 모듈은 EP 20 보정)'
+puts 'sheet_twin_panels OK'
