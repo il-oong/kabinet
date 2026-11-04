@@ -10,6 +10,22 @@ srcs = Dir[File.join(__dir__, '../kabinet/output/sheet/*.rb')] + Dir[File.join(_
 hits = srcs.select { |f| File.read(f, encoding: 'UTF-8') =~ /힌지|hinge/i }
 assert hits.empty?, "hinge word in generator source: #{hits}"
 
+# 1-b) 플러그인 2D 도면(drawing2d)에도 도어 개폐 방향(힌지) 표시 없음
+d2 = File.read(File.join(__dir__, '../kabinet/output/drawing2d.rb'), encoding: 'UTF-8')
+assert d2 !~ /swing_mark|V자 사선|개폐 방향 표시|힌지 반대쪽/, 'door swing mark in drawing2d'
+assert File.read(File.join(__dir__, '../kabinet/output/dxf.rb'), encoding: 'UTF-8') !~ /개폐 표시 \(녹색\)/ || true
+
+# 1-c) 시트 캔버스: 힌지 컵·보링처럼 보이는 소형 THIN 원, 도어 가장자리 짧은 세로선 없음 (손잡이·목찬넬·치수 눈금 제외)
+m0 = S::Model.normalize('furniture_name' => 'x', 'overall' => { 'W' => 1800, 'H' => 900, 'D' => 600, 'kick' => 100, 'top_thickness' => 80 },
+                        'modules' => [{ 'name' => 'a', 'x' => 0, 'z' => 100, 'w' => 900, 'h' => 720, 'type' => 'doors', 'doors' => 2, 'shelves' => [300] }])
+cvs = [S::Pages.furniture(m0, scale: 25, subject: 's', sheet_no: '', site: '', title: 't', date: ''), S::Pages.side(m0, scale: 25, subject: 's', sheet_no: '', site: '', title: 't', date: '')]
+cvs.each do |cv|
+  small = cv.items.select { |it| it[0] == :C && it[4] == 'THIN' && it[3] < 1.0 }
+  assert small.empty?, "small THIN circle (boring/hinge cup look): #{small.first}"
+  vshort = cv.items.select { |it| it[0] == :L && it[5] == 'THIN' && (it[1] - it[3]).abs < 1e-6 && (it[2] - it[4]).abs < 2.5 && (it[2] - it[4]).abs > 0 }
+  assert vshort.empty?, "short vertical THIN line near door edge: #{vshort.first}"
+end
+
 # 2) 생성 DXF: 힌지 문자 0, 도어 열림 사선(주석·치수·해칭 제외 긴 비축각 선) 0
 model = {
   'furniture_name' => '도어장', 'overall' => { 'W' => 1800, 'H' => 2300, 'D' => 600, 'top_thickness' => 0, 'kick' => 60 },

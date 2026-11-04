@@ -315,7 +315,7 @@ def plan_frame(sh, room_title, sub_title, scale_den):
 # ----------------------------------------------------------------- 가구 모델 -> 도형
 EP, BT, DT = 20, 18, 20            # 측판·천판 EP 20T / 몸통 18T / 도어 20T
 CH_H, CH_W, CH_GAP = 60, 40, 25    # 목찬넬 60*40, 상판 하단과 도어 상단 사이 25
-TOP_IN = 782                       # 몸통 상판(18T) 하단 (= body_H - 38; Model 이 갱신). 천판 EP = body_H-20 ~ body_H
+TOP_IN = 802                       # 몸통 상판(18T) 하면 (= body_H - 18; Model 이 갱신). 천판 EP 없음 — 목찬넬(60*40)이 상판 하면 아래에서 상단 마감·손잡이 겸용
 BOT_IN = 118                       # 하판 100~118 (= kick + 18)
 HH = 900                           # 가구 총높이 (Model 이 갱신)
 DW_H, DW_FOOT = 815, 40
@@ -338,7 +338,7 @@ class Model:
         self.ovl = data["B_side"]["left_overhang"]
         self.cuts = data.get("section_cuts", {"5": 600, "6": 1900, "7": 2300, "8": 2900})
         global TOP_IN, BOT_IN, HH
-        TOP_IN, BOT_IN, HH = self.body_H - 38, self.kick + 18, self.H           # 모든 입면의 내부 높이 기준
+        TOP_IN, BOT_IN, HH = self.body_H - 18, self.kick + 18, self.H           # 모든 입면의 내부 높이 기준
         self.dw_over = DW_FOOT + DW_H - self.body_H                             # 식기세척기가 상판 하단을 넘는 높이(>0 이면 안 들어감)
 
     def mid_shelf(self):
@@ -500,8 +500,8 @@ def elev_frame(sh, m, ox, gy, s):
 
 
 def ep_band(sh, X, Z, m, x0, x1):
-    """천판 EP 20T (상판 하단 body_H-20 ~ body_H). 측판 EP(바닥~body_H, 한 장) 사이에 끼움 → 양 끝 EP 폭만큼 안쪽."""
-    ep_rect(sh, X(x0 + EP), Z(m.body_H), X(x1 - EP), Z(m.body_H - EP), 0.5)
+    """천판 EP 없음 — 하부장 상단은 목찬넬(60*40)이 상판 하면 바로 아래에서 마감·손잡이를 겸한다(v1.25.6)."""
+    return
 
 
 def elev_dims(sh, m, X, Z, edges, labels, body_w=None):
@@ -526,17 +526,13 @@ def inner_dim(sh, X, Z, x, z0, z1, label, size=1.7, st="DIMT", c="k"):
 
 
 def pins(sh, X, Z, xl, xr, z0, z1):
-    """선반핀 구멍(32mm 계열 대신 96 간격 단순 표기 / 추정)."""
-    z = z0
-    while z <= z1:
-        for x in (xl, xr):
-            sh.circ(X(x), Z(z), 0.3, "THIN")
-        z += 96
+    """선반핀 구멍 표기 없음 — 작은 원이 보링·경첩 표시처럼 보여 그리지 않는다(선반 위치는 선반 사각형으로 충분)."""
+    return
 
 
 def fronts(m, n):
-    """전판 n단 분할: 하단 걸레받이 위 4, 단간 = 찬넬 틈 25, 상단 = 천판 EP 하단(880)에서 25 아래(855). [(z0,z1)]"""
-    k, top = m.kick, m.body_H - EP - CH_GAP
+    """전판 n단 분할: 하단 걸레받이 위 4, 단간 = 찬넬 틈 25, 상단 = 상판 하면(body_H)에서 25 아래(795). [(z0,z1)]"""
+    k, top = m.kick, m.body_H - CH_GAP
     gap = CH_GAP
     fh = (top - (k + 4) - gap * (n - 1)) // n
     out, z = [], k + 4
@@ -566,7 +562,7 @@ def cut_marks(sh, m, X, Z, positions, gy, direction="right"):
 # ---- B면 정면(싱크면) --------------------------------------------------
 def b_fronts(m, md):
     """B면 모듈의 전판(도어/서랍) 목록 [(z0, z1, 찬넬여부, 종류)]. 도어·서랍 상단 = 상판 하단 25 아래(875)."""
-    k, top, t = m.kick, m.body_H - EP - CH_GAP, md["type"]
+    k, top, t = m.kick, m.body_H - CH_GAP, md["type"]
     if t == "drawer2":
         return [(a, b, True, "drawer") for a, b in fronts(m, 2)]
     if t in ("door", "door_sink"):
@@ -609,7 +605,7 @@ def chan_label(sh, X, Z, x0, w, zt):
 
 def chan_dims(sh, X, Z, x, m):
     """찬넬 높이 위치 치수(파랑): 상판 하단~전판 상단 25, 찬넬 60."""
-    c = m.body_H - EP                                   # 천판 EP 하단
+    c = m.body_H                                        # 상판 하면(찬넬 상단)
     inner_dim(sh, X, Z, x, c - CH_GAP, c, "25", 1.6, "BLUE", "b")
     inner_dim(sh, X, Z, x + 45, c - CH_H, c, "60", 1.6, "BLUE", "b")
 
@@ -763,7 +759,7 @@ def draw_a_elev(sh, m, ox, gy, s, body=False):
         if body and x0 > EP:
             sh.rect(X(x0 - 9), Z(TOP_IN), X(x0 + 9), Z(BOT_IN), "THIN")
         elif not body:
-            sh.line(X(x0), Z(k), X(x0), Z(h - EP), "OUT")
+            sh.line(X(x0), Z(k), X(x0), Z(h), "OUT")
         if t == "open":
             zs = k + md["shelf_h"]
             if body:
@@ -817,7 +813,7 @@ def a_dims(sh, m, X, Z):
 
 # ---- 측면 / 단면 ------------------------------------------------------
 def channel_poly(sh, X, Z, xb, zc, sign=1):
-    """목찬넬 60*40 단면(ㄴ형, 실선). xb = 도어 뒷면 좌표, zc = 천장(천판 EP 하단) z, sign=+1 뒤쪽이 +x / -1 뒤쪽이 -x.
+    """목찬넬 60*40 단면(ㄴ형, 실선). xb = 도어 뒷면 좌표, zc = 천장(상판 하면) z, sign=+1 뒤쪽이 +x / -1 뒤쪽이 -x.
     수직 다리(18T)는 천장에서 60 아래로 뒤쪽에, 수평 플랜지(18T)는 하단에서 도어 쪽으로 -> 도어 위 25 틈으로 손가락이 들어가는 홈."""
     pts = [(xb + sign * 22, zc), (xb + sign * 40, zc), (xb + sign * 40, zc - CH_H),
            (xb, zc - CH_H), (xb, zc - CH_H + 18), (xb + sign * 22, zc - CH_H + 18)]
@@ -873,7 +869,6 @@ def draw_section(sh, m, ox, gy, s, xc):
     mb, ma = m.mod_at(xc)
     D, dB = m.D, m.dB
     sh.rect(X(0), Z(m.H), X(D), Z(h), "OUT")                                  # 상판 (top_t)
-    ep_rect(sh, X(0), Z(h), X(D), Z(h - EP), 0.5)                             # 천판 EP 20T
     sh.rect(X(60), Z(k), X(D - 60), Z(0), "OUT")                              # 걸레받이
     # 공통: 뒷판 9T (등 맞댐)
     sh.rect(X(dB - 9), Z(TOP_IN), X(dB), Z(BOT_IN), "THIN")
@@ -890,8 +885,8 @@ def draw_section(sh, m, ox, gy, s, xc):
     # ---- B (싱크면) ----
     t = mb["type"]
     if t != "dishwasher":
-        sh.rect(X(0), Z(h - EP - CH_GAP), X(DT), Z(k + 4), "OUT")               # 도어 20T (상단 = 천판 하단 25 아래)
-        channel_poly(sh, X, Z, DT, h - EP, +1)                                  # 목찬넬
+        sh.rect(X(0), Z(h - CH_GAP), X(DT), Z(k + 4), "OUT")                    # 도어 20T (상단 = 상판 하면 25 아래)
+        channel_poly(sh, X, Z, DT, h, +1)                                  # 목찬넬
     ms = m.mid_shelf()
     if t == "robot":
         sz0, sz1 = ROBOT_BAY, ROBOT_BAY + 18
@@ -900,8 +895,6 @@ def draw_section(sh, m, ox, gy, s, xc):
         red_note(sh, X(100), Z(ROBOT_BAY / 2), "로봇청소기 베이 H500 개방(추정)", "l", 1.6)
     elif t in ("door", "cabinet"):
         sh.rect(X(DT), Z(ms + 9), X(dB - 9), Z(ms - 9), "OUT")
-        for y in (DT + 30, dB - 9 - 30):
-            sh.circ(X(y), Z(ms), 0.3, "THIN")
         inner_dim(sh, X, Z, 300, BOT_IN, ms - 9, fmt(ms - 9 - BOT_IN)); inner_dim(sh, X, Z, 300, ms + 9, TOP_IN, fmt(TOP_IN - ms - 9))
     elif t == "pullout":
         for zb in (BOT_IN + 60, ms + 40):
@@ -940,12 +933,12 @@ def draw_section(sh, m, ox, gy, s, xc):
             sh.rect(X(D - DT), Z(z1), X(D), Z(z0), "OUT")
             sh.rect(X(D - DT - 400), Z(z0 + 150), X(D - DT - RAIL), Z(z0 + 30), "THIN")     # 서랍통 D400
             sh.line(X(D - DT - 400), Z(z0 + 30), X(D - DT), Z(z0 + 30), "THIN")
-        channel_poly(sh, X, Z, D - DT, h - EP, -1)
+        channel_poly(sh, X, Z, D - DT, h, -1)
         channel_poly(sh, X, Z, D - DT, fronts(m, 2)[0][1] + CH_GAP, -1)
         inner_dim(sh, X, Z, D - 150, fronts(m, 2)[1][0], fronts(m, 2)[1][1], fmt(fronts(m, 2)[1][1] - fronts(m, 2)[1][0]))
-    # 천판 EP 라벨 / 보강대 라벨
+    # 찬넬 마감 라벨
     sh.line(X(dB * 0.55), Z(m.H - 15) + 0, X(dB * 0.55), Z(h - 10) + 0, "BLUE")
-    sh.text(X(dB * 0.55) - 0.5, Z(m.H - 15) - 0.6, "천판 EP 20T", 1.7, "b", "r")
+    sh.text(X(dB * 0.55) - 0.5, Z(m.H - 15) - 0.6, "목찬넬 상단 = 상판 하면 (천판 EP 없음)", 1.7, "b", "r")
     # 치수
     top = Z(m.H)
     dim_h(sh, [X(0), X(D)], top - 6.0, [fmt(D)], ref=top)
@@ -992,14 +985,14 @@ def front_back(sh, xf, xb, y, front="전면 (도어 쪽)", back="후면 (벽 쪽
 
 @view("DETAIL_CHANNEL")
 def edge_section(sh, X0, Y0, sc, door_len, xmax=70, counter_h=0, dims=True, hand=True):
-    """③ 목찬넬 측면 단면: 앞(전면)=왼쪽, 뒤(후면)=오른쪽. z 는 천판 EP 하단(0)에서 아래로.
-    샘플(33~38쪽 SIDE VIEW 상세)과 같은 구조: 천판 EP 해칭 아래 25 지점에 도어 상단, 찬넬 ㄴ형(수직 다리 18T 는 뒤쪽 천판 아래,
+    """③ 목찬넬 측면 단면: 앞(전면)=왼쪽, 뒤(후면)=오른쪽. z 는 상판 하면(0)에서 아래로.
+    샘플(33~38쪽 SIDE VIEW 상세)과 같은 구조: 상판 하면 아래 25 지점에 도어 상단, 찬넬 ㄴ형(수직 다리 18T 는 뒤쪽 천판 아래,
     수평 플랜지 18T 는 하단) -> 도어 위 25 틈으로 들어온 손가락이 도어 뒤 찬넬 홈(약 22 x 42)에 닿는다."""
     X = lambda x: X0 + x * sc
     Y = lambda z: Y0 + z * sc
-    ep_rect(sh, X(0), Y(-EP), X(xmax), Y(0), max(0.7, 0.5 * sc * 5) if sc > 0.3 else 0.5)    # 천판 EP 20T 해칭
+    sh.line(X(0), Y(0), X(xmax), Y(0), "OUT")                                                  # 상판 하면 (천판 EP 없음, 찬넬이 바로 붙음)
     if counter_h:
-        sh.rect(X(0), Y(-EP - counter_h), X(xmax), Y(-EP), "OUT")                             # 상판 (top_t)
+        sh.rect(X(0), Y(-counter_h), X(xmax), Y(0), "OUT")                                    # 상판 (top_t)
     sh.rect(X(0), Y(CH_GAP), X(DT), Y(CH_GAP + door_len), "OUT")                              # 도어 20T (전면 = 왼쪽)
     pts = [(42, 0), (60, 0), (60, CH_H), (DT, CH_H), (DT, CH_H - 18), (42, CH_H - 18)]
     sh.poly([(X(x), Y(z)) for x, z in pts], "OUT", True)                                      # 목찬넬(ㄴ)
@@ -1011,11 +1004,11 @@ def edge_section(sh, X0, Y0, sc, door_len, xmax=70, counter_h=0, dims=True, hand
     if dims:
         bx = X(xmax if xmax < 90 else 60) + 4
         bx = X(60) + 4
-        sh.line(bx, Y(0), bx, Y(CH_H), "BLUE")                                                 # 60 : 천판 하단 ~ 찬넬 하단
+        sh.line(bx, Y(0), bx, Y(CH_H), "BLUE")                                                 # 60 : 상판 하면 ~ 찬넬 하단
         for z in (0, CH_H):
             sh.line(bx - 0.6, Y(z) + 0.6, bx + 0.6, Y(z) - 0.6, "BLUE")
         sh.text(bx + 2.8, (Y(0) + Y(CH_H)) / 2, "60", 2.4, "b", "c", 90)
-        lx = X(-14)                                                                           # 25 : 천판 하단 ~ 도어 상단
+        lx = X(-14)                                                                           # 25 : 상판 하면 ~ 도어 상단
         sh.line(lx, Y(0), lx, Y(CH_GAP), "BLUE")
         for z in (0, CH_GAP):
             sh.line(lx - 0.6, Y(z) + 0.6, lx + 0.6, Y(z) - 0.6, "BLUE")
@@ -1150,7 +1143,7 @@ def note_block(sh, d, lines):
         y += 5.3
 
 
-NOTE_B = [("*EP = 마감판 20T (측판 양단·천판) / 몸통 18T / 도어 20T / 상판 T{TOP}", "b"),
+NOTE_B = [("*EP = 마감판 20T (측판 양단) / 몸통 18T / 도어 20T / 상판 T{TOP} / 천판 EP 없음(목찬넬 마감)", "b"),
           ("*싱크볼 컷 W850*D450 (상판 시트 판독, 추정) / 수전 Φ35", "r"),
           ("*식기세척기 W600 빌트인 : 제품 W598*H815*D572 / 상판 하단 820 기준 개구 780 → 높이 부족(확인필요)", "r"),
           ("*로봇청소기장 = 풀높이 원도어, 바닥~선반 H500 개방(걸레받이 없음) + 선반 18T + 상부 H302 (추정) / 인출장(폭 300, 추정) = 원도어", "r"),
@@ -1160,7 +1153,7 @@ NOTE_B = [("*EP = 마감판 20T (측판 양단·천판) / 몸통 18T / 도어 20
           ("*도어 : 주방장 도어 공용 부엌 도어 - KK DR 112", "k"),
           ("*목찬넬 60*40 : 전판 상단(상판 하단 25 이격). OPEN 베이 찬넬 없음", "b"),
           ("*단면 1·2 : SIDE VIEW 시트(NO.003) 참조 / 확인 목록 : NO.005", "k")]
-NOTE_A = [("*EP = 마감판 20T (측판 양단·천판) / 몸통 18T / 서랍 전판 20T / 전체 3,600 = EP 20 + 몸통 3,560 + EP 20", "b"),
+NOTE_A = [("*EP = 마감판 20T (측판 양단) / 몸통 18T / 서랍 전판 20T / 천판 EP 없음 / 전체 3,600 = EP 20 + 몸통 3,560 + EP 20", "b"),
           ("*서랍장(2단)M x3 : 서랍 전판 {FH} x 2단, 단간 25(찬넬 틈, 추정)", "k"),
           ("*서랍 레일 : 좌우 13 여유, 레일 L500(싱크면) / L400(서랍면) (추정)", "r"),
           ("*OPEN 1 : 선반 18T 1단 (높이 357, 추정) / 후면 마감판 9T / 찬넬 없음", "k"),
@@ -1224,8 +1217,8 @@ def page_b(m, scale_den, sheet_no, title):
         X, Z = draw_b_door(sh, m, 30.0, gy, s)
         elev_dims(sh, m, X, Z, edges, labs, m.W - m.ovl)
         marker(sh, X(3450), gy + 10.0, "B", "up")
-        sh.text(X(0), gy + 21.0, "도어 20T / 도어 상단 = 천판 하단 25 아래 / 단간 25(찬넬 틈, 추정)", 2.0, "b", "l")
-        sh.text(X(0), gy + 24.5, "천판 EP 20T (상판 아래) / 측판 EP 20T", 2.0, "b", "l")
+        sh.text(X(0), gy + 21.0, "도어 20T / 도어 상단 = 상판 하면 25 아래 / 단간 25(찬넬 틈, 추정)", 2.0, "b", "l")
+        sh.text(X(0), gy + 24.5, "목찬넬 60*40 = 상단 마감·손잡이 (천판 EP 없음) / 측판 EP 20T", 2.0, "b", "l")
     with sh.group("VIEW_FRONT_BODY"):
         X, Z = draw_b_body(sh, m, 240.0, gy, s)
         elev_dims(sh, m, X, Z, edges, labs, m.W - m.ovl)
@@ -1313,10 +1306,10 @@ def page_detail(m, scale_den, sheet_no, title):
     with sh.group("DETAIL_COUNTERTOP"):
         detail_title(sh, 17.0, 29.0, 1, "상판 평면도 (1/25)")
         draw_countertop_plan(sh, m, 50.0, 58.0, s)
-    note_block(sh, m.d, [("*상판 T120 / 1,800 x 2분할 (이음 1,800)", "k"),
+    note_block(sh, m.d, fmt_notes(m, [("*상판 T{TOP} / 1,800 x 2분할 (이음 1,800)", "k"),
                          ("*싱크 컷 850*450 R25 / 수전 Φ35 (추정)", "r"),
                          ("*EP = 마감판 20T / 몸통 18T / 도어 20T", "b"),
-                         ("*생산 확인 목록 : 생산 확인표(NO.005) 참조", "k")])
+                         ("*생산 확인 목록 : 생산 확인표(NO.005) 참조", "k")]))
     with sh.group("LEGEND"):
         legend(sh, 218.3, 83.0)
     # ② 측판 EP 상세
@@ -1342,12 +1335,12 @@ def page_detail(m, scale_den, sheet_no, title):
     # 범례
     ly = 208.0
     sh.hatch_rect(232.0, ly - 2.4, 240.0, ly, 0.5); sh.rect(232.0, ly - 2.4, 240.0, ly, "OUT")
-    sh.text(243.0, ly, "해칭 = 천판 EP 20T (상판 아래 마감판)", 2.2, "k", "l")
+    sh.text(243.0, ly, "해칭 = 측판 EP 20T (마감판)", 2.2, "k", "l")
     sh.poly([(232.0, ly + 9.0), (240.0, ly + 9.0), (240.0, ly + 5.6), (236.0, ly + 5.6), (236.0, ly + 2.4), (232.0, ly + 2.4)], "OUT", True)
     sh.text(243.0, ly + 8.0, "ㄴ형 = 목찬넬 (손잡이, 기본값)", 2.2, "k", "l")
     sh.rect(232.0, ly + 12.2, 235.0, ly + 17.0, "OUT")
     sh.text(243.0, ly + 16.2, "얇은 사각 = 도어 20T (전면)", 2.2, "k", "l")
-    sh.text(232.0, ly + 23.0, "파랑 치수 : 25 = 천판 하단~도어 상단", 2.0, "b", "l")
+    sh.text(232.0, ly + 23.0, "파랑 치수 : 25 = 상판 하면~도어 상단", 2.0, "b", "l")
     sh.text(232.0, ly + 27.0, "60 = 찬넬 높이 / 40 = 도어 뒷면~찬넬 뒷면 / 20 = 도어", 2.0, "b", "l")
     sh.text(232.0, ly + 31.0, "손 진입 : 도어 위 25 틈 -> 도어 뒤 찬넬 홈", 2.0, "b", "l")
     _g.__exit__(None, None, None)
@@ -1364,12 +1357,13 @@ _TABLE_ROWS = [
     ("로봇청소기 수납", "풀높이 원도어(바닥 4 띄움·추정), 바닥~선반 하면 H500 개방(걸레받이 100 포함, 이 구간 걸레받이 판재 없음) → 선반 18T(500~518) → 상부 칸 H302 (상판 하단 820까지)", "로봇청소기 규격·베이 치수·도어 하단 처리 확인"),
     ("인출장(폭 300) [추정]", "도면 라벨에 '인출' 없음 → 폭 300 '장(2단)' 을 인출장으로 추정, 원도어 + 인출 레일·바스켓 2단(추정)", "인출 사양·대상 모듈 확인"),
     ("서랍 레일", "좌우 13 여유, 싱크면 L500(서랍통은 서랍면만) / 서랍면 L400", "레일 제품 규격 확인"),
-    ("전판 높이·간격", "서랍 {FH} x 2단, 단간 25(찬넬 틈), 걸레받이 위 4, 상단 = 천판 하단 25 아래(775)", "설계 확정 후 재단도 반영"),
+    ("전판 높이·간격", "서랍 {FH} x 2단, 단간 25(찬넬 틈), 걸레받이 위 4, 상단 = 상판 하면 25 아래(795)", "설계 확정 후 재단도 반영"),
     ("총높이·상판 [변경]", "총높이 900 = 상판 80 + 몸통(걸레받이 포함) 820 (걸레받이 100, 몸통 순 720)", "사용자 지시 반영 — 현장 확인"),
     ("목찬넬(손잡이)", "60*40, 전판 상단, 상판 하단 25 이격 (기본값)", "손잡이 사양 확인(샘플 11~13쪽 참조)"),
     ("EP·몸통 폭 [변경]", "끝 모듈은 EP 두께만큼 몸통·전판·선반·걸레받이를 안쪽으로 줄임: 전체 3,600 = EP 20 + 몸통 3,560 + EP 20 (싱크면 몸통 3,274 = EP 20 + 3,234 + EP 20). 서랍장 900 → 몸통 880 + EP 20, 로봇청소기장 500 → 480 + EP 20, 서랍면 890 모듈은 EP 밖 순폭", "도면 모듈 폭(원본 치수)과 EP 포함 여부 대조"),
-    ("측판 EP 길이 [변경]", "좌·우 끝 측판 EP 20T = 바닥~상판 하면 820 연속 한 장(걸레받이 구간 포함), 천판 EP(20T, 폭 W−40)는 측판 EP 사이에 끼움. 걸레받이 판재는 측판 EP 사이·안쪽 후퇴(추정), 로봇청소기장 구간 제외", "EP 길이·접합(맞댐/45°) 제작 협의"),
-    ("EP 20T 위치", "서랍면 좌단, 싱크면 좌단(326 후퇴), 우단 전체, 천판(상판 하부 800~820)", "원본 EP 지시(`EP 판넬 [20T]`)와 위치 대조"),
+    ("측판 EP 길이 [변경]", "좌·우 끝 측판 EP 20T = 바닥~상판 하면 820 연속 한 장(걸레받이 구간 포함). 걸레받이 판재는 측판 EP 사이·안쪽 후퇴(추정), 로봇청소기장 구간 제외", "EP 길이·접합(맞댐/45°) 제작 협의"),
+    ("천판 EP [삭제]", "목찬넬 하부장은 천판 EP 없음 — 목찬넬 60*40 이 상판 하면 바로 아래에서 상단 마감·손잡이 겸용. 도어·서랍 상단 = 상판 하면 25 아래(795, 이전 775), 서랍 앞판 {FH} x 2단 재계산", "찬넬 상단 마감 사양 확인"),
+    ("EP 20T 위치", "서랍면 좌단, 싱크면 좌단(326 후퇴), 우단 전체(바닥~상판 하면)", "원본 EP 지시(`EP 판넬 [20T]`)와 위치 대조"),
     ("뒷판·후면 마감", "등 맞댐 면 뒷판 9T (추정)", "후면 마감 사양 확인"),
     ("선반", "18T, 싱크면 칸 가운데 약 450(로봇청소기장 제외, 추정) / OPEN 357, 핀 96 간격", "선반 위치 확정"),
     ("콘센트·배선 타공", "Φ60~80, 위치 미정", "전기 도면 확인"),

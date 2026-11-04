@@ -32,6 +32,7 @@ def norm(d):
     o = d.setdefault("overall", {})
     o.setdefault("top_thickness", 0); o.setdefault("kick", 0)
     d.setdefault("ep", {}); d["ep"].setdefault("thickness", EP)
+    if d.get("channel"): d["ep"]["top"] = False          # 목찬넬 하부장은 천판 EP 없음(찬넬이 상단 마감·손잡이)
     for m in d.get("modules", []):
         m.setdefault("x", 0); m.setdefault("z", o["kick"]); m.setdefault("d", o["D"]); m.setdefault("type", "open")
         m.setdefault("doors", 0); m.setdefault("drawers", 0); m.setdefault("shelves", []); m.setdefault("rods", [])
@@ -85,7 +86,7 @@ def fronts(d, md):
     ztop = md["z"] + md["h"]
     under_top_ep = d["ep"].get("top") and ztop >= d["overall"]["H"] - d["overall"]["top_thickness"] - 0.5
     if under_top_ep: ztop -= d["ep"]["thickness"]                    # 천판 EP(가로 20T) 아래로
-    top = ztop - CH_GAP - (0 if under_top_ep else EP) if d.get("channel") else ztop - 4
+    top = ztop - CH_GAP if d.get("channel") else ztop - 4        # 찬넬: 상판 하면(또는 천판 EP 하면)에서 25 아래
     if md["type"] == "drawers":
         n = max(md["drawers"], 1)
         gap = CH_GAP if d.get("channel") else 3
@@ -216,9 +217,6 @@ def door_view(sh, d, ox, gy, s):
                     sh.rect(X(xa), Z(z1), X(xa + dw), Z(z0), "OUT")
                     if d.get("channel"):
                         sh.rect(X(xa), Z(z1 + CH_GAP), X(xa + dw), Z(z1), "OUT")
-                    else:
-                        hx = xa + dw - 40 if (n == 1 or i == 0) else xa + 40
-                        sh.line(X(hx), Z((z0 + z1) / 2 - 60), X(hx), Z((z0 + z1) / 2 + 60), "THIN")
         elif md["type"] == "drawers":
             for (z0, z1) in fronts(d, md):
                 sh.rect(X(md["x"] + 3), Z(z1), X(md["x"] + md["w"] - 3), Z(z0), "OUT")
@@ -355,12 +353,11 @@ def draw_section(sh, d, ox, gy, s):
     sh.rect(X(D - 9), Z(body), X(D), Z(k), "THIN")
     sh.rect(X(DT), Z(body - BT), X(D - 9), Z(body), "THIN")
     sh.rect(X(DT), Z(k), X(D - 9), Z(k + BT), "THIN")
-    sh.rect(X(0), Z(body - EP - (CH_GAP if d.get("channel") else 4)), X(DT), Z(k + 4), "OUT")      # 도어 20T
+    sh.rect(X(0), Z(body - (CH_GAP if d.get("channel") else 4)), X(DT), Z(k + 4), "OUT")      # 도어 20T
     if d.get("channel"):
-        xb, zc = DT, body - EP
+        xb, zc = DT, body                               # 목찬넬 상단 = 상판 하면(천판 EP 없음)
         pts = [(xb + 22, zc), (xb + 40, zc), (xb + 40, zc - CH_H), (xb, zc - CH_H), (xb, zc - CH_H + 18), (xb + 22, zc - CH_H + 18)]
         sh.poly([(X(a), Z(b)) for a, b in pts], "OUT", True)
-        bs.ep_rect(sh, X(0), Z(body), X(D), Z(body - EP), 0.5)
     if k > 0: sh.rect(X(60), Z(k), X(D - 60), Z(0), "OUT")
     cx = cut_x(d)
     mid = next((m for m in d["modules"] if m["x"] <= cx < m["x"] + m["w"]), d["modules"][0])

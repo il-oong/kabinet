@@ -262,7 +262,7 @@ mixed = S::Model.normalize(
                 { 'name' => 'B', 'x' => 600, 'z' => 100, 'w' => 600, 'h' => 800, 'type' => 'doors', 'doors' => 1, 'channel' => false }]
 )
 fc = S::Pages.fronts_for(mixed, mixed['modules'][0]); fb = S::Pages.fronts_for(mixed, mixed['modules'][1])
-assert fc == [[104, 855.0]] || fc == [[104.0, 855.0]], "channel module door #{fc}"
+assert fc == [[104, 875.0]] || fc == [[104.0, 875.0]], "channel module door (상판 하면 25 아래, 천판 EP 없음) #{fc}"
 assert fb == [[104, 896.0]] || fb == [[104.0, 896.0]], "bar module door unaffected #{fb}"
 spec = { 'width' => 1200, 'max_depth' => 600, 'base_height' => 100, 'run_mode' => true, 'run_height' => 800,
          'modules' => [{ 'kind' => 'shelf_module', 'width' => 600, 'height' => 800, 'handle_type' => 'channel', 'door_config' => 'single' },

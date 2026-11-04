@@ -65,6 +65,32 @@ def check_no_hinge(path, verbose=True):
             diag.append((round(a.x), round(a.y), round(L / k, 1)))
     if diag:
         probs.append(f"긴 사선 LINE(도어 열림 의심) {len(diag)}개 (예 {diag[:3]})")
+    # 힌지 컵·보링처럼 보이는 소형 원(THIN/OUTLINE, 반지름 < 종이 1mm) · 짧은 THIN 선(< 종이 5mm, 해칭·치수 제외)
+    small_c = [e for e in ents if e.dxftype() == "CIRCLE" and e.dxf.layer == "THIN" and e.dxf.radius < 1.0 * kof(e.dxf.center.x)]
+    if small_c:
+        probs.append(f"소형 CIRCLE(보링·힌지 컵 의심) {len(small_c)}개 (예 {[(round(e.dxf.center.x), round(e.dxf.center.y)) for e in small_c[:3]]})")
+    short_l = []
+    chains = collections.Counter()
+    cand = []
+    for e in ents:
+        if e.dxftype() == "LINE" and e.dxf.layer == "THIN":
+            a_, b_ = e.dxf.start, e.dxf.end
+            L = math.hypot(b_.x - a_.x, b_.y - a_.y)
+            if 0 < L < 2.5 * kof(min(a_.x, b_.x)) and abs(a_.x - b_.x) < 1e-6:   # 도어 가장자리 눈금처럼 짧은 세로선(수평 레일선·상판 이음선은 제외)
+                k_ = kof(min(a_.x, b_.x))
+                if abs(a_.y - b_.y) < 1e-6:
+                    key = ("h", round(a_.y / k_))
+                elif abs(a_.x - b_.x) < 1e-6:
+                    key = ("v", round(a_.x / k_))
+                else:
+                    key = ("d", round((a_.y - (b_.y - a_.y) / (b_.x - a_.x) * a_.x) / k_))
+                chains[key] += 1
+                cand.append((key, (round(a_.x), round(a_.y), round(L / k_, 1))))
+    for key, info in cand:
+        if chains[key] < 3:                      # 같은 선 위에 3개 이상 이어지면 파선(점선 패턴)으로 본다
+            short_l.append(info)
+    if short_l:
+        probs.append(f"짧은 세로 THIN 선 {len(short_l)}개(도어 가장자리 눈금 의심) (예 {short_l[:3]})")
     arcs = [e for e in ents if e.dxftype() == "ARC"]
     if arcs:
         probs.append(f"ARC {len(arcs)}개(도어 열림 호 의심)")

@@ -114,6 +114,7 @@ module Kabinet
                         'name' => ((s['room'] || {})['name'] || '공간').to_s },
             'flags' => (s['flags'] || [])
           }
+          out['ep']['top'] = false if out['modules'].any? { |md| md['channel'] }     # 목찬넬 하부장은 천판 EP 없음
           out['modules'] = [module_defaults({ 'name' => 'M1', 'w' => out['overall']['W'], 'h' => out['overall']['H'] }, o)] if out['modules'].empty?
           out
         end

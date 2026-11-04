@@ -125,7 +125,7 @@ module Kabinet
           ztop = md['z'] + md['h']
           under_top_ep = m['ep']['top'] && ztop >= m['overall']['H'] - m['overall']['top_thickness'] - 0.5
           ztop -= m['ep']['thickness'] if under_top_ep                                # 천판 EP(가로 20T) 아래로
-          z1 = md['channel'] ? ztop - CH_GAP - (under_top_ep ? 0 : EP) : ztop - 4
+          z1 = md['channel'] ? ztop - CH_GAP : ztop - 4
           case md['type']
           when 'drawers'
             n = [md['drawers'], 1].max
@@ -191,12 +191,7 @@ module Kabinet
                 xa = md['x'] + 3.0 + i * (dw + 3.0)
                 fr.each do |z0, z1|
                   c.rect(x.call(xa), z.call(z1), x.call(xa + dw), z.call(z0), 'OUT')
-                  if md['channel']
-                    c.rect(x.call(xa), z.call(z1 + CH_GAP), x.call(xa + dw), z.call(z1), 'OUT')     # 전판(찬넬 가림)
-                  else
-                    hx = (n == 1 || i.zero?) ? xa + dw - 40 : xa + 40                              # 손잡이 위치 표시(도어는 단순 도어선만)
-                    c.line(x.call(hx), z.call((z0 + z1) / 2 - 60), x.call(hx), z.call((z0 + z1) / 2 + 60), 'THIN')
-                  end
+                  c.rect(x.call(xa), z.call(z1 + CH_GAP), x.call(xa + dw), z.call(z1), 'OUT') if md['channel']    # 전판(찬넬 가림) — 도어는 단순 도어선만
                 end
               end
             when 'drawers'
@@ -286,8 +281,8 @@ module Kabinet
         def default_notes(m)
           o = m['overall']
           lines = [["*W#{f(o['W'])} x H#{f(o['H'])} x D#{f(o['D'])} (mm) - 도면 입력 치수", 'k']]
-          lines << ["*EP = 마감판 #{m['ep']['thickness'].round}T (측판·천판) / 몸통 18T / 도어 20T", 'b'] if has_ep?(m)
-          lines << ['*목찬넬 60*40 : 전판 상단(천판 하단 25 이격) (확인필요)', 'r'] if m['channel']
+          lines << ["*EP = 마감판 #{m['ep']['thickness'].round}T (#{m['ep']['top'] ? '측판·천판' : '측판'}) / 몸통 18T / 도어 20T", 'b'] if has_ep?(m)
+          lines << ['*목찬넬 60*40 : 전판 상단(상판 하면 25 이격, 천판 EP 없음) (확인필요)', 'r'] if m['channel']
           lines << ['*선반 18T · 뒷판 9T · 서랍 레일 13*2 (일반 기준, 추정)', 'k']
           m['flags'].first(5).each { |t| lines << ["*#{t}", 'r'] }
           lines << ["*단면 #{cut_list(m).size > 1 ? '1~2' : '1'} : SIDE VIEW 시트 / 확인 목록 : 생산 확인표", 'k']
@@ -390,12 +385,11 @@ module Kabinet
           c.rect(x.call(DT), z.call(k), x.call(d - BACK_T), z.call(k + BT), 'THIN')          # 하판 18T
           mid = m['modules'].find { |md| md['x'] <= cx && cx < md['x'] + md['w'] } || m['modules'].first
           chan = mid && mid['channel']                                                   # 절단 모듈 자신의 손잡이(채널) 설정
-          c.rect(x.call(0), z.call(body - EP - (chan ? CH_GAP : 4)), x.call(DT), z.call(k + 4), 'OUT')   # 도어 20T
+          c.rect(x.call(0), z.call(body - (chan ? CH_GAP : 4)), x.call(DT), z.call(k + 4), 'OUT')   # 도어 20T
           if chan
-            xb = DT; zc = body - EP
+            xb = DT; zc = body                                  # 목찬넬 상단 = 상판 하면(천판 EP 없음)
             pts = [[xb + 22, zc], [xb + 40, zc], [xb + 40, zc - CH_H], [xb, zc - CH_H], [xb, zc - CH_H + 18], [xb + 22, zc - CH_H + 18]]
             c.poly(pts.map { |a, b| [x.call(a), z.call(b)] }, 'OUT', true)
-            c.ep_rect(x.call(0), z.call(body), x.call(d), z.call(body - EP), 0.5)
           end
           c.rect(x.call(60), z.call(k), x.call(d - 60), z.call(0), 'OUT') if k > 0
           if mid
@@ -435,7 +429,7 @@ module Kabinet
             edge_section(c, 262.0, 178.0, 0.5, 60, 62, true)
             c.shaded_label(240.0, 232.0, '전면 (도어 쪽)', 2.4)
             c.shaded_label(330.0, 232.0, '후면 (벽 쪽)', 2.4, 'r')
-            c.text(232.0, 244.0, '파랑 치수 : 25 = 천판 하단~도어 상단 / 60 = 찬넬 높이', 2.0, 'b')
+            c.text(232.0, 244.0, '파랑 치수 : 25 = 상판 하면~도어 상단 / 60 = 찬넬 높이', 2.0, 'b')
             c.text(232.0, 248.0, '40 = 도어 뒷면~찬넬 뒷면 / 20 = 도어 두께 / 손 진입 : 도어 위 25 틈', 2.0, 'b')
            end
           else
@@ -473,11 +467,11 @@ module Kabinet
           c.text(x.call(xr - 300) + 77.0, ly, '실선 사각 = 18T 몸통 / 20T 도어', 2.0, 'k', 'l')
         end
 
-        # 천판 EP 하단(z=0) 기준 목찬넬 측면 단면: 전면 = 왼쪽
+        # 상판 하면(z=0) 기준 목찬넬 측면 단면: 전면 = 왼쪽
         def edge_section(c, x0, y0, sc, door_len, xmax, dims)
           x = ->(v) { x0 + v * sc }
           y = ->(v) { y0 + v * sc }
-          c.ep_rect(x.call(0), y.call(-EP), x.call(xmax), y.call(0), 0.7)
+          c.line(x.call(0), y.call(0), x.call(xmax), y.call(0), 'OUT')           # 상판 하면 (천판 EP 없음)
           c.rect(x.call(0), y.call(CH_GAP), x.call(DT), y.call(CH_GAP + door_len), 'OUT')
           pts = [[42, 0], [60, 0], [60, CH_H], [DT, CH_H], [DT, CH_H - 18], [42, CH_H - 18]]
           c.poly(pts.map { |a, b| [x.call(a), y.call(b)] }, 'OUT', true)
