@@ -210,8 +210,8 @@ def _small_pos(i, n, a1, a2, tw_, horizontal=True):
     return a2 + 0.8 + tw_ / 2
 
 
-def dim_h(sh, xs, y, labels, ref=None, size=DSZ):
-    """수평 치수. xs = 경계 x 목록(시트 mm), labels = 구간별 문자열."""
+def _legacy_dim_h(sh, xs, y, labels, ref=None, size=DSZ):
+    """수평 치수(PDF 용 낱개 선+글자 전개). xs = 경계 x 목록(시트 mm), labels = 구간별 문자열."""
     n = len(labels)
     sgn = 0 if ref is None else (1 if y > ref else -1)
     for x in xs:
@@ -228,8 +228,8 @@ def dim_h(sh, xs, y, labels, ref=None, size=DSZ):
             sh.text(_small_pos(i, n, a1, a2, w), y - 0.8, lab, size, "k", "c")
 
 
-def dim_v(sh, x, ys, labels, ref=None, size=DSZ, side=-1):
-    """수직 치수. ys = 경계 y 목록(시트 mm, 오름차순). 글자 90° 회전."""
+def _legacy_dim_v(sh, x, ys, labels, ref=None, size=DSZ, side=-1):
+    """수직 치수(PDF 용 낱개 전개). ys = 경계 y 목록(시트 mm, 오름차순). 글자 90° 회전."""
     n = len(labels)
     sgn = 0 if ref is None else (1 if x > ref else -1)
     for y in ys:
@@ -247,6 +247,38 @@ def dim_v(sh, x, ys, labels, ref=None, size=DSZ, side=-1):
             cy = a2 + 0.8 + w / 2 if i < n - 1 or n == 1 else a2 + 0.8 + w / 2
             xx = x - 0.8 if side < 0 else x + 0.8 + size * 0.75
             sh.text(xx, cy, lab, size, "k", "c", 90)
+
+
+def dim_h(sh, xs, y, labels, ref=None, size=DSZ):
+    """수평 치수 — DXF 에서는 구간마다 CAD DIMENSION 1개(측정값 자동), PDF 는 종이용 선+글자로 전개."""
+    sh._add(("D", "h", list(xs), y, list(labels), ref, size, -1))
+
+
+def dim_v(sh, x, ys, labels, ref=None, size=DSZ, side=-1):
+    sh._add(("D", "v", list(ys), x, list(labels), ref, size, side))
+
+
+def expand_dims(items):
+    """("D", …) 치수 항목을 PDF/미리보기용 낱개 선·글자 항목으로 전개."""
+    out = []
+    for it in items:
+        if it[0] != "D":
+            out.append(it); continue
+        kind, pts, pos, labels, ref, size, side = it[1:8]
+        tmp = Sheet("_dim")
+        if len(it) > 8 and it[8] == "inner":                       # 칸 내부 높이 치수(작은 세로 치수)
+            st, c = it[9], it[10]
+            ya, yb = pts
+            tmp.line(pos, ya, pos, yb, st)
+            for y in (ya, yb):
+                tmp.line(pos - 0.5, y + 0.5, pos + 0.5, y - 0.5, st)
+            tmp.text(pos - 0.5, (ya + yb) / 2, labels[0], size, c, "c", 90)
+        elif kind == "h":
+            _legacy_dim_h(tmp, pts, pos, labels, ref=ref, size=size)
+        else:
+            _legacy_dim_v(tmp, pos, pts, labels, ref=ref, size=size, side=side)
+        out += tmp.items
+    return out
 
 
 def marker(sh, cx, cy, label, direction="up", r=3.3):
@@ -519,10 +551,8 @@ def elev_dims(sh, m, X, Z, edges, labels, body_w=None):
 def inner_dim(sh, X, Z, x, z0, z1, label, size=1.7, st="DIMT", c="k"):
     """칸 내부 높이 치수(작은 세로 치수)."""
     xs = X(x)
-    sh.line(xs, Z(z0), xs, Z(z1), st)
-    for z in (z0, z1):
-        sh.line(xs - 0.5, Z(z) + 0.5, xs + 0.5, Z(z) - 0.5, st)
-    sh.text(xs - 0.5, (Z(z0) + Z(z1)) / 2, label, size, c, "c", 90)
+    ya, yb = sorted((Z(z0), Z(z1)))
+    sh._add(("D", "v", [ya, yb], xs, [label], None, size, -1, "inner", st, c))
 
 
 def pins(sh, X, Z, xl, xr, z0, z1):
@@ -1423,7 +1453,7 @@ def render_pdf(sheets, path):
     c.setTitle("test_sheet")
     mm = 72 / 25.4
     for sh in sheets:
-        for it in sh.items:
+        for it in expand_dims(sh.items):
             k = it[0]
             if k == "L":
                 _, x1, y1, x2, y2, st = it
