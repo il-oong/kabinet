@@ -120,8 +120,13 @@ module Kabinet
         end
 
         # ── 정면 공통 ─────────────────────────────────────────────────────
+        # 상·하부 목찬넬 모듈(전판 위 찬넬 + 아래 거꾸로 찬넬)
+        def tb?(md)
+          md['channel'] && md['channel_tb'] ? true : false
+        end
+
         def fronts_for(m, md)
-          z0 = md['z'] + 4
+          z0 = md['z'] + (tb?(md) ? CH_GAP : 4)        # 하부 찬넬이 있으면 전판 하단도 25 틈
           ztop = md['z'] + md['h']
           under_top_ep = m['ep']['top'] && ztop >= m['overall']['H'] - m['overall']['top_thickness'] - 0.5
           ztop -= m['ep']['thickness'] if under_top_ep                                # 천판 EP(가로 20T) 아래로
@@ -192,12 +197,14 @@ module Kabinet
                 fr.each do |z0, z1|
                   c.rect(x.call(xa), z.call(z1), x.call(xa + dw), z.call(z0), 'OUT')
                   c.rect(x.call(xa), z.call(z1 + CH_GAP), x.call(xa + dw), z.call(z1), 'OUT') if md['channel']    # 전판(찬넬 가림) — 도어는 단순 도어선만
+                  c.rect(x.call(xa), z.call(z0), x.call(xa + dw), z.call(z0 - CH_GAP), 'OUT') if tb?(md)         # 하부 찬넬 가림
                 end
               end
             when 'drawers'
               fr.each do |z0, z1|
                 c.rect(x.call(md['x'] + 3), z.call(z1), x.call(md['x'] + md['w'] - 3), z.call(z0), 'OUT')
                 c.rect(x.call(md['x'] + 3), z.call(z1 + CH_GAP), x.call(md['x'] + md['w'] - 3), z.call(z1), 'OUT') if md['channel']
+                c.rect(x.call(md['x'] + 3), z.call(z0), x.call(md['x'] + md['w'] - 3), z.call(z0 - CH_GAP), 'OUT') if tb?(md) && z0 == fr.first[0]
                 zc = (z0 + z1) / 2
                 c.line(x.call(md['x'] + md['w'] / 2 - 100), z.call(zc), x.call(md['x'] + md['w'] / 2 + 100), z.call(zc), 'THIN') unless md['channel']
                 c.dim_v(x.call(md['x'] + md['w']) - 3.0, [z.call(z1), z.call(z0)], [f(z1 - z0)], size: 1.7, ref: nil) if fr.size > 1 && md['w'] * s > 12
@@ -210,7 +217,11 @@ module Kabinet
             end
             if md['channel'] && %w[doors drawers].include?(md['type']) && md['w'] * s > 12
               top_f = fr.empty? ? zt : fr.last[1]
-              c.blue_leader(x.call(md['x'] + md['w'] * 0.5), z.call(top_f - 110), x.call(md['x'] + md['w'] * 0.5), z.call(top_f + CH_GAP / 2.0), '목찬넬 60*40', 'l', 1.8)
+              c.blue_leader(x.call(md['x'] + md['w'] * 0.5), z.call(top_f - 110), x.call(md['x'] + md['w'] * 0.5), z.call(top_f + CH_GAP / 2.0), tb?(md) ? '목찬넬 60*40 (상부)' : '목찬넬 60*40', 'l', 1.8)
+              if tb?(md) && !fr.empty?
+                bot_f = fr.first[0]
+                c.blue_leader(x.call(md['x'] + md['w'] * 0.5), z.call(bot_f + 110), x.call(md['x'] + md['w'] * 0.5), z.call(bot_f - CH_GAP / 2.0), '하부 목찬넬 60*40', 'l', 1.8)
+              end
             end
           end
           ep_strips(c, m, x, z, body, k)
@@ -252,8 +263,9 @@ module Kabinet
               c.text(x.call(md['x'] + md['w'] / 2), z.call((zb + zt) / 2), lbl(md), 1.7, 'g', 'c')
             end
             if md['channel']
-              fronts_for(m, md).each do |_z0, z1|
+              fronts_for(m, md).each do |z0_, z1|
                 c.rect(x.call(md['x'] + 1.5), z.call(z1 + CH_GAP), x.call(md['x'] + md['w'] - 1.5), z.call(z1 + CH_GAP - CH_H), 'BLUE')   # 목찬넬
+                c.rect(x.call(md['x'] + 4.5), z.call(z0_ - CH_GAP + CH_H), x.call(md['x'] + md['w'] - 4.5), z.call(z0_ - CH_GAP), 'BLUE') if tb?(md)   # 하부(거꾸로) 찬넬
               end
             end
           end
@@ -283,6 +295,7 @@ module Kabinet
           lines = [["*W#{f(o['W'])} x H#{f(o['H'])} x D#{f(o['D'])} (mm) - 도면 입력 치수", 'k']]
           lines << ["*EP = 마감판 #{m['ep']['thickness'].round}T (#{m['ep']['top'] ? '측판·천판' : '측판'}) / 몸통 18T / 도어 20T", 'b'] if has_ep?(m)
           lines << ['*목찬넬 60*40 : 전판 상단(상판 하면 25 이격, 천판 EP 없음) (확인필요)', 'r'] if m['channel']
+          lines << ['*상·하부 목찬넬: 전판 위 찬넬(상향 개구) + 아래 거꾸로 찬넬(하향 개구), 전판 상하 25 틈 (추정)', 'b'] if m['modules'].any? { |md| tb?(md) }
           lines << ['*선반 18T · 뒷판 9T · 서랍 레일 13*2 (일반 기준, 추정)', 'k']
           m['flags'].first(5).each { |t| lines << ["*#{t}", 'r'] }
           lines << ["*단면 #{cut_list(m).size > 1 ? '1~2' : '1'} : SIDE VIEW 시트 / 확인 목록 : 생산 확인표", 'k']
@@ -299,7 +312,9 @@ module Kabinet
           Frame.furniture(c, info)
           o = m['overall']
           c.group('KEYPLAN') { keyplan(c, m) }
-          ox = 50.0; oy = 50.0
+          pw = o['W'] * s
+          ox = [40.0, 110.0 - pw / 2].max; oy = 50.0            # TOP VIEW 패널 가운데
+          door_x = [30.0, 110.0 - pw / 2].max; body_x = [240.0, 310.0 - pw / 2].max
           c.group('VIEW_TOP') do
             draw_plan(c, m, ox, oy, s)
             plan_dims(c, m, ox, oy, s)
@@ -308,14 +323,14 @@ module Kabinet
           c.group('NOTE') { note_block(c, m, default_notes(m)) }
           gy = [124.2 + 26.0 + o['H'] * s, 262.0].min
           c.group('VIEW_FRONT_DOOR') do
-            draw_door_view(c, m, 30.0, gy, s)
-            c.marker(30.0 + o['W'] * s / 2, gy + 10.0, 'A', :up)
-            c.text(30.0, gy + 19.0, '도어 20T / 전판 간격 3 / 걸레받이 (추정)', 2.0, 'b')
+            draw_door_view(c, m, door_x, gy, s)
+            c.marker(door_x + o['W'] * s / 2, gy + 10.0, 'A', :up)
+            c.text(door_x, gy + 19.0, '도어 20T / 전판 간격 3 / 걸레받이 (추정)', 2.0, 'b')
           end
           c.group('VIEW_FRONT_BODY') do
-            draw_body_view(c, m, 240.0, gy, s)
-            c.marker(240.0 + o['W'] * s / 2, gy + 10.0, 'A', :up)
-            c.text(240.0, gy + 19.0, '몸통 18T · 칸막이 18T · 선반 18T · 뒷판 9T (추정)', 2.0, 'b')
+            draw_body_view(c, m, body_x, gy, s)
+            c.marker(body_x + o['W'] * s / 2, gy + 10.0, 'A', :up)
+            c.text(body_x, gy + 19.0, '몸통 18T · 칸막이 18T · 선반 18T · 뒷판 9T (추정)', 2.0, 'b')
           end
           c
         end
@@ -385,11 +400,23 @@ module Kabinet
           c.rect(x.call(DT), z.call(k), x.call(d - BACK_T), z.call(k + BT), 'THIN')          # 하판 18T
           mid = m['modules'].find { |md| md['x'] <= cx && cx < md['x'] + md['w'] } || m['modules'].first
           chan = mid && mid['channel']                                                   # 절단 모듈 자신의 손잡이(채널) 설정
-          c.rect(x.call(0), z.call(body - (chan ? CH_GAP : 4)), x.call(DT), z.call(k + 4), 'OUT')   # 도어 20T
-          if chan
-            xb = DT; zc = body                                  # 목찬넬 상단 = 상판 하면(천판 EP 없음)
-            pts = [[xb + 22, zc], [xb + 40, zc], [xb + 40, zc - CH_H], [xb, zc - CH_H], [xb, zc - CH_H + 18], [xb + 22, zc - CH_H + 18]]
-            c.poly(pts.map { |a, b| [x.call(a), z.call(b)] }, 'OUT', true)
+          if mid && tb?(mid) && !fronts_for(m, mid).empty?
+            fronts_for(m, mid).each do |z0_, z1_|                                      # 전판마다 상부 찬넬 + 하부(거꾸로) 찬넬
+              c.rect(x.call(0), z.call(z1_), x.call(DT), z.call(z0_), 'OUT')
+              zc = z1_ + CH_GAP
+              up = [[DT + 22, zc], [DT + 40, zc], [DT + 40, zc - CH_H], [DT, zc - CH_H], [DT, zc - CH_H + 18], [DT + 22, zc - CH_H + 18]]
+              c.poly(up.map { |a, b| [x.call(a), z.call(b)] }, 'OUT', true)
+              zb_ = z0_ - CH_GAP
+              dn = [[DT + 22, zb_], [DT + 40, zb_], [DT + 40, zb_ + CH_H], [DT, zb_ + CH_H], [DT, zb_ + CH_H - 18], [DT + 22, zb_ + CH_H - 18]]
+              c.poly(dn.map { |a, b| [x.call(a), z.call(b)] }, 'OUT', true)
+            end
+          else
+            c.rect(x.call(0), z.call(body - (chan ? CH_GAP : 4)), x.call(DT), z.call(k + 4), 'OUT')   # 도어 20T
+            if chan
+              xb = DT; zc = body                                # 목찬넬 상단 = 상판 하면(천판 EP 없음)
+              pts = [[xb + 22, zc], [xb + 40, zc], [xb + 40, zc - CH_H], [xb, zc - CH_H], [xb, zc - CH_H + 18], [xb + 22, zc - CH_H + 18]]
+              c.poly(pts.map { |a, b| [x.call(a), z.call(b)] }, 'OUT', true)
+            end
           end
           c.rect(x.call(60), z.call(k), x.call(d - 60), z.call(0), 'OUT') if k > 0
           if mid
@@ -425,12 +452,21 @@ module Kabinet
           end
           if m['channel']
            c.group('DETAIL_2') do
-            c.detail_title(218.3, 139.0, 2, '목찬넬 상세 - 측면 (1/2)')
+            c.detail_title(218.3, 139.0, 2, '목찬넬 상세 - 측면 (1/2)' + (m['modules'].any? { |md| tb?(md) } ? ' 상부' : ''))
             edge_section(c, 262.0, 178.0, 0.5, 60, 62, true)
             c.shaded_label(240.0, 232.0, '전면 (도어 쪽)', 2.4)
             c.shaded_label(330.0, 232.0, '후면 (벽 쪽)', 2.4, 'r')
             c.text(232.0, 244.0, '파랑 치수 : 25 = 상판 하면~도어 상단 / 60 = 찬넬 높이', 2.0, 'b')
             c.text(232.0, 248.0, '40 = 도어 뒷면~찬넬 뒷면 / 20 = 도어 두께 / 손 진입 : 도어 위 25 틈', 2.0, 'b')
+           end
+           if m['modules'].any? { |md| tb?(md) }
+            c.group('DETAIL_CHANNEL_BOTTOM') do
+              c.detail_title(330.0, 139.0, 3, '하부 목찬넬 상세 - 측면 (1/2)')
+              edge_section(c, 352.0, 232.0, 0.5, 60, 62, true, true)
+              c.shaded_label(335.0, 245.0, '전면', 2.4)
+              c.shaded_label(395.0, 245.0, '후면', 2.4, 'r')
+              c.text(330.0, 255.0, '전판 아래 25 틈 바닥에서 위로 60 : 거꾸로(하향 개구) 찬넬 (추정)', 2.0, 'b')
+            end
            end
           else
             c.text(218.3, 145.0, '목찬넬 없음 (지정 손잡이 사양은 NOTE 참조)', 3.0, 'g')
@@ -468,9 +504,10 @@ module Kabinet
         end
 
         # 상판 하면(z=0) 기준 목찬넬 측면 단면: 전면 = 왼쪽
-        def edge_section(c, x0, y0, sc, door_len, xmax, dims)
+        def edge_section(c, x0, y0, sc, door_len, xmax, dims, up = false)
+          sg = up ? -1 : 1            # up: 하부(거꾸로) 찬넬 — z 는 전판 아래 틈 바닥에서 위로
           x = ->(v) { x0 + v * sc }
-          y = ->(v) { y0 + v * sc }
+          y = ->(v) { y0 + sg * v * sc }
           c.line(x.call(0), y.call(0), x.call(xmax), y.call(0), 'OUT')           # 상판 하면 (천판 EP 없음)
           c.rect(x.call(0), y.call(CH_GAP), x.call(DT), y.call(CH_GAP + door_len), 'OUT')
           pts = [[42, 0], [60, 0], [60, CH_H], [DT, CH_H], [DT, CH_H - 18], [42, CH_H - 18]]
@@ -486,10 +523,10 @@ module Kabinet
           lx = x.call(-14)
           c.line(lx, y.call(0), lx, y.call(CH_GAP), 'BLUE')
           c.text(lx - 0.8, (y.call(0) + y.call(CH_GAP)) / 2, '25', 2.4, 'b', 'c', 90)
-          by = y.call(CH_H) + 3
+          by = y.call(CH_H) + 3 * sg
           c.line(x.call(DT), by, x.call(60), by, 'BLUE')
-          c.text((x.call(DT) + x.call(60)) / 2, by + 3.4, '40', 2.4, 'b', 'c')
-          c.text(x.call(DT / 2), y.call(CH_GAP + door_len) + 3.2, '20', 2.0, 'b', 'c')
+          c.text((x.call(DT) + x.call(60)) / 2, by + 3.4 * sg, '40', 2.4, 'b', 'c')
+          c.text(x.call(DT / 2), y.call(CH_GAP + door_len) + 3.2 * sg, '20', 2.0, 'b', 'c')
         end
 
         # ── 평면도(공간 + 가구 배치) ──────────────────────────────────────

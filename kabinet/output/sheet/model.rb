@@ -104,8 +104,8 @@ module Kabinet
                            'top_thickness' => num(o['top_thickness'], 0), 'kick' => num(o['kick'], 0) },
             'ep' => { 'left' => !!(s['ep'] || {})['left'], 'right' => !!(s['ep'] || {})['right'],
                       'top' => !!(s['ep'] || {})['top'], 'thickness' => num((s['ep'] || {})['thickness'], 20) },
-            'modules' => (s['modules'] || []).map { |m| module_defaults(m, o, !!s['channel']) },
-            'type' => (s['type'] || '가구').to_s, 'channel' => !!s['channel'],
+            'modules' => (s['modules'] || []).map { |m| module_defaults(m, o, !!s['channel'], !!s['channel_tb']) },
+            'type' => (s['type'] || '가구').to_s, 'channel' => !!s['channel'], 'channel_tb' => !!s['channel_tb'],
             'sink' => s['sink'].is_a?(Hash) ? %w[x y w d].each_with_object({}) { |k, h| h[k] = num(s['sink'][k]) } : nil,
             'cuts' => cuts_from(s),
             'table_rows' => (s['table_rows'] || []).select { |r| r.is_a?(Array) && r.size >= 3 },
@@ -125,9 +125,10 @@ module Kabinet
           list.map { |v| num(v, nil) }.compact.first(2)
         end
 
-        def module_defaults(m, o, default_channel = false)
+        def module_defaults(m, o, default_channel = false, default_tb = false)
           {
             'channel' => m.key?('channel') ? !!m['channel'] : default_channel,
+            'channel_tb' => m.key?('channel_tb') ? !!m['channel_tb'] : default_tb,
             'name' => (m['name'] || 'M').to_s, 'label' => (m['label'] || m['name'] || 'M').to_s, 'x' => num(m['x']), 'z' => num(m['z']),
             'w' => num(m['w'], num(o['W'], 900)), 'h' => num(m['h'], num(o['H'], 900)), 'd' => num(m['d'], num(o['D'], 600)),
             'type' => (m['type'] || 'open').to_s, 'doors' => m['doors'].to_i, 'drawers' => m['drawers'].to_i,

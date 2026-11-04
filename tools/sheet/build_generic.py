@@ -81,8 +81,14 @@ def pick_scale(d, max_w=140.0, max_h=88.0, max_d=44.0):
     return 100
 
 
+def tb(d, md):
+    """상·하부 목찬넬(전판 위 찬넬 + 아래 거꾸로 찬넬) 모듈인가. 모듈의 channel_tb 가 우선, 없으면 최상위 channel_tb."""
+    v = md.get("channel_tb", d.get("channel_tb"))
+    return bool(v and d.get("channel"))
+
+
 def fronts(d, md):
-    k = md["z"] + 4
+    k = md["z"] + (CH_GAP if tb(d, md) else 4)          # 하부 찬넬이 있으면 전판 하단도 25 틈(찬넬 개구)
     ztop = md["z"] + md["h"]
     under_top_ep = d["ep"].get("top") and ztop >= d["overall"]["H"] - d["overall"]["top_thickness"] - 0.5
     if under_top_ep: ztop -= d["ep"]["thickness"]                    # 천판 EP(가로 20T) 아래로
@@ -217,17 +223,23 @@ def door_view(sh, d, ox, gy, s):
                     sh.rect(X(xa), Z(z1), X(xa + dw), Z(z0), "OUT")
                     if d.get("channel"):
                         sh.rect(X(xa), Z(z1 + CH_GAP), X(xa + dw), Z(z1), "OUT")
+                        if tb(d, md): sh.rect(X(xa), Z(z0), X(xa + dw), Z(z0 - CH_GAP), "OUT")      # 하부 찬넬 가림(전판 아래 25 틈)
         elif md["type"] == "drawers":
             for (z0, z1) in fronts(d, md):
                 sh.rect(X(md["x"] + 3), Z(z1), X(md["x"] + md["w"] - 3), Z(z0), "OUT")
                 if d.get("channel"): sh.rect(X(md["x"] + 3), Z(z1 + CH_GAP), X(md["x"] + md["w"] - 3), Z(z1), "OUT")
+                if d.get("channel") and tb(d, md) and z0 == fronts(d, md)[0][0]:
+                    sh.rect(X(md["x"] + 3), Z(z0), X(md["x"] + md["w"] - 3), Z(z0 - CH_GAP), "OUT")     # 맨 아래 전판의 하부 찬넬 가림
                 if md["w"] * s > 12: bs.dim_v(sh, X(md["x"] + md["w"]) - 3.0, [Z(z1), Z(z0)], [fmt(z1 - z0)], size=1.7)
         elif md["type"] == "appliance":
             sh.text(X(md["x"] + md["w"] / 2), Z((zb + zt) / 2), md.get("label", md["name"]), 2.0, "r", "c")
             sh.dashed(X(md["x"] + 5), Z(zb), X(md["x"] + 5), Z(zt), "RED")
         if d.get("channel") and md["type"] in ("doors", "drawers") and md["w"] * s > 12:
             top_f = fronts(d, md)[-1][1] if fronts(d, md) else zt
-            bs.blue_leader(sh, X(md["x"] + md["w"] * 0.5), Z(top_f - 110), X(md["x"] + md["w"] * 0.5), Z(top_f + CH_GAP / 2), "목찬넬 60*40", "l", 1.8)
+            bs.blue_leader(sh, X(md["x"] + md["w"] * 0.5), Z(top_f - 110), X(md["x"] + md["w"] * 0.5), Z(top_f + CH_GAP / 2), "목찬넬 60*40" + (" (상부)" if tb(d, md) else ""), "l", 1.8)
+            if tb(d, md) and fronts(d, md):
+                bot_f = fronts(d, md)[0][0]
+                bs.blue_leader(sh, X(md["x"] + md["w"] * 0.5), Z(bot_f + 110), X(md["x"] + md["w"] * 0.5), Z(bot_f - CH_GAP / 2), "하부 목찬넬 60*40", "l", 1.8)
     ep_strips(sh, d, X, Z, body, k)
     elev_dims(sh, d, X, Z)
     if k > 0: sh.text(X(o["W"] / 2), Z(k / 2) + 0.6, f"걸레받이 H{fmt(k)}", 1.7, "g", "c")
@@ -262,6 +274,8 @@ def body_view(sh, d, ox, gy, s):
         if d.get("channel"):
             for (z0, z1) in fronts(d, md):
                 sh.rect(X(md["x"] + 1.5), Z(z1 + CH_GAP), X(md["x"] + md["w"] - 1.5), Z(z1 + CH_GAP - CH_H), "BLUE")
+                if tb(d, md):                                                     # 하부 찬넬(거꾸로): 전판 아래 25 틈 바닥에서 위로 60
+                    sh.rect(X(md["x"] + 4.5), Z(z0 - CH_GAP + CH_H), X(md["x"] + md["w"] - 4.5), Z(z0 - CH_GAP), "BLUE")
     ep_strips(sh, d, X, Z, body, k)
     elev_dims(sh, d, X, Z)
     x = X(cut_x(d)); yt = Z(o["H"]) - 29.0; yb = gy + 9.5
@@ -287,7 +301,8 @@ def default_notes(d):
     L = [(f"*W{fmt(o['W'])} x H{fmt(o['H'])} x D{fmt(o['D'])} (mm) - 도면 DIMENSION 값", "k")]
     if any(d["ep"].get(k) for k in ("left", "right", "top")):
         L.append((f"*EP = 마감판 {d['ep']['thickness']}T (측판·천판) / 몸통 18T / 도어 20T", "b"))
-    if d.get("channel"): L.append(("*목찬넬 60*40 : 전판 상단(천판 하단 25 이격) (확인필요)", "r"))
+    if d.get("channel"): L.append(("*목찬넬 60*40 : 전판 상단(상판 하면 25 이격) (확인필요)", "r"))
+    if any(tb(d, m) for m in d["modules"]): L.append(("*상·하부 목찬넬: 전판 위 찬넬(상향 개구) + 아래 거꾸로 찬넬(하향 개구), 전판 상하 25 틈 (추정)", "b"))
     L.append(("*선반 18T · 뒷판 9T · 서랍 레일 13*2 (일반 기준, 추정)", "k"))
     for f in d["flags"][:5]: L.append(("*" + f, "r"))
     L.append(("*단면 1 : SIDE VIEW 시트 / 확인 목록 : 생산 확인표", "k"))
@@ -300,16 +315,19 @@ def page_furniture(d, den, no):
     sh = Sheet("furniture"); sh.den = den
     bs.furniture_frame(sh, d["furniture_name"], d.get("type", "가구").split("(")[0][:12] + " 정면/평면", no, den, ("TOP VIEW",))
     keyplan(sh, d)
-    ox, oy = 50.0, 50.0
+    pw = o["W"] * s
+    ox, oy = max(40.0, 110.0 - pw / 2), 50.0        # TOP VIEW 패널(9.4~210.3) 가운데 (작은 가구가 왼쪽 모서리로 쏠리지 않게)
     draw_plan(sh, d, ox, oy, s); plan_dims(sh, d, ox, oy, s); plan_markers(sh, d, ox, oy, s)
     note_block(sh, d, default_notes(d))
     gy = min(124.2 + 26.0 + o["H"] * s, 262.0)
     with sh.group("VIEW_FRONT_DOOR"):             # 마커·캡션도 뷰 블록 안에
-        door_view(sh, d, 30.0, gy, s); bs.marker(sh, 30.0 + o["W"] * s / 2, gy + 10.0, "A", "up")
-        sh.text(30.0, gy + 19.0, "도어 20T / 전판 간격 3 / 걸레받이 (추정)", 2.0, "b")
+        door_x = max(30.0, 110.0 - pw / 2)
+        door_view(sh, d, door_x, gy, s); bs.marker(sh, door_x + o["W"] * s / 2, gy + 10.0, "A", "up")
+        sh.text(door_x, gy + 19.0, "도어 20T / 전판 간격 3 / 걸레받이 (추정)", 2.0, "b")
     with sh.group("VIEW_FRONT_BODY"):
-        body_view(sh, d, 240.0, gy, s); bs.marker(sh, 240.0 + o["W"] * s / 2, gy + 10.0, "A", "up")
-        sh.text(240.0, gy + 19.0, "몸통 18T · 칸막이 18T · 선반 18T · 뒷판 9T (추정)", 2.0, "b")
+        body_x = max(240.0, 310.0 - pw / 2)
+        body_view(sh, d, body_x, gy, s); bs.marker(sh, body_x + o["W"] * s / 2, gy + 10.0, "A", "up")
+        sh.text(body_x, gy + 19.0, "몸통 18T · 칸막이 18T · 선반 18T · 뒷판 9T (추정)", 2.0, "b")
     return sh
 
 
@@ -353,14 +371,24 @@ def draw_section(sh, d, ox, gy, s):
     sh.rect(X(D - 9), Z(body), X(D), Z(k), "THIN")
     sh.rect(X(DT), Z(body - BT), X(D - 9), Z(body), "THIN")
     sh.rect(X(DT), Z(k), X(D - 9), Z(k + BT), "THIN")
-    sh.rect(X(0), Z(body - (CH_GAP if d.get("channel") else 4)), X(DT), Z(k + 4), "OUT")      # 도어 20T
-    if d.get("channel"):
-        xb, zc = DT, body                               # 목찬넬 상단 = 상판 하면(천판 EP 없음)
-        pts = [(xb + 22, zc), (xb + 40, zc), (xb + 40, zc - CH_H), (xb, zc - CH_H), (xb, zc - CH_H + 18), (xb + 22, zc - CH_H + 18)]
-        sh.poly([(X(a), Z(b)) for a, b in pts], "OUT", True)
-    if k > 0: sh.rect(X(60), Z(k), X(D - 60), Z(0), "OUT")
     cx = cut_x(d)
     mid = next((m for m in d["modules"] if m["x"] <= cx < m["x"] + m["w"]), d["modules"][0])
+    if d.get("channel") and tb(d, mid) and fronts(d, mid):
+        for (z0, z1) in fronts(d, mid):                                           # 전판마다 상부 찬넬 + 하부(거꾸로) 찬넬
+            sh.rect(X(0), Z(z1), X(DT), Z(z0), "OUT")                              # 도어/서랍 전판 20T
+            zc = z1 + CH_GAP
+            pts = [(DT + 22, zc), (DT + 40, zc), (DT + 40, zc - CH_H), (DT, zc - CH_H), (DT, zc - CH_H + 18), (DT + 22, zc - CH_H + 18)]
+            sh.poly([(X(a_), Z(b_)) for a_, b_ in pts], "OUT", True)
+            zb = z0 - CH_GAP
+            pts = [(DT + 22, zb), (DT + 40, zb), (DT + 40, zb + CH_H), (DT, zb + CH_H), (DT, zb + CH_H - 18), (DT + 22, zb + CH_H - 18)]
+            sh.poly([(X(a_), Z(b_)) for a_, b_ in pts], "OUT", True)
+    else:
+        sh.rect(X(0), Z(body - (CH_GAP if d.get("channel") else 4)), X(DT), Z(k + 4), "OUT")      # 도어 20T
+        if d.get("channel"):
+            xb, zc = DT, body                               # 목찬넬 상단 = 상판 하면(천판 EP 없음)
+            pts = [(xb + 22, zc), (xb + 40, zc), (xb + 40, zc - CH_H), (xb, zc - CH_H), (xb, zc - CH_H + 18), (xb + 22, zc - CH_H + 18)]
+            sh.poly([(X(a_), Z(b_)) for a_, b_ in pts], "OUT", True)
+    if k > 0: sh.rect(X(60), Z(k), X(D - 60), Z(0), "OUT")
     for sv in mid["shelves"]:
         zz = mid["z"] + sv; sh.rect(X(DT), Z(zz + 9), X(D - 29), Z(zz - 9), "OUT")
     for rv in mid["rods"]:
@@ -389,9 +417,15 @@ def page_detail(d, den, no):
         bs.edge_ep_plan(sh, None, 60.0, 160.0, 0.2)
     if d.get("channel"):
         with sh.group("DETAIL_CHANNEL"):
-            bs.detail_title(sh, 218.3, 139.0, 2, "목찬넬 상세 - 측면 (1/2)")
+            bs.detail_title(sh, 218.3, 139.0, 2, "목찬넬 상세 - 측면 (1/2)" + (" 상부" if any(tb(d, m) for m in d["modules"]) else ""))
             bs.edge_section(sh, 262.0, 178.0, 0.5, 60, 62, 0, True, True)
             bs.shaded_label(sh, 240.0, 232.0, "전면 (도어 쪽)", 2.4); bs.shaded_label(sh, 330.0, 232.0, "후면 (벽 쪽)", 2.4, "r")
+    if any(tb(d, m) for m in d["modules"]):
+        with sh.group("DETAIL_CHANNEL_BOTTOM"):
+            bs.detail_title(sh, 330.0, 139.0, 3, "하부 목찬넬 상세 - 측면 (1/2)")
+            bs.edge_section(sh, 352.0, 232.0, 0.5, 60, 62, 0, True, True, up=True)
+            bs.shaded_label(sh, 335.0, 245.0, "전면", 2.4); bs.shaded_label(sh, 395.0, 245.0, "후면", 2.4, "r")
+            sh.text(330.0, 255.0, "전판 아래 25 틈 바닥에서 위로 60 : 거꾸로(하향 개구) 찬넬 (추정)", 2.0, "b")
     return sh
 
 
@@ -425,6 +459,11 @@ def page_table(d, den=25):
             ["뒷판·후면 마감", "뒷판 9T (추정)", "후면 마감 사양 확인"], ["선반", "18T, 핀 96 간격 (추정)", "선반 위치 확정"],
             ["EP 20T 위치", "도면 EP 라벨 기준 (추정)", "원본 도면 EP 지시 대조"], ["콘센트·배선 타공", "위치 미정", "전기 도면 확인"],
             ["공간 규격", "평면도 공간은 가정치", "현장 실측"]]
+    tbm = [m for m in d["modules"] if tb(d, m)]
+    if tbm:
+        nf = sum(len(fronts(d, m)) * (2 if m["type"] == "doors" and m.get("doors", 1) == 2 else 1) for m in tbm)
+        rows = rows + [["목찬넬 수량(상/하)", f"상부 {nf} + 하부 {nf} 개 (전판 수 기준 폭=전판 폭, 추정)", "찬넬 길이·수량 확정"],
+                       ["전판 상하 틈", "상 25(상판 하면) / 하 25(걸레받이 위) / 단간 25 (추정)", "찬넬 개구 25 확인"]]
     rows = rows + [[f, "도면에서 읽지 못함/추정", "확인 필요"] for f in d["flags"]] + base
     sh = Sheet("table"); sh.den = den
     sh.rect(4.5, 3.2, 415.5, 293.9, "FR")

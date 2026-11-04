@@ -1091,14 +1091,15 @@ def front_back(sh, xf, xb, y, front="전면 (도어 쪽)", back="후면 (벽 쪽
 
 
 @view("DETAIL_CHANNEL")
-def edge_section(sh, X0, Y0, sc, door_len, xmax=70, counter_h=0, dims=True, hand=True):
+def edge_section(sh, X0, Y0, sc, door_len, xmax=70, counter_h=0, dims=True, hand=True, up=False):
     """③ 목찬넬 측면 단면: 앞(전면)=왼쪽, 뒤(후면)=오른쪽. z 는 상판 하면(0)에서 아래로.
     샘플(33~38쪽 SIDE VIEW 상세)과 같은 구조: 상판 하면 아래 25 지점에 도어 상단, 찬넬 ㄴ형(수직 다리 18T 는 뒤쪽 천판 아래,
     수평 플랜지 18T 는 하단) -> 도어 위 25 틈으로 들어온 손가락이 도어 뒤 찬넬 홈(약 22 x 42)에 닿는다."""
+    sg = -1 if up else 1                      # up=True: 하부(거꾸로) 찬넬 상세 — z 는 전판 아래 틈 바닥(0)에서 위로
     X = lambda x: X0 + x * sc
-    Y = lambda z: Y0 + z * sc
-    sh.line(X(0), Y(0), X(xmax), Y(0), "OUT")                                                  # 상판 하면 (천판 EP 없음, 찬넬이 바로 붙음)
-    if counter_h:
+    Y = lambda z: Y0 + sg * z * sc
+    sh.line(X(0), Y(0), X(xmax), Y(0), "OUT")                                                  # 상판 하면 / (하부는) 틈 바닥 = 걸레받이·하판 상면
+    if counter_h and not up:
         sh.rect(X(0), Y(-counter_h), X(xmax), Y(0), "OUT")                                    # 상판 (top_t)
     sh.rect(X(0), Y(CH_GAP), X(DT), Y(CH_GAP + door_len), "OUT")                              # 도어 20T (전면 = 왼쪽)
     pts = [(42, 0), (60, 0), (60, CH_H), (DT, CH_H), (DT, CH_H - 18), (42, CH_H - 18)]
@@ -1120,12 +1121,12 @@ def edge_section(sh, X0, Y0, sc, door_len, xmax=70, counter_h=0, dims=True, hand
         for z in (0, CH_GAP):
             sh.line(lx - 0.6, Y(z) + 0.6, lx + 0.6, Y(z) - 0.6, "BLUE")
         sh.text(lx - 0.8, (Y(0) + Y(CH_GAP)) / 2, "25", 2.4, "b", "c", 90)
-        by = Y(CH_H) + 3
+        by = Y(CH_H) + 3 * sg
         sh.line(X(DT), by, X(60), by, "BLUE")                                                  # 40 : 도어 뒷면 ~ 찬넬 뒷면
         for x in (DT, 60):
             sh.line(X(x) - 0.6, by + 0.6, X(x) + 0.6, by - 0.6, "BLUE")
-        sh.text((X(DT) + X(60)) / 2, by + 3.4, "40", 2.4, "b", "c")
-        sh.text(X(DT / 2), Y(CH_GAP + door_len) + 3.2, "20", 2.0, "b", "c")                    # 20 : 도어 두께
+        sh.text((X(DT) + X(60)) / 2, by + 3.4 * sg, "40", 2.4, "b", "c")
+        sh.text(X(DT / 2), Y(CH_GAP + door_len) + 3.2 * sg, "20", 2.0, "b", "c")                    # 20 : 도어 두께
     return X, Y
 
 

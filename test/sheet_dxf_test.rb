@@ -310,4 +310,21 @@ Dir.mktmpdir do |dir|
   S::Builder.export(c, model, path)
   assert File.binread(path).force_encoding('CP949').encode('UTF-8').include?('2. 특이사항 : 변경'), 'edited field in DXF'
 end
+# ── 상·하부 목찬넬(channel_tb): 전판 상하 25 틈, 하부 찬넬 블루 사각, 뷰 패널 중앙 정렬 ──────────────────
+tbm = S::Model.normalize(
+  'furniture_name' => '하부장', 'channel' => true, 'channel_tb' => true,
+  'overall' => { 'W' => 1552, 'H' => 900, 'D' => 600, 'top_thickness' => 12, 'kick' => 100 },
+  'modules' => [{ 'name' => '도어', 'x' => 0, 'z' => 100, 'w' => 900, 'h' => 788, 'type' => 'doors', 'doors' => 2 },
+                { 'name' => '서랍', 'x' => 900, 'z' => 100, 'w' => 652, 'h' => 788, 'type' => 'drawers', 'drawers' => 2 }]
+)
+assert tbm['modules'].all? { |md| md['channel'] && md['channel_tb'] }, 'tb flags'
+fd = S::Pages.fronts_for(tbm, tbm['modules'][0]); fr = S::Pages.fronts_for(tbm, tbm['modules'][1])
+assert fd == [[125, 863.0]] || fd == [[125.0, 863.0]], "door 125..863 (상 25 / 하 25 틈) #{fd}"
+assert fr.size == 2 && fr[0][0] == 125 && (fr[1][0] - fr[0][1] - 25).abs < 1e-6, "drawer gap 25 #{fr}"
+cvf = S::Pages.furniture(tbm, scale: 20, subject: 's', sheet_no: '', site: '', title: 't', date: '')
+blues = cvf.items.select { |it| it[0] == :P && it[2] == 'BLUE' }
+assert blues.size >= 6, "상·하부 찬넬 사각 #{blues.size}"     # 도어 2 x (상+하) + 서랍 2 x (상+하) 이상
+xs = cvf.items.each_with_index.select { |it, i| it[0] == :P && cvf.item_groups[i] == 'VIEW_FRONT_DOOR' }.flat_map { |it, _| it[1].map(&:first) }
+assert xs.min > 60.0 && xs.max < 160.0, "front door view centered in its panel (x #{xs.min.round(1)}..#{xs.max.round(1)})"   # 작은 가구가 패널 왼쪽 모서리(x≈30)로 쏠리지 않음
+
 puts 'sheet_dxf_test OK'
