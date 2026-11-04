@@ -437,6 +437,7 @@ class Model:
         self.d = data
         o = data["overall"]
         self.W, self.D, self.H = o["W"], o["D"], o["H"]
+        o_ = o
         self.top_t, self.body_H, self.kick = o["top_thickness"], o["body_H"], o["kick"]
         self.dB = data["depth_split"]["B_sink_side"]
         self.dA = data["depth_split"]["A_drawer_side"]
@@ -448,6 +449,7 @@ class Model:
         self.cuts = data.get("section_cuts", {"5": 600, "6": 1900, "7": 2300, "8": 2900})
         global TOP_IN, BOT_IN, HH
         TOP_IN, BOT_IN, HH = self.body_H - 18, self.kick + 18, self.H           # 모든 입면의 내부 높이 기준
+        self.kickA = o_.get("kick_A", self.kick)                                  # 서랍면(A면) 걸레받이(50) — 싱크면(B면)은 kick(100)
         self.dw_over = DW_FOOT + DW_H - self.body_H                             # 식기세척기가 상판 하단을 넘는 높이(>0 이면 안 들어감)
 
     def mid_shelf(self):
@@ -462,7 +464,7 @@ class Model:
 
 SHORT = {"서랍장(2단)M": "서랍장\n(2단)M", "장(2단)": "장\n(2단)", "조리장(1D)L/R": "조리장\n(1D)L/R",
          "식기세척기 M": "식기\n세척기 M", "조리장(1D)L/R (싱크)": "조리장\n(1D)L/R", "로봇청소기서랍장(1D)L/R": "로봇청소기\n장(1D)\n하부 500", "인출장(1D)": "인출장\n(1D)",
-         "OPEN(EP 판넬/벽장용 20T)": "OPEN\n(찬넬 없음)"}
+         "OPEN(EP 판넬/벽장용 20T)": "OPEN\n(찬넬 없음)", "페이크도어(고정)": "페이크도어\n(고정)"}
 
 
 def ep_rect(sh, x1, y1, x2, y2, step=0.5):
@@ -501,7 +503,7 @@ def draw_plan(sh, m, ox, oy, s, labels=True, size=1.8):
                 sh.text(X(bx0 + bw / 2), Y(m.dB / 2) + (k - (len(lines) - 1) / 2) * size * 1.2 + size * 0.35, ln, size, "g", "c")
     for md in m.ab:
         sh.rect(X(md["x"]), Y(m.dB), X(md["x"] + md["w"]), Y(m.D), "THIN")
-        if md["type"] != "open":
+        if md["type"] != "open":      # (페이크도어 포함: 앞판 20T 선)
             sh.line(X(md["x"]), Y(m.D - DT), X(md["x"] + md["w"]), Y(m.D - DT), "THIN")
         if labels:
             nm = SHORT.get(md["name"], md["name"]); lines = nm.split("\n")
@@ -637,12 +639,13 @@ def pins(sh, X, Z, xl, xr, z0, z1):
     return
 
 
-def fronts(m, n):
+def fronts(m, n, k=None, bot=4):
     """전판 n단 분할: 하단 걸레받이 위 4, 단간 = 찬넬 틈 25, 상단 = 상판 하면(body_H)에서 25 아래(795). [(z0,z1)]"""
-    k, top = m.kick, m.body_H - CH_GAP
+    k = m.kick if k is None else k
+    top = m.body_H - CH_GAP
     gap = CH_GAP
-    fh = (top - (k + 4) - gap * (n - 1)) // n
-    out, z = [], k + 4
+    fh = (top - (k + bot) - gap * (n - 1)) // n
+    out, z = [], k + bot
     for _ in range(n):
         out.append((z, z + fh)); z += fh + gap
     out[-1] = (out[-1][0], top)
@@ -684,7 +687,7 @@ def b_fronts(m, md):
 
 
 def a_fronts(m, md):
-    return [] if md["type"] == "open" else [(a, b, True, "drawer") for a, b in fronts(m, 2)]
+    return [(a, b, True, "fake" if md["type"] == "fake" else "drawer") for a, b in fronts(m, 2, m.kickA, 25)]   # 서랍면: 걸레받이 50, 상·단간·하 25
 
 
 def chan_rect(x0, w, zt):
@@ -843,44 +846,49 @@ def draw_b_body(sh, m, ox, gy, s):
 
 # ---- A면 정면(서랍면) --------------------------------------------------
 def fmt_notes(m, notes):
-    """NOTE 문구의 치수 자리표시자({TOP} {F1} {F2} …)를 모델 값으로 채운다."""
-    f = fronts(m, 2)
-    return [(t.replace("{TOP}", str(m.top_t)).replace("{FH}", str(f[0][1] - f[0][0])), c) for t, c in notes]
+    """NOTE 문구의 치수 자리표시자({TOP} {FH}(싱크면 서랍) {FHA}(서랍면 앞판))를 모델 값으로 채운다."""
+    f = fronts(m, 2); fa = fronts(m, 2, m.kickA, 25)
+    return [(t.replace("{TOP}", str(m.top_t)).replace("{FHA}", str(fa[0][1] - fa[0][0])).replace("{FH}", str(f[0][1] - f[0][0])), c) for t, c in notes]
 
 
 def draw_a_elev(sh, m, ox, gy, s, body=False):
     """A면(서랍면) 정면: 평면 x 그대로."""
     X, Z = elev_frame(sh, m, ox, gy, s)
-    k, h = m.kick, m.body_H
+    k, h = m.kickA, m.body_H
+    botA = k + 18
     sh.rect(X(EP), Z(h), X(m.W - EP), Z(k), "OUT")                              # 몸통 외곽 = 측판 EP 안쪽면 사이
     sh.rect(X(EP), Z(k), X(m.W - EP), Z(0), "OUT")                              # 걸레받이: 측판 EP 사이(안쪽 후퇴·추정)
     ep_band(sh, X, Z, m, 0, m.W)
     ep_ends(sh, m, X, Z, [0, m.W - EP])
     if body:
         sh.rect(X(EP), Z(TOP_IN + 18), X(m.W - EP), Z(TOP_IN), "THIN")
-        sh.rect(X(EP), Z(BOT_IN), X(m.W - EP), Z(k), "THIN")
+        sh.rect(X(EP), Z(botA), X(m.W - EP), Z(k), "THIN")
     for md in m.ab:
         x0, w, t = md["x"], md["w"], md["type"]
         cx = X(x0 + w / 2)
         xl, xr = (x0 if x0 <= EP else x0 + 9), (x0 + w if x0 + w >= m.W - EP else x0 + w - 9)   # EP 에 붙는 쪽은 EP 안쪽면이 곧 몸통 면
         if body and x0 > EP:
-            sh.rect(X(x0 - 9), Z(TOP_IN), X(x0 + 9), Z(BOT_IN), "THIN")
+            sh.rect(X(x0 - 9), Z(TOP_IN), X(x0 + 9), Z(botA), "THIN")
         elif not body:
             sh.line(X(x0), Z(k), X(x0), Z(h), "OUT")
-        if t == "open":
-            zs = k + md["shelf_h"]
-            if body:
-                sh.rect(X(EP), Z(zs + 9), X(x0 + w - 9), Z(zs - 9), "THIN"); pins(sh, X, Z, EP + 25, x0 + w - 34, 150, TOP_IN - 60)
-                inner_dim(sh, X, Z, x0 + 60, BOT_IN, zs - 9, fmt(zs - 9 - BOT_IN)); inner_dim(sh, X, Z, x0 + 60, zs + 9, TOP_IN, fmt(TOP_IN - zs - 9))
-            sh.text(cx, Z(int(m.body_H * 0.72)), "OPEN (찬넬 없음)", 2.0, "g", "c")
-            sh.text(cx, Z(k + md["shelf_h"] / 2), "선반 18T(추정)", 1.8, "g", "c")
-            continue
         fs = a_fronts(m, md)
         if not body:
             for fr in fs:
                 draw_front_panel(sh, X, Z, x0, w, fr)
                 inner_dim(sh, X, Z, x0 + w - 40, fr[0], fr[1], fmt(fr[1] - fr[0]))
-            sh.text(cx, Z(170), "서랍(2단)", 2.0, "g", "c")
+            sh.text(cx, Z(150), "페이크도어(고정)" if t == "fake" else "서랍(2단)", 2.0, "g" if t != "fake" else "r", "c")
+        elif t == "fake":                                                       # 페이크도어: 수납 없음 — 앞판 + 고정 보강대(추정)만
+            for (z0, z1, _c, _k) in fs:
+                sh.rect(X(x0 + 1.5), Z(z1), X(x0 + w - 1.5), Z(z0), "THIN")
+                for zb in (z0 + 20, z1 - 60):
+                    sh.rect(X(xl), Z(zb + 40), X(xr), Z(zb), "THIN")             # 앞판 고정용 뒤 보강대/프레임(추정)
+            inner_dim(sh, X, Z, x0 + 40, fs[0][0], fs[0][1], fmt(fs[0][1] - fs[0][0]))
+            inner_dim(sh, X, Z, x0 + 40, fs[1][0], fs[1][1], fmt(fs[1][1] - fs[1][0]))
+            red_note(sh, cx, Z(190), "페이크도어(고정) — 수납 없음", "c", 1.6)
+            red_note(sh, cx, Z(190) - 2.2, "고정 보강대 (추정)", "c", 1.5)
+            for fr in fs:
+                xa, zb, xb, zt = chan_rect(x0, w, fr[1])
+                sh.rect(X(xa), Z(zt), X(xb), Z(zb), "BLUE")                      # 장식 찬넬(손잡이 기능 없음)
         else:
             for (z0, z1, _c, _k) in fs:
                 bx0, bx1 = xl + RAIL, xr - RAIL
@@ -898,7 +906,7 @@ def draw_a_elev(sh, m, ox, gy, s, body=False):
         chan_label(sh, X, Z, b2["x"], b2["w"], a_fronts(m, b2)[1][1])
         chan_label(sh, X, Z, b3["x"], b3["w"], a_fronts(m, b3)[0][1])
     chan_dims(sh, X, Z, m.ab[1]["x"] + 40, m)
-    sh.text(X(m.W / 2), Z(k / 2) + 0.6, "걸레받이 H100", 1.7, "g", "c")
+    sh.text(X(m.W / 2), Z(k / 2) + 0.6, "걸레받이 H%d (서랍면)" % k, 1.7, "g", "c")
     ex = X(10)
     sh.line(ex, Z(60), ex, gy + 3.6, "BLUE")
     sh.text(ex, gy + 7.5, "측판 EP 20T", 2.0, "b", "l")
@@ -915,7 +923,7 @@ def a_dims(sh, m, X, Z):
     dim_h(sh, [X(0), X(m.W)], top - 23.0, [fmt(m.W)], ref=top)
     dim_v(sh, X(0) - 6.0, [Z(m.body_H), Z(0)], [fmt(m.body_H)], ref=X(0))
     dim_v(sh, X(0) - 12.0, [Z(m.H), Z(0)], [fmt(m.H)], ref=X(0))
-    dim_v(sh, X(m.W) + 6.0, [Z(m.H), Z(m.body_H), Z(m.kick), Z(0)], [fmt(m.top_t), fmt(m.body_H - m.kick), fmt(m.kick)], ref=X(m.W), side=1)
+    dim_v(sh, X(m.W) + 6.0, [Z(m.H), Z(m.body_H), Z(m.kickA), Z(0)], [fmt(m.top_t), fmt(m.body_H - m.kickA), fmt(m.kickA)], ref=X(m.W), side=1)
 
 
 # ---- 측면 / 단면 ------------------------------------------------------
@@ -942,7 +950,7 @@ def draw_end_view(sh, m, ox, gy, s, side):
             sh.rect(a, Z(z1), b, Z(z0), "OUT")
     if side == "L":
         band(0, m.dB, 0, h, True)               # 싱크면 측판 EP (326 후퇴 -> 뒤쪽에 보임) — 바닥까지
-        band(m.dB, m.D, 0, h, True)             # 서랍면 측판 EP (OPEN 베이 끝, 앞쪽) — 바닥까지
+        band(m.dB, m.D, 0, h, True)             # 서랍면 측판 EP (앞쪽) — 바닥까지
         sh.line(Y(m.dB), Z(0), Y(m.dB), Z(h), "OUT")
     else:
         band(0, m.D, 0, h, True)                # 우단 측판 EP 전체 깊이, 바닥까지
@@ -962,6 +970,7 @@ def draw_end_view(sh, m, ox, gy, s, side):
     if side == "L":
         sh.text(Y(m.dB / 2), Z(450), "싱크면 측판 EP(326 후퇴·추정)", 1.8, "b", "c")
         sh.text(Y(m.dB + m.dA / 2), Z(450), "서랍면 EP", 1.8, "b", "c")
+        sh.text(Y(m.D / 2), Z(0) + 12.0, "걸레받이(측판 EP 뒤): 싱크면 %d / 서랍면 %d (등 맞댐 면에서 단차, 추정)" % (m.kick, m.kickA), 1.6, "g", "c")
     else:
         sh.text(Y(m.D / 2), Z(450), "측판 EP 20T 전체 깊이(추정)", 1.8, "b", "c")
     return Y, Z
@@ -976,15 +985,17 @@ def draw_section(sh, m, ox, gy, s, xc):
     mb, ma = m.mod_at(xc)
     D, dB = m.D, m.dB
     sh.rect(X(0), Z(m.H), X(D), Z(h), "OUT")                                  # 상판 (top_t)
-    sh.rect(X(60), Z(k), X(D - 60), Z(0), "OUT")                              # 걸레받이
-    # 공통: 뒷판 9T (등 맞댐)
+    kA, botA = m.kickA, m.kickA + 18
+    sh.rect(X(60), Z(k), X(dB), Z(0), "OUT")                                  # 걸레받이 — 싱크면 100 (등 맞댐 면에서 단차)
+    sh.rect(X(dB), Z(kA), X(D - 60), Z(0), "OUT")                             # 걸레받이 — 서랍면 50 (추정)
+    # 공통: 뒷판 9T (등 맞댐) — 싱크면 쪽은 하판 상면(118), 서랍면 쪽은 68 까지
     sh.rect(X(dB - 9), Z(TOP_IN), X(dB), Z(BOT_IN), "THIN")
-    sh.rect(X(dB), Z(TOP_IN), X(dB + 9), Z(BOT_IN), "THIN")
+    sh.rect(X(dB), Z(TOP_IN), X(dB + 9), Z(botA), "THIN")
     # 하판 / 상판(18T)
     chan_b = mb["type"] != "dishwasher"
-    chan_a = ma["type"] != "open"
-    for (y0, y1) in ((DT + (40 if chan_b else 0), dB - 9), (dB + 9, D - DT - (40 if chan_a else 0))):
-        sh.rect(X(y0), Z(BOT_IN), X(y1), Z(k), "THIN")
+    chan_a = True
+    for (y0, y1, kk_) in ((DT + (40 if chan_b else 0), dB - 9, k), (dB + 9, D - DT - (40 if chan_a else 0), kA)):
+        sh.rect(X(y0), Z(kk_ + 18), X(y1), Z(kk_), "THIN")
         sh.rect(X(y0), Z(TOP_IN + 18), X(y1), Z(TOP_IN), "THIN")
     # 상판 하부 보강대 60*18 (뒤쪽 등 맞댐 면)
     for (y0, y1) in ((dB - 9 - 60, dB - 9), (dB + 9, dB + 9 + 60)):
@@ -1030,19 +1041,20 @@ def draw_section(sh, m, ox, gy, s, xc):
         sh.text(X(sy + sd / 2), Z(h - 100), "싱크볼", 1.7, "b", "c")
     # ---- A (서랍면) ----
     ta = ma["type"]
-    if ta == "open":
-        zs = k + ma["shelf_h"]
-        sh.rect(X(dB + 9), Z(zs + 9), X(D - 20), Z(zs - 9), "OUT")
-        sh.text(X(dB + 9 + 180), Z(650), "OPEN", 2.0, "g", "c")
-        inner_dim(sh, X, Z, dB + 40, BOT_IN, zs - 9, fmt(zs - 9 - BOT_IN)); inner_dim(sh, X, Z, dB + 40, zs + 9, TOP_IN, fmt(TOP_IN - zs - 9))
-    else:
-        for (z0, z1) in fronts(m, 2):
-            sh.rect(X(D - DT), Z(z1), X(D), Z(z0), "OUT")
+    fA = fronts(m, 2, kA, 25)
+    for (z0, z1) in fA:
+        sh.rect(X(D - DT), Z(z1), X(D), Z(z0), "OUT")
+        if ta == "fake":                                                       # 페이크도어: 서랍통 없음, 앞판 + 고정 보강대(추정)
+            for zb in (z0 + 20, z1 - 60):
+                sh.rect(X(D - DT - 60), Z(zb + 40), X(D - DT), Z(zb), "THIN")
+        else:
             sh.rect(X(D - DT - 400), Z(z0 + 150), X(D - DT - RAIL), Z(z0 + 30), "THIN")     # 서랍통 D400
             sh.line(X(D - DT - 400), Z(z0 + 30), X(D - DT), Z(z0 + 30), "THIN")
-        channel_poly(sh, X, Z, D - DT, h, -1)
-        channel_poly(sh, X, Z, D - DT, fronts(m, 2)[0][1] + CH_GAP, -1)
-        inner_dim(sh, X, Z, D - 150, fronts(m, 2)[1][0], fronts(m, 2)[1][1], fmt(fronts(m, 2)[1][1] - fronts(m, 2)[1][0]))
+    channel_poly(sh, X, Z, D - DT, h, -1)
+    channel_poly(sh, X, Z, D - DT, fA[0][1] + CH_GAP, -1)
+    inner_dim(sh, X, Z, D - 150, fA[1][0], fA[1][1], fmt(fA[1][1] - fA[1][0]))
+    if ta == "fake":
+        red_note(sh, X(dB + 120), Z(300), "페이크도어: 수납 없음(추정)", "l", 1.6)
     # 찬넬 마감 라벨
     sh.line(X(dB * 0.55), Z(m.H - 15) + 0, X(dB * 0.55), Z(h - 10) + 0, "BLUE")
     sh.text(X(dB * 0.55) - 0.5, Z(m.H - 15) - 0.6, "목찬넬 상단 = 상판 하면 (천판 EP 없음)", 1.7, "b", "r")
@@ -1052,7 +1064,8 @@ def draw_section(sh, m, ox, gy, s, xc):
     dim_h(sh, [X(0), X(dB), X(D)], Z(0) + 6.0, [fmt(dB), fmt(m.dA)], ref=Z(0))
     dim_v(sh, X(0) - 6.0, [Z(h), Z(0)], [fmt(h)], ref=X(0))
     dim_v(sh, X(0) - 12.0, [Z(m.H), Z(0)], [fmt(m.H)], ref=X(0))
-    dim_v(sh, X(D) + 6.0, [Z(m.H), Z(h), Z(k), Z(0)], [fmt(m.top_t), fmt(h - k), fmt(k)], ref=X(D), side=1)
+    dim_v(sh, X(D) + 6.0, [Z(m.H), Z(h), Z(kA), Z(0)], [fmt(m.top_t), fmt(h - kA), fmt(kA)], ref=X(D), side=1)            # 서랍면 쪽
+    dim_v(sh, X(0) - 18.0, [Z(k), Z(0)], [fmt(k)], ref=X(0))                                                                  # 싱크면 걸레받이 100
     return X, Z
 
 
@@ -1259,12 +1272,12 @@ NOTE_B = [("*EP = 마감판 20T (측판 양단) / 몸통 18T / 도어 20T / 상�
           ("*쿡탑 스트로만 후드일체형 4구 JJ-HI01 (위치 확인필요)", "r"),
           ("*상판 1,800 x 2분할 이음 / 상판 하부 보강대 60*18 (추정)", "k"),
           ("*도어 : 주방장 도어 공용 부엌 도어 - KK DR 112", "k"),
-          ("*목찬넬 60*40 : 전판 상단(상판 하단 25 이격). OPEN 베이 찬넬 없음", "b"),
+          ("*목찬넬 60*40 : 전판 상단(상판 하면 25 이격). 서랍면 걸레받이 50 / 싱크면 100 (추정)", "b"),
           ("*단면 1·2 : SIDE VIEW 시트(NO.003) 참조 / 확인 목록 : NO.005", "k")]
 NOTE_A = [("*EP = 마감판 20T (측판 양단) / 몸통 18T / 서랍 전판 20T / 천판 EP 없음 / 전체 3,600 = EP 20 + 몸통 3,560 + EP 20", "b"),
-          ("*서랍장(2단)M x3 : 서랍 전판 {FH} x 2단, 단간 25(찬넬 틈, 추정)", "k"),
+          ("*서랍 3 + 페이크도어(고정) 1 : 앞판 {FHA} x 2단 연속, 상·단간·하 25, 걸레받이 50 (추정)", "k"),
           ("*서랍 레일 : 좌우 13 여유, 레일 L500(싱크면) / L400(서랍면) (추정)", "r"),
-          ("*OPEN 1 : 선반 18T 1단 (높이 357, 추정) / 후면 마감판 9T / 찬넬 없음", "k"),
+          ("*페이크도어(좌측 890): 앞판만 고정, 서랍통·레일·선반 없음 / 찬넬은 장식(손잡이 기능 없음, 추정)", "r"),
           ("*목찬넬 60*40 : 서랍 전판 상단마다 (상판 하단 25 이격) (손잡이, 확인필요)", "r"),
           ("*콘센트·배선 타공 위치 : 확인필요", "r"),
           ("*단면 1·2 : SIDE VIEW 시트(NO.003) 참조 / 확인 목록 : NO.005", "k")]
@@ -1351,7 +1364,7 @@ def page_a(m, scale_den, sheet_no, title):
         X, Z = draw_a_elev(sh, m, 30.0, gy, s, False)
         a_dims(sh, m, X, Z)
         marker(sh, X(3450), gy + 10.0, "A", "up")
-        sh.text(X(0), gy + 21.0, "서랍 전판 20T (%d x 2단, 추정) / 측판 EP 20T / OPEN 베이 선반 18T" % (fronts(m, 2)[0][1] - fronts(m, 2)[0][0]), 2.0, "b", "l")
+        sh.text(X(0), gy + 21.0, "서랍 전판 20T (%d x 2단, 추정) / 측판 EP 20T / 좌측 = 페이크도어(고정)" % (fronts(m, 2, m.kickA, 25)[0][1] - fronts(m, 2, m.kickA, 25)[0][0]), 2.0, "b", "l")
     with sh.group("VIEW_FRONT_BODY"):
         X, Z = draw_a_elev(sh, m, 240.0, gy, s, True)
         a_dims(sh, m, X, Z)
@@ -1465,15 +1478,18 @@ _TABLE_ROWS = [
     ("로봇청소기 수납", "풀높이 원도어(바닥 4 띄움·추정), 바닥~선반 하면 H500 개방(걸레받이 100 포함, 이 구간 걸레받이 판재 없음) → 선반 18T(500~518) → 상부 칸 H302 (상판 하단 820까지)", "로봇청소기 규격·베이 치수·도어 하단 처리 확인"),
     ("인출장(폭 300) [추정]", "도면 라벨에 '인출' 없음 → 폭 300 '장(2단)' 을 인출장으로 추정, 원도어 + 인출 레일·바스켓 2단(추정)", "인출 사양·대상 모듈 확인"),
     ("서랍 레일", "좌우 13 여유, 싱크면 L500(서랍통은 서랍면만) / 서랍면 L400", "레일 제품 규격 확인"),
-    ("전판 높이·간격", "서랍 {FH} x 2단, 단간 25(찬넬 틈), 걸레받이 위 4, 상단 = 상판 하면 25 아래(795)", "설계 확정 후 재단도 반영"),
-    ("총높이·상판 [변경]", "총높이 900 = 상판 80 + 몸통(걸레받이 포함) 820 (걸레받이 100, 몸통 순 720)", "사용자 지시 반영 — 현장 확인"),
+    ("전판 높이·간격 [서랍면 변경]", "서랍면(걸레받이 50): 앞판 영역 = 걸레받이 위 25(75) ~ 상판 하면 아래 25(795), 앞판 {FHA} x 2단(347/348), 상·단간·하 25, 순 몸통 770. 싱크면 서랍장은 {FH} x 2단(걸레받이 100)", "설계 확정 후 재단도 반영"),
+    ("걸레받이 높이 [변경]", "서랍면 50 / 싱크면 100 (로봇청소기장 구간 제외). 측판 EP 820 연속, 걸레받이는 EP 사이·안쪽 후퇴, 두 면은 등 맞댐 면에서 단차(추정)", "걸레받이 높이·단차 처리 확인"),
+    ("서랍면 모듈 구성 [변경]", "서랍 3 + 페이크도어(고정) 1(좌측 890): 앞판 2단 라인 연속, 페이크도어는 앞판 + 뒤 보강대만(수납·레일·선반 없음). 이전 OPEN 개구 삭제", "페이크도어 고정 방식·보강대 확인"),
+    ("목찬넬 수량 [기능/장식]", "기능 찬넬: 서랍 3모듈 x 2단 = 6 + 싱크면 도어·서랍 / 장식 찬넬(손잡이 기능 없음): 페이크도어 1(찬넬 형태만) (추정)", "찬넬 수량 확정"),
+    ("총높이·상판 [변경]", "총높이 900 = 상판 80 + 몸통(걸레받이 포함) 820 (싱크면 걸레받이 100 → 순 720 / 서랍면 걸레받이 50 → 순 770)", "사용자 지시 반영 — 현장 확인"),
     ("목찬넬(손잡이)", "60*40, 전판 상단, 상판 하단 25 이격 (기본값)", "손잡이 사양 확인(샘플 11~13쪽 참조)"),
     ("EP·몸통 폭 [변경]", "끝 모듈은 EP 두께만큼 몸통·전판·선반·걸레받이를 안쪽으로 줄임: 전체 3,600 = EP 20 + 몸통 3,560 + EP 20 (싱크면 몸통 3,274 = EP 20 + 3,234 + EP 20). 서랍장 900 → 몸통 880 + EP 20, 로봇청소기장 500 → 480 + EP 20, 서랍면 890 모듈은 EP 밖 순폭", "도면 모듈 폭(원본 치수)과 EP 포함 여부 대조"),
     ("측판 EP 길이 [변경]", "좌·우 끝 측판 EP 20T = 바닥~상판 하면 820 연속 한 장(걸레받이 구간 포함). 걸레받이 판재는 측판 EP 사이·안쪽 후퇴(추정), 로봇청소기장 구간 제외", "EP 길이·접합(맞댐/45°) 제작 협의"),
     ("천판 EP [삭제]", "목찬넬 하부장은 천판 EP 없음 — 목찬넬 60*40 이 상판 하면 바로 아래에서 상단 마감·손잡이 겸용. 도어·서랍 상단 = 상판 하면 25 아래(795, 이전 775), 서랍 앞판 {FH} x 2단 재계산", "찬넬 상단 마감 사양 확인"),
     ("EP 20T 위치", "서랍면 좌단, 싱크면 좌단(326 후퇴), 우단 전체(바닥~상판 하면)", "원본 EP 지시(`EP 판넬 [20T]`)와 위치 대조"),
     ("뒷판·후면 마감", "등 맞댐 면 뒷판 9T (추정)", "후면 마감 사양 확인"),
-    ("선반", "18T, 싱크면 칸 가운데 약 450(로봇청소기장 제외, 추정) / OPEN 357, 핀 96 간격", "선반 위치 확정"),
+    ("선반", "18T, 싱크면 칸 가운데 약 450(로봇청소기장 제외, 추정) / 서랍면은 서랍통(선반 없음)", "선반 위치 확정"),
     ("콘센트·배선 타공", "Φ60~80, 위치 미정", "전기 도면 확인"),
     ("도어 재질·색상", "목림 지정 자재 / 안도크림 색상 (샘플 문구)", "지정 자재 확인"),
     ("단면 절단 위치", "단면 1 : X=2,300 / 단면 2 : X=2,900 (추정)", "제작 협의 후 확정"),
@@ -1482,8 +1498,9 @@ _TABLE_ROWS = [
 
 
 def table_rows(m):
-    f = fronts(m, 2)
-    return [(a.replace("{FH}", str(f[0][1] - f[0][0])), b.replace("{FH}", str(f[0][1] - f[0][0])), c) for a, b, c in _TABLE_ROWS]
+    f = fronts(m, 2); fa = fronts(m, 2, m.kickA, 25)
+    fh, fha = str(f[0][1] - f[0][0]), str(fa[0][1] - fa[0][0])
+    return [(a.replace("{FHA}", fha).replace("{FH}", fh), b.replace("{FHA}", fha).replace("{FH}", fh), c) for a, b, c in _TABLE_ROWS]
 
 
 def wrap(text, size, width):
