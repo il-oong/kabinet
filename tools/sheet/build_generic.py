@@ -44,6 +44,34 @@ def norm(d):
     return d
 
 
+def ep_bounds(d):
+    """EP 가 있는 쪽을 뺀 몸통 가로 범위 [lo, hi] (EP 안쪽면)."""
+    ep = d["ep"]; t = ep["thickness"]; W = d["overall"]["W"]
+    return (t if ep.get("left") else 0), (W - t if ep.get("right") else W)
+
+
+def clipped(d):
+    """모듈 목록을 EP 안쪽 범위로 줄인 복사본 — 끝 모듈의 몸통·전판·선반이 EP 두께 구간에 겹치지 않게."""
+    lo, hi = ep_bounds(d)
+    out = []
+    for md in d["modules"]:
+        a, b = max(md["x"], lo), min(md["x"] + md["w"], hi)
+        out.append(dict(md, x=a, w=max(b - a, 0)))
+    return out
+
+
+def ep_row(sh, d, X, y, ref):
+    """가로 EP 줄: EP | 몸통 | EP (EP 가 있는 쪽만)."""
+    ep = d["ep"]; t = ep["thickness"]; W = d["overall"]["W"]
+    lo, hi = ep_bounds(d)
+    if lo == 0 and hi == W:
+        return False
+    xs = ([0, lo] if lo else [0]) + ([hi, W] if hi < W else [W])
+    xs = sorted(set(xs))
+    bs.dim_h(sh, [X(x) for x in xs], y, [fmt(b - a) for a, b in zip(xs, xs[1:])], ref=ref, size=1.9)
+    return True
+
+
 def pick_scale(d, max_w=140.0, max_h=88.0, max_d=44.0):
     o = d["overall"]
     for den in (20, 25, 30, 40, 50, 60, 80):
@@ -54,7 +82,10 @@ def pick_scale(d, max_w=140.0, max_h=88.0, max_d=44.0):
 
 def fronts(d, md):
     k = md["z"] + 4
-    top = md["z"] + md["h"] - EP - CH_GAP if d.get("channel") else md["z"] + md["h"] - 4
+    ztop = md["z"] + md["h"]
+    under_top_ep = d["ep"].get("top") and ztop >= d["overall"]["H"] - d["overall"]["top_thickness"] - 0.5
+    if under_top_ep: ztop -= d["ep"]["thickness"]                    # 천판 EP(가로 20T) 아래로
+    top = ztop - CH_GAP - (0 if under_top_ep else EP) if d.get("channel") else ztop - 4
     if md["type"] == "drawers":
         n = max(md["drawers"], 1)
         gap = CH_GAP if d.get("channel") else 3
@@ -69,7 +100,7 @@ def fronts(d, md):
 @view("VIEW_TOP")
 def draw_plan(sh, d, ox, oy, s, labels=True):
     o = d["overall"]; W, D = o["W"], o["D"]
-    for md in d["modules"]:
+    for md in clipped(d):
         x0, x1 = ox + md["x"] * s, ox + (md["x"] + md["w"]) * s
         y1 = oy + md["d"] * s
         sh.rect(x0, oy + (D - md["d"]) * s, x1, oy + D * s, "THIN")
@@ -92,7 +123,10 @@ def plan_dims(sh, d, ox, oy, s):
     xs = sorted({0, W} | {round(m["x"]) for m in d["modules"]} | {round(m["x"] + m["w"]) for m in d["modules"]})
     if len(xs) > 2:
         bs.dim_h(sh, [ox + x * s for x in xs], oy - 5.5, [fmt(b - a) for a, b in zip(xs, xs[1:])], ref=oy)
-    bs.dim_h(sh, [ox, ox + W * s], oy - 11.5, [fmt(W)], ref=oy)
+    top_y = 11.5
+    if ep_row(sh, d, lambda x: ox + x * s, oy - 11.5, oy):
+        top_y = 17.5                                    # 모듈 / EP|몸통|EP / 전체 3단
+    bs.dim_h(sh, [ox, ox + W * s], oy - top_y, [fmt(W)], ref=oy)
     bs.dim_v(sh, ox - 5.5, [oy, oy + D * s], [fmt(D)], ref=ox)
 
 
@@ -112,7 +146,7 @@ def plan_markers(sh, d, ox, oy, s):
     bs.marker(sh, ox + W * s + 8, cy, "D", "left")
     bs.marker(sh, ox - 25.0, cy, "C", "right")
     x = ox + cut_x(d) * s
-    yt, yb = oy - 19.0, oy + D * s + 14.5
+    yt, yb = oy - 25.0, oy + D * s + 14.5
     sh.chain(x, yt + 3.3, x, yb - 3.3, "FR")
     sh.line(x - 2.2, yt + 5.0, x + 2.2, yt + 5.0, "SEC"); sh.line(x - 2.2, yb - 5.0, x + 2.2, yb - 5.0, "SEC")
     bs.marker(sh, x, yt, "1", "right"); bs.marker(sh, x, yb, "1", "right")
@@ -145,7 +179,10 @@ def elev_dims(sh, d, X, Z):
     xs = sorted({0, o["W"]} | {round(m["x"]) for m in d["modules"]} | {round(m["x"] + m["w"]) for m in d["modules"]})
     if len(xs) > 2:
         bs.dim_h(sh, [X(x) for x in xs], top - 11.0, [fmt(b - a) for a, b in zip(xs, xs[1:])], ref=top)
-    bs.dim_h(sh, [X(0), X(o["W"])], top - 17.0, [fmt(o["W"])], ref=top)
+    if ep_row(sh, d, X, top - 17.0, top):
+        bs.dim_h(sh, [X(0), X(o["W"])], top - 23.0, [fmt(o["W"])], ref=top)
+    else:
+        bs.dim_h(sh, [X(0), X(o["W"])], top - 17.0, [fmt(o["W"])], ref=top)
     if o["top_thickness"] > 0:
         bs.dim_v(sh, X(0) - 6.0, [Z(body), Z(0)], [fmt(body)], ref=X(0))
     bs.dim_v(sh, X(0) - 12.0, [Z(o["H"]), Z(0)], [fmt(o["H"])], ref=X(0))
@@ -165,11 +202,12 @@ def ep_strips(sh, d, X, Z, body, k):
 def door_view(sh, d, ox, gy, s):
     o = d["overall"]; X, Z = elev_frame(sh, d, ox, gy, s)
     body = o["H"] - o["top_thickness"]; k = o["kick"]
-    if body > k: sh.rect(X(0), Z(body), X(o["W"]), Z(k), "OUT")
+    if body > k: sh.rect(X(ep_bounds(d)[0]), Z(body), X(ep_bounds(d)[1]), Z(k), "OUT")        # 몸통 외곽 = 측판 EP 안쪽면 사이
     if k > 0: sh.rect(X(d["ep"]["thickness"] if d["ep"].get("left") else 10), Z(k), X(o["W"] - (d["ep"]["thickness"] if d["ep"].get("right") else 10)), Z(0), "OUT")   # 걸레받이: 측판 EP 사이
-    for md in d["modules"]:
+    for md in clipped(d):
+        lo_, hi_ = ep_bounds(d)
         zb, zt = md["z"], md["z"] + md["h"]
-        if md["x"] > 0: sh.line(X(md["x"]), Z(zb), X(md["x"]), Z(zt), "OUT")
+        if md["x"] > lo_: sh.line(X(md["x"]), Z(zb), X(md["x"]), Z(zt - (d["ep"]["thickness"] if d["ep"].get("top") else 0)), "OUT")
         if md["type"] == "doors":
             n = max(md["doors"], 1); dw = (md["w"] - 3.0 * (n - 1) - 6.0) / n
             for i in range(n):
@@ -202,15 +240,16 @@ def door_view(sh, d, ox, gy, s):
 def body_view(sh, d, ox, gy, s):
     o = d["overall"]; X, Z = elev_frame(sh, d, ox, gy, s)
     body = o["H"] - o["top_thickness"]; k = o["kick"]
-    if body > k: sh.rect(X(0), Z(body), X(o["W"]), Z(k), "OUT")
+    if body > k: sh.rect(X(ep_bounds(d)[0]), Z(body), X(ep_bounds(d)[1]), Z(k), "OUT")        # 몸통 외곽 = 측판 EP 안쪽면 사이
     if k > 0: sh.rect(X(d["ep"]["thickness"] if d["ep"].get("left") else 10), Z(k), X(o["W"] - (d["ep"]["thickness"] if d["ep"].get("right") else 10)), Z(0), "OUT")   # 걸레받이: 측판 EP 사이
-    for md in d["modules"]:
+    for md in clipped(d):
+        lo_, hi_ = ep_bounds(d)
         zb, zt = md["z"], md["z"] + md["h"]
-        if md["x"] > 0: sh.rect(X(md["x"] - 9), Z(zt), X(md["x"] + 9), Z(zb), "THIN")
+        if md["x"] > lo_: sh.rect(X(md["x"] - 9), Z(zt - (d["ep"]["thickness"] if d["ep"].get("top") else 0)), X(md["x"] + 9), Z(zb), "THIN")
         sh.line(X(md["x"]), Z(zb), X(md["x"] + md["w"]), Z(zb), "THIN")
         for sv in md["shelves"]:
             zz = zb + sv
-            sh.rect(X(md["x"] + 9), Z(zz + 9), X(md["x"] + md["w"] - 9), Z(zz - 9), "THIN")
+            sh.rect(X(md["x"] + (9 if md["x"] > lo_ else 0)), Z(zz + 9), X(md["x"] + md["w"] - (9 if md["x"] + md["w"] < hi_ else 0)), Z(zz - 9), "THIN")
         for rv in md["rods"]:
             sh.dashed(X(md["x"] + 12), Z(zb + rv), X(md["x"] + md["w"] - 12), Z(zb + rv), "BLUE", 2.0, 1.0)
             if md["w"] * s > 14: sh.text(X(md["x"] + md["w"] / 2), Z(zb + rv) - 1.0, "옷걸이봉", 1.6, "b", "c")
@@ -227,7 +266,7 @@ def body_view(sh, d, ox, gy, s):
                 sh.rect(X(md["x"] + 1.5), Z(z1 + CH_GAP), X(md["x"] + md["w"] - 1.5), Z(z1 + CH_GAP - CH_H), "BLUE")
     ep_strips(sh, d, X, Z, body, k)
     elev_dims(sh, d, X, Z)
-    x = X(cut_x(d)); yt = Z(o["H"]) - 23.0; yb = gy + 9.5
+    x = X(cut_x(d)); yt = Z(o["H"]) - 29.0; yb = gy + 9.5
     sh.chain(x, yt + 3.3, x, yb - 3.3, "FR")
     sh.line(x - 2.2, yt + 5.0, x + 2.2, yt + 5.0, "SEC"); sh.line(x - 2.2, yb - 5.0, x + 2.2, yb - 5.0, "SEC")
     bs.marker(sh, x, yt, "1", "right"); bs.marker(sh, x, yb, "1", "right")

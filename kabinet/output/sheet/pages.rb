@@ -16,6 +16,30 @@ module Kabinet
 
         def f(n); Sheet.fmt(n); end
 
+        # EP 가 있는 쪽을 뺀 몸통 가로 범위 [lo, hi] (EP 안쪽면)
+        def ep_bounds(m)
+          ep = m['ep']; t = ep['thickness']; w = m['overall']['W']
+          [ep['left'] ? t : 0, ep['right'] ? w - t : w]
+        end
+
+        # 모듈을 EP 안쪽 범위로 줄인 복사본 — 끝 모듈의 몸통·전판·선반이 EP 두께 구간에 겹치지 않게
+        def clipped(m)
+          lo, hi = ep_bounds(m)
+          m['modules'].map do |md|
+            a = [md['x'], lo].max; b = [md['x'] + md['w'], hi].min
+            md.merge('x' => a, 'w' => [b - a, 0].max)
+          end
+        end
+
+        # EP | 몸통 | EP 가로 치수 줄(EP 가 있는 쪽만). 그렸으면 true
+        def ep_row(c, m, xf, y, ref)
+          lo, hi = ep_bounds(m); w = m['overall']['W']
+          return false if lo.zero? && hi == w
+          xs = ((lo.zero? ? [0] : [0, lo]) + (hi == w ? [w] : [hi, w])).uniq.sort
+          c.dim_h(xs.map { |v| xf.call(v) }, y, xs.each_cons(2).map { |a, b| f(b - a) }, ref: ref, size: 1.9)
+          true
+        end
+
         def lbl(md)
           md['label'].to_s.empty? ? md['name'] : md['label']
         end
@@ -27,7 +51,7 @@ module Kabinet
         # ── 평면(TOP VIEW): 앞(정면) = 아래 ───────────────────────────────
         def draw_plan(c, m, ox, oy, s, labels: true)
           o = m['overall']; w = o['W']; d = o['D']
-          m['modules'].each do |md|
+          clipped(m).each do |md|
             x0 = ox + md['x'] * s; x1 = ox + (md['x'] + md['w']) * s
             c.rect(x0, oy + (d - md['d']) * s, x1, oy + d * s, 'THIN')
             c.line(x0, oy + (d - DT) * s, x1, oy + (d - DT) * s, 'THIN') if %w[doors drawers].include?(md['type'])   # 도어 20T
@@ -47,7 +71,9 @@ module Kabinet
           o = m['overall']; w = o['W']; d = o['D']
           xs = ([0.0, w] + m['modules'].flat_map { |md| [md['x'], md['x'] + md['w']] }).map(&:round).uniq.sort
           c.dim_h(xs.map { |x| ox + x * s }, oy - 5.5, xs.each_cons(2).map { |a, b| f(b - a) }, ref: oy) if xs.size > 2
-          c.dim_h([ox, ox + w * s], oy - 11.5, [f(w)], ref: oy)
+          top_y = 11.5
+          top_y = 17.5 if ep_row(c, m, ->(v) { ox + v * s }, oy - 11.5, oy)
+          c.dim_h([ox, ox + w * s], oy - top_y, [f(w)], ref: oy)
           c.dim_v(ox - 5.5, [oy, oy + d * s], [f(d)], ref: ox)
         end
 
@@ -73,7 +99,7 @@ module Kabinet
           c.marker(ox - 25.0, cy, 'C', :right)
           cut_list(m).each_with_index do |cx, i|
             x = ox + cx * s
-            yt = oy - 19.0; yb = oy + d * s + 14.5
+            yt = oy - 25.0; yb = oy + d * s + 14.5
             c.chain(x, yt + 3.3, x, yb - 3.3, 'FR')
             c.line(x - 2.2, yt + 5.0, x + 2.2, yt + 5.0, 'SEC'); c.line(x - 2.2, yb - 5.0, x + 2.2, yb - 5.0, 'SEC')
             c.marker(x, yt, (i + 1).to_s, :right); c.marker(x, yb, (i + 1).to_s, :right)
@@ -96,7 +122,10 @@ module Kabinet
         # ── 정면 공통 ─────────────────────────────────────────────────────
         def fronts_for(m, md)
           z0 = md['z'] + 4
-          z1 = md['channel'] ? md['z'] + md['h'] - EP - CH_GAP : md['z'] + md['h'] - 4
+          ztop = md['z'] + md['h']
+          under_top_ep = m['ep']['top'] && ztop >= m['overall']['H'] - m['overall']['top_thickness'] - 0.5
+          ztop -= m['ep']['thickness'] if under_top_ep                                # 천판 EP(가로 20T) 아래로
+          z1 = md['channel'] ? ztop - CH_GAP - (under_top_ep ? 0 : EP) : ztop - 4
           case md['type']
           when 'drawers'
             n = [md['drawers'], 1].max
@@ -125,7 +154,8 @@ module Kabinet
           top = z.call(o['H'])
           xs = ([0.0, o['W']] + m['modules'].flat_map { |md| [md['x'], md['x'] + md['w']] }).map(&:round).uniq.sort
           c.dim_h(xs.map { |v| x.call(v) }, top - 11.0, xs.each_cons(2).map { |a, b| f(b - a) }, ref: top) if xs.size > 2
-          c.dim_h([x.call(0), x.call(o['W'])], top - 17.0, [f(o['W'])], ref: top)
+          ow_y = ep_row(c, m, x, top - 17.0, top) ? 23.0 : 17.0
+          c.dim_h([x.call(0), x.call(o['W'])], top - ow_y, [f(o['W'])], ref: top)
           body = o['H'] - o['top_thickness']
           c.dim_v(x.call(0) - 6.0, [z.call(body), z.call(0)], [f(body)], ref: x.call(0)) if o['top_thickness'] > 0
           c.dim_v(x.call(0) - 12.0, [z.call(o['H']), z.call(0)], [f(o['H'])], ref: x.call(0))
@@ -146,11 +176,12 @@ module Kabinet
           o = m['overall']
           x, z = elev_frame(c, m, ox, gy, s)
           body = o['H'] - o['top_thickness']; k = o['kick']
-          c.rect(x.call(0), z.call(body), x.call(o['W']), z.call(k), 'OUT') if body > k
+          c.rect(x.call(ep_bounds(m)[0]), z.call(body), x.call(ep_bounds(m)[1]), z.call(k), 'OUT') if body > k   # 몸통 외곽 = 측판 EP 안쪽면 사이
           c.rect(x.call(m['ep']['left'] ? m['ep']['thickness'] : 10), z.call(k), x.call(o['W'] - (m['ep']['right'] ? m['ep']['thickness'] : 10)), z.call(0), 'OUT') if k > 0   # 걸레받이: 측판 EP 사이
-          m['modules'].each do |md|
+          clipped(m).each do |md|
+            lo_, hi_ = ep_bounds(m)
             zb = md['z']; zt = md['z'] + md['h']
-            c.line(x.call(md['x']), z.call(zb), x.call(md['x']), z.call(zt), 'OUT') if md['x'] > 0
+            c.line(x.call(md['x']), z.call(zb), x.call(md['x']), z.call(zt - (m['ep']['top'] ? m['ep']['thickness'] : 0)), 'OUT') if md['x'] > lo_
             fr = fronts_for(m, md)
             case md['type']
             when 'doors'
@@ -197,15 +228,16 @@ module Kabinet
           o = m['overall']
           x, z = elev_frame(c, m, ox, gy, s)
           body = o['H'] - o['top_thickness']; k = o['kick']
-          c.rect(x.call(0), z.call(body), x.call(o['W']), z.call(k), 'OUT') if body > k
+          c.rect(x.call(ep_bounds(m)[0]), z.call(body), x.call(ep_bounds(m)[1]), z.call(k), 'OUT') if body > k   # 몸통 외곽 = 측판 EP 안쪽면 사이
           c.rect(x.call(m['ep']['left'] ? m['ep']['thickness'] : 10), z.call(k), x.call(o['W'] - (m['ep']['right'] ? m['ep']['thickness'] : 10)), z.call(0), 'OUT') if k > 0   # 걸레받이: 측판 EP 사이
-          m['modules'].each do |md|
+          clipped(m).each do |md|
+            lo_, hi_ = ep_bounds(m)
             zb = md['z']; zt = md['z'] + md['h']
-            c.rect(x.call(md['x'] - 9), z.call(zt), x.call(md['x'] + 9), z.call(zb), 'THIN') if md['x'] > 0   # 칸막이 18T
+            c.rect(x.call(md['x'] - 9), z.call(zt - (m['ep']['top'] ? m['ep']['thickness'] : 0)), x.call(md['x'] + 9), z.call(zb), 'THIN') if md['x'] > lo_   # 칸막이 18T
             c.line(x.call(md['x']), z.call(zb), x.call(md['x'] + md['w']), z.call(zb), 'THIN')                # 모듈 하판/경계
             md['shelves'].each do |sh|
               zz = zb + sh
-              c.rect(x.call(md['x'] + 9), z.call(zz + 9), x.call(md['x'] + md['w'] - 9), z.call(zz - 9), 'THIN')
+              c.rect(x.call(md['x'] + (md['x'] > lo_ ? 9 : 0)), z.call(zz + 9), x.call(md['x'] + md['w'] - (md['x'] + md['w'] < hi_ ? 9 : 0)), z.call(zz - 9), 'THIN')
               c.text(x.call(md['x'] + md['w'] / 2), z.call(zz) - 1.0, "선반 #{f(zz - zb)}", 1.6, 'g', 'c') if md['w'] * s > 14
             end
             md['rods'].each do |rr|
@@ -234,7 +266,7 @@ module Kabinet
           elev_dims(c, m, x, z)
           # 단면 절단선 + 번호 마커 양끝 (평면의 절단선과 같은 번호)
           cut_list(m).each_with_index do |cx, i|
-            xx = x.call(cx); yt = z.call(o['H']) - 23.0; yb = gy + 9.5
+            xx = x.call(cx); yt = z.call(o['H']) - 29.0; yb = gy + 9.5
             c.chain(xx, yt + 3.3, xx, yb - 3.3, 'FR')
             c.line(xx - 2.2, yt + 5.0, xx + 2.2, yt + 5.0, 'SEC'); c.line(xx - 2.2, yb - 5.0, xx + 2.2, yb - 5.0, 'SEC')
             c.marker(xx, yt, (i + 1).to_s, :right); c.marker(xx, yb, (i + 1).to_s, :right)

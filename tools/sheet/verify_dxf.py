@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """생성 DXF 검증 (수동 교차검증, ezdxf 필요).
 
-사용:  python3 -I tools/sheet/verify_dxf.py out.dxf [furniture.json] [--structure-only] [--no-hinge]
+사용:  python3 -I tools/sheet/verify_dxf.py out.dxf [furniture.json] [--structure-only] [--no-hinge] [--no-overlap-ep]
  0) 구조 검사: 핸들 중복·미해결 참조(330/340/350/360)·$HANDSEED·LAYOUT/CLASSES/DIMSTYLE/필수 OBJECTS
  1) ezdxf audit 오류 0
  2) 시트 도곽(FRAME 굵은 사각) 폭 = 420 x 시트 배수 (1:1 실치수 규칙) -> 시트별 배수 출력
@@ -73,6 +73,78 @@ def check_no_hinge(path, verbose=True):
         for pr in probs:
             print("  -", pr)
     return not probs, probs
+
+
+def _clip_len(p, q, r):
+    """선분 p-q 가 사각 r=(x0,y0,x1,y1) 안(내부)에 놓인 길이 (Liang-Barsky)."""
+    x0, y0, x1, y1 = r
+    dx, dy = q[0] - p[0], q[1] - p[1]
+    t0, t1 = 0.0, 1.0
+    for pp, qq in ((-dx, p[0] - x0), (dx, x1 - p[0]), (-dy, p[1] - y0), (dy, y1 - p[1])):
+        if abs(pp) < 1e-12:
+            if qq < 0:
+                return 0.0
+        else:
+            t = qq / pp
+            if pp < 0:
+                t0 = max(t0, t)
+            else:
+                t1 = min(t1, t)
+            if t0 > t1:
+                return 0.0
+    return (t1 - t0) * math.hypot(dx, dy)
+
+
+def check_no_overlap_ep(path, tol=0.5, verbose=True):
+    """EP 해칭(패턴 HATCH) 영역 안쪽(경계에서 tol 만큼 안)을 몸통 선(OUTLINE/THIN 의 LINE·LWPOLYLINE)이 지나면 겹침.
+    EP 경계선과 일치하는 선·EP 를 통째로 감싸는 바깥선은 허용. 반환 (통과, 겹침 목록)"""
+    d = ezdxf.readfile(path)
+    ents = []
+    for e in d.modelspace():
+        if e.dxftype() == "INSERT":
+            ents += list(e.virtual_entities())
+        else:
+            ents.append(e)
+    regions = []
+    for e in ents:
+        if e.dxftype() == "HATCH" and not e.dxf.solid_fill:
+            for pth in e.paths:
+                pts = [(v[0], v[1]) for v in getattr(pth, "vertices", [])]
+                if len(pts) >= 3:
+                    xs = [a for a, b in pts]; ys = [b for a, b in pts]
+                    regions.append((min(xs), min(ys), max(xs), max(ys)))
+    segs = []
+    for e in ents:
+        if e.dxf.layer not in ("OUTLINE", "THIN"):
+            continue
+        t = e.dxftype()
+        if t == "LINE":
+            segs.append(((e.dxf.start.x, e.dxf.start.y), (e.dxf.end.x, e.dxf.end.y)))
+        elif t == "LWPOLYLINE":
+            pts = [(float(x), float(y)) for x, y in e.get_points("xy")]
+            for a, b in zip(pts, pts[1:] + ([pts[0]] if e.closed else [])):
+                segs.append((a, b))
+    bad = []
+    for r in regions:
+        w, h = r[2] - r[0], r[3] - r[1]
+        if w <= 4 * tol or h <= 4 * tol:
+            continue
+        inner = (r[0] + tol, r[1] + tol, r[2] - tol, r[3] - tol)
+        tot = 0.0
+        hit = 0
+        for a, b in segs:
+            if max(a[0], b[0]) < inner[0] or min(a[0], b[0]) > inner[2] or max(a[1], b[1]) < inner[1] or min(a[1], b[1]) > inner[3]:
+                continue
+            L = _clip_len(a, b, inner)
+            if L > tol:
+                tot += L; hit += 1
+        if hit:
+            bad.append((tuple(round(v) for v in r), hit, round(tot)))
+    if verbose:
+        print(f"EP 겹침 검사: EP/해칭 영역 {len(regions)}개, 몸통 선 침범 {len(bad)}곳 ->", "0건 OK" if not bad else "문제")
+        for b in bad[:10]:
+            print("  - 영역", b[0], "침범 선", b[1], "개, 길이", b[2])
+    return not bad, bad
 
 
 def raw_pairs(path):
@@ -184,6 +256,8 @@ def main():
     a = d.audit()
     print("audit errors:", len(a.errors)); ok &= len(a.errors) == 0
     good, _ = check_structure(path); ok &= good
+    if "--no-overlap-ep" in sys.argv:
+        good, _ = check_no_overlap_ep(path); ok &= good
     if "--no-hinge" in sys.argv:
         good, _ = check_no_hinge(path); ok &= good
     if "--structure-only" in sys.argv:

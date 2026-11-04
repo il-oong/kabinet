@@ -2,6 +2,9 @@
 
 새 세션에서 이 파일부터 읽고 이어서 작업하세요. 사용자 선호: **한국어로 답변, 코드는 항상 PR 먼저 만든 뒤 머지, Railway 사용(이 저장소는 SketchUp 플러그인이라 해당 없음)**, 컨텍스트 70% 넘으면 중단하고 정리.
 
+## (v1.25.5) EP·몸통 겹침 해소
+- `clip_span`(island)/`clipped`·`ep_bounds`·`ep_row`(generic·Ruby): EP 쪽 끝 모듈을 EP 안쪽으로 줄임, 가로 3단 치수(모듈/EP|몸통|EP/전체), 모듈선은 천판 EP 아래까지, 전판 상단은 천판 EP 아래. 검사 `verify_dxf.py --no-overlap-ep`, `test/sheet_no_overlap_ep_test.rb`. 남은 확인: 도면 모듈 폭이 EP 포함인지(현재 포함으로 가정, 확인표 '[변경] EP·몸통 폭').
+
 ## (v1.25.4) 로봇청소기장 500/18/302 + 측판 EP 바닥까지
 - `build_sheet.py`: ROBOT_BAY=500(바닥 기준), 로봇청소기장 풀높이 원도어·걸레받이/하판 제외, `ep_ends`=바닥까지, `ep_band`=측판 EP 사이, 걸레받이는 EP 사이. generic·Ruby 동일 규칙. 업로드 DWG 분석: aspose 변환본은 좌표가 약 1/25.53 배율로 나옴(레이어 `0` 워터마크 제외, 텍스트는 폴리선 획). 남은 확인: NO.002 `FD_DOOR`(OPEN 베이 위 2단 사각형) 의도, 측판 EP 접합(맞댐/45°), 도어 하단 처리.
 
