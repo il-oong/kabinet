@@ -47,3 +47,11 @@
 - 1:1 변환을 한 번 중단·미완성 상태로 둠 → 사용자가 재요청. 정식 1:1 은 v1.25+ 에서 구현됨.
 - 힌지가 반복해서 다시 들어감(Ruby 포팅·보조선) → 방지 테스트 추가됨, 새 요소를 그릴 때 힌지처럼 보이는 것(소형 원, 도어 가장자리 세로선) 금지.
 - 사용자의 짧은 지시를 과도하게 해석하거나, 확인 없이 '완료'라 말하지 말 것.
+
+## 6. 기준 자료(reference/)와 원본 치수 불변 원칙 (v1.26.0)
+
+- **먼저 읽을 것**: `reference/README.md` → `REFERENCE_SPEC.md`(요약·규칙·차이표) → 필요하면 `reference/spec/sheetN_*.md`(시트별 선 좌표 전체 덤프).
+- `reference/final_A.dxf` = 사용자가 확정한 **최종본(정답)**, `reference/original_B.dwg`(+`original_B_converted.dxf`) = 재구성 대상 **원본**, `reference/sample_format_original.pdf` = 최초 **양식 샘플**, `reference/originals/` = 이전 원본 도면. **전부 수정 금지**(읽기 전용).
+- **원본 치수 불변**: 원본 가구 치수는 바꾸지 않는다. 최종본에서는 양식·표기·구성 규칙만 가져온다. 충돌하면 임의로 맞추지 말고 샘플 README 확인표에 `원본값=…, 규칙 적용값=…` 로 적는다.
+- 덤프 재생성: `python3 -I tools/sheet/dump_reference.py reference/final_A.dxf --md REFERENCE_SPEC.md --spec-dir reference/spec --compare output_samples/_____-1/sheet_1대1.dxf --pdf reference/sample_format_original.pdf --rules reference/spec/rules.md` (PDF 추출은 `pip install pymupdf` 필요).
+- 생성 결과 검증: `python3 -I tools/sheet/compare_to_reference.py reference/final_A.dxf <생성.dxf>` (PASS 이어야 함).

@@ -10,3 +10,9 @@
 - 이 파일들은 **수정하지 말고** 참고용으로만 쓴다(.dwg 는 AC10xx 바이너리, 읽으려면 aspose-cad 로 DXF 변환 — CLAUDE.md 참조).
 - 원칙: 원본(B)의 가구 치수는 해치지 않고 최종본(A)의 양식·규칙만 적용한다. 규칙과 원본 치수가 충돌하면 확인표에 "원본값 / 규칙 적용값"을 병기한다.
 - 상세 분석은 `REFERENCE_SPEC.md`(작성 중)와 `SHEET_FORMAT_ANALYSIS.md` 참조.
+
+## 추가 파일
+- `original_B_converted.dxf` — `original_B.dwg` 를 aspose-cad 로 변환한 DXF(inch 단위·글자는 폴리선 획·레이어 `0` 워터마크 포함, 8.4MB). 읽기 전용 참고.
+- `originals/island_2cf8a67e.dwg`, `originals/island_7f646231.dxf` — 이전 아일랜드 원본 도면.
+- `spec/` — `REFERENCE_SPEC.md` 의 시트별 전체 덤프와 샘플 PDF 벡터 추출, `rules.md` 규칙 해설.
+- `.gitattributes` 로 DXF diff 는 숨김 처리.

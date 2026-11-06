@@ -3,6 +3,7 @@
 새 세션에서 이 파일부터 읽고 이어서 작업하세요. 사용자 선호: **한국어로 답변, 코드는 항상 PR 먼저 만든 뒤 머지, Railway 사용(이 저장소는 SketchUp 플러그인이라 해당 없음)**, 컨텍스트 70% 넘으면 중단하고 정리.
 
 ## (v1.26.0) 최종본(A) 분석 + B(___-1) 재구성
+- reference/ 보관(A·B·변환 DXF·샘플 PDF·originals), `tools/sheet/dump_reference.py` → `REFERENCE_SPEC.md` + `reference/spec/*.md`, CLAUDE.md §6. B 선반 높이 380 vs 원본 판독 347/322/368 은 미확정(README 확인표).
 - A = 우리 v1.25.9 아일랜드 DXF 를 사용자가 AutoCAD 에서 수정·저장한 것(§15). 생성기 기본값만 A 기준으로 변경(재질/현장 안내). 아일랜드의 CAD 수정값(로봇청소기장 상부 H320, 싱크 컷 920×432 등)은 JSON 에 아직 미반영 — 필요하면 사용자 확인 후 반영. B = 기존 `___-1` 샘플과 같은 도면(홈바장 2060×892×620), 목찬넬 가정(추정). `tools/sheet/compare_to_reference.py`.
 
 ## (v1.25.9) 장 결합 시공(측판 2장)
