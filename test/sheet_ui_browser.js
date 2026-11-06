@@ -14,9 +14,19 @@ const assert = (ok, m) => { if (!ok) throw new Error(m); };
   await page.waitForTimeout(300);
   await page.evaluate(() => kabinet.runSidebarAction('sheet_dxf'));
   assert(await page.isVisible('#view-sheet'), 'sheet view visible');
-  assert((await page.locator('.sh-row').count()) === 7, '7 default pages');
+  assert((await page.locator('.sh-row').count()) === 8, '8 default pages (현장 안내 + 7)');
   const titles = () => page.$$eval('.sh-row .sh-type', els => els.map(e => e.textContent));
   let t = await titles();
+  assert(t[0] === '현장 안내', '현장 안내 first: ' + t);
+  assert((await page.inputValue('#sh-si-cautions')).includes('정문으로 출입해주세요') && (await page.inputValue('#sh-site')).includes('광교호수공원로 80'), 'site info defaults in UI');
+  await page.fill('#sh-si-special', '2. 특이사항 : 테스트');
+  await page.locator('.sh-row').nth(0).locator('button[data-act="down"]').click();     // 순서 이동
+  t = await titles(); assert(t[1] === '현장 안내', 'info moved down: ' + t);
+  await page.locator('.sh-row').nth(1).locator('button[data-act="up"]').click();
+  assert((await page.evaluate(() => kabinetSheet.getConfig().site_info.special)) === '2. 특이사항 : 테스트', 'site_info saved in config');
+  await page.locator('.sh-row').nth(0).locator('button[data-act="del"]').click();       // 이하 기존 시나리오는 7쪽 기준
+  assert((await page.locator('.sh-row').count()) === 7, 'info deleted -> 7');
+  t = await titles();
   assert(t[0] === '현장사진' && t[1] === '상담 3D' && t[2] === '평면도', 'default order: ' + t);
   // 위/아래 버튼
   await page.locator('.sh-row').nth(1).locator('button[data-act="up"]').click();
@@ -47,10 +57,13 @@ const assert = (ok, m) => { if (!ok) throw new Error(m); };
   await page.fill('#sh-site', '판교 푸르지오 그랑블');
   await page.fill('#sh-furniture_name', '__-1');
   await page.selectOption('#sh-bg', 'dark');
+  assert(await page.isChecked('#sh-images') && await page.isChecked('#sh-real_scale') && await page.isChecked('#sh-blocks'), '사진 포함·실치수·블록 기본 켜짐');
+  await page.uncheck('#sh-images');
   await page.waitForTimeout(500);
   const cfg = await page.evaluate(() => kabinetSheet.getConfig());
   assert(cfg.pages[4].subject === 'A동 주방 가구' && cfg.pages[4].sheet_no === 'NO.012' && cfg.pages[4].scale === '30', 'edited fields');
   assert(cfg.pages[2].hidden === true && cfg.site === '판교 푸르지오 그랑블' && cfg.bg === 'dark', 'hidden/site/bg');
+  assert(cfg.images === false && cfg.real_scale === true && cfg.blocks === true, 'images off / real_scale on in config');
   const saves = await page.evaluate(() => window.__calls.filter(c => c.name === 'kabinet:sheet_save'));
   assert(saves.length >= 1 && JSON.parse(saves[saves.length - 1].v).pages.length === 7, 'save bridge called with 7 pages');
   // 내보내기: 숨김 제외 6쪽

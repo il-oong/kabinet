@@ -2,6 +2,49 @@
 
 새 세션에서 이 파일부터 읽고 이어서 작업하세요. 사용자 선호: **한국어로 답변, 코드는 항상 PR 먼저 만든 뒤 머지, Railway 사용(이 저장소는 SketchUp 플러그인이라 해당 없음)**, 컨텍스트 70% 넘으면 중단하고 정리.
 
+## (v1.26.1) ep-2 재구성
+- `________ep-2` = ep-1 DXF 안에 이미 포함된 2번째 시트(도어·EP 상세). ep-1/ep-2 모두 A 재질·현장 안내로 재생성. 미확정: 상부장 높이 740(ep-1) vs 540(ep-2), 키큰장 도어 7칸(362/370/370/363/46/324/385) 생성기 미지원, 냉장고 높이 1910 추정.
+
+## (v1.26.0) 최종본(A) 분석 + B(___-1) 재구성
+- reference/ 보관(A·B·변환 DXF·샘플 PDF·originals), `tools/sheet/dump_reference.py` → `REFERENCE_SPEC.md` + `reference/spec/*.md`, CLAUDE.md §6. B 선반 높이 380 vs 원본 판독 347/322/368 은 미확정(README 확인표).
+- A = 우리 v1.25.9 아일랜드 DXF 를 사용자가 AutoCAD 에서 수정·저장한 것(§15). 생성기 기본값만 A 기준으로 변경(재질/현장 안내). 아일랜드의 CAD 수정값(로봇청소기장 상부 H320, 싱크 컷 920×432 등)은 JSON 에 아직 미반영 — 필요하면 사용자 확인 후 반영. B = 기존 `___-1` 샘플과 같은 도면(홈바장 2060×892×620), 목찬넬 가정(추정). `tools/sheet/compare_to_reference.py`.
+
+## (v1.25.9) 장 결합 시공(측판 2장)
+- island: `inner_widths_row`, 측판 쌍 rect(BODY·평면), 모듈 외곽 폭 dims(clip_span), generic/Ruby 동일(`clipped`, `inner_row`). verify `--twin-panels`. core 는 이미 독립 박스(조사 결과 INSTALL.md). 남은 확인: 원본 모듈 폭의 EP 포함 여부, 가전 자리(식기세척기) 양옆 측판 처리.
+
+## (v1.25.8) 아일랜드 서랍면 걸레받이 50 + 페이크도어
+- `Model.kickA`(overall.kick_A=50), `fronts(m,n,k,bot)`, A면 모듈 type `fake`(페이크도어), `a_fronts` = (kickA,25), 단면 B/A 걸레받이 단차, 확인표 갱신. 남은 확인: 서랍면/싱크면 걸레받이 단차 처리, 페이크도어 고정 방식, 장식 찬넬 수량.
+
+## (v1.25.7) 주방 하부장 수정
+- generic: `tb(d, md)`(channel_tb), `fronts()` 하단 틈 25, 하부 찬넬 사각·단면·상세 ③(`edge_section(up=True)`), 뷰 패널 중앙 정렬, `______/furniture.json`(H900=상판12+몸통888, channel_tb). Ruby 동일(`tb?`). 남은 일: 샘플 PDF 31~42쪽 하부 찬넬 표현과 직접 대조, 모서리 문제 판단(시트 뷰 위치 vs 방 안 위치) 사용자 확인.
+
+## (v1.25.6) 힌지 제거 · DIMENSION · 천판 EP 제거 · 현장 주소/안내 쪽
+- Python 치수 = `dim_h/dim_v/inner_dim` → ("D",…) 항목 → DXF 는 `add_linear_dim(...).render()`(DIMSTYLE KAB), PDF 는 `expand_dims` 로 낱개 전개. Ruby 는 `Canvas#dim_scope` + `item_dims` → `DIM_nnn_S#` BLOCK(임시). 다음 과제: Ruby DxfWriter 에 DIMENSION + `*D` 익명 블록 이식(gen_dxf_skeleton.py 에 `*D` 훅 필요).
+- 천판 EP: 아일랜드/channel 가구는 제거(`ep_band` no-op, `TOP_IN=body_H-18`, 도어 상단 = body_H-25). generic/Ruby 는 channel 이면 ep top 자동 false.
+- 현장 안내(INFO) 쪽: Ruby `Pages.info`, `Frame.info`, UI 카드 `#sh-info-card`, cfg `site_info`; Python `page_info`/`site_info_of`/`DEFAULT_SITE_INFO`. 표제란 주소 2줄(`site_text`).
+- 남은 일: Ruby DIMENSION 이식, 실기 열림 확인(DIMENSION·블록), generic 의 inner_dim 류 소형 치수 DIMENSION 화 완료 여부 점검.
+
+## (v1.25.5) EP·몸통 겹침 해소
+- `clip_span`(island)/`clipped`·`ep_bounds`·`ep_row`(generic·Ruby): EP 쪽 끝 모듈을 EP 안쪽으로 줄임, 가로 3단 치수(모듈/EP|몸통|EP/전체), 모듈선은 천판 EP 아래까지, 전판 상단은 천판 EP 아래. 검사 `verify_dxf.py --no-overlap-ep`, `test/sheet_no_overlap_ep_test.rb`. 남은 확인: 도면 모듈 폭이 EP 포함인지(현재 포함으로 가정, 확인표 '[변경] EP·몸통 폭').
+
+## (v1.25.4) 로봇청소기장 500/18/302 + 측판 EP 바닥까지
+- `build_sheet.py`: ROBOT_BAY=500(바닥 기준), 로봇청소기장 풀높이 원도어·걸레받이/하판 제외, `ep_ends`=바닥까지, `ep_band`=측판 EP 사이, 걸레받이는 EP 사이. generic·Ruby 동일 규칙. 업로드 DWG 분석: aspose 변환본은 좌표가 약 1/25.53 배율로 나옴(레이어 `0` 워터마크 제외, 텍스트는 폴리선 획). 남은 확인: NO.002 `FD_DOOR`(OPEN 베이 위 2단 사각형) 의도, 측판 EP 접합(맞댐/45°), 도어 하단 처리.
+
+## (v1.25.3) 로봇청소기장 베이 450 + 힌지 금지
+- 로봇청소기장 = 원도어, 하단 450 비움 → 선반 18T → 상부 252(추정, `ROBOT_BAY`). 힌지/도어 열림은 시트 생성기·산출물 전수 검색 결과 0건(평면도 출입문 호만 제거), `test/sheet_no_hinge_test.rb` + `verify_dxf.py --no-hinge` 로 방지. 남은 일: `output/drawing2d.rb`(플러그인 일반 2D 도면)의 개폐 방향 V 표시를 지울지 사용자 확인.
+
+## (v1.25.2) 아일랜드장 샘플 수정
+- 사용자 지시 반영: H900/상판 80/몸통 820(순 720)/걸레받이 100, 로봇청소기장·인출장(폭 300 `장(2단)` 추정) 원도어, 식기세척기 높이 35 초과 경고. `tools/sheet/build_sheet.py`(Model 이 TOP_IN/BOT_IN/HH 갱신, 모듈 type `pullout` 추가), `output_samples/furniture.json`·`_____-1/furniture.json` 수정, 산출물 재생성(`_____-1/sheet_1대1.dxf` 포함). 남은 확인: 인출장이 실제로 어느 모듈인지, 식기세척기 모델/높이. verify_dxf 치수 문자 검사의 '싱크면/서랍면' 접미사 오탐 해소(불일치 0).
+
+## (v1.25.1) 제작도면 DXF — 최신 인계 (이 절이 가장 최신; v1.25.1 = PR #39 리뷰 4건 수정, 아래는 v1.25.0 인계에 이어짐)
+- v1.25.1: ① 채널 손잡이 모듈 단위(`Model` 모듈별 'channel') ② generic 측면 시트 표제란 축척=den_top ③ `to_real_scale.py` 블록 대응·축척 못 찾으면 오류 ④ 뷰 블록에 치수·마커·캡션 포함 + `verify_dxf.py` 도곽 블록 검사·치수 검사 오탐(보조선) 제거. 남은 치수 문자 불일치: 아일랜드 side 시트 4건(650/450 구간), `______` furniture 2건(3 mm 구간) — 라벨 위치/검사 기준 확인 필요.
+
+## (v1.25.0) 제작도면 DXF 인계
+- 브랜치 `claude/dazzling-babbage-v46o8h`(master 최신 위, PR 미생성·미머지 — 사용자 확인 후 처리). 버전 1.25.0, `kabinet.rbz` 재빌드 완료.
+- **완료**: ① `SHEET_FORMAT_ANALYSIS.md` §14(Ruby vs Python 비교표·구조 결함) ② **DXF 호환**: `output/sheet/dxf_skeleton.rb`(자동 생성, `tools/sheet/gen_dxf_skeleton.py`)+`dxf_writer.rb` 재작성 — ezdxf R2004 골격 그대로(LAYOUT/ACAD_* 딕셔너리/CLASSES/DIMSTYLE/BLOCK_RECORD 340/$HANDSEED 계산), IMAGE 는 ASCII 상대경로(`<영문>_images/img_01.jpg`)+옵션 `images:false`(UI 「사진 포함」), `verify_dxf.py --structure-only`(핸들 중복·미해결 참조) ③ **내용 동등성**: Ruby 키플랜·절단선/번호 마커·단면 1~2·목찬넬·가전·싱크 이식, 모델 스키마 = `furniture.json`(generic), `tools/sheet/export_sheet.rb`, `tools/sheet/compare_ruby_python.py`(샘플 4건 중 ___-1/________ep-1 포함 모두 PASS) ④ **1:1 실치수**(Ruby `real_scale` 기본 켜짐/UI, Python WIP 와 같은 개념: 시트별 배수 den) ⑤ 해칭 = 영역당 HATCH(ANSI31) 1개(Ruby·Python 모두), 뷰·도곽을 이름 있는 BLOCK+INSERT(옵션 `blocks`/UI 「뷰를 블록으로」, Python `--no-blocks`) ⑥ 테스트: `test/sheet_dxf_test.rb`(구조·images:false·real_scale·블록·HATCH), `sheet_encoding_test`, `sheet_ui_browser.js`, 전체 `test/*_test.rb` 통과, Ruby 2.7 검사(오탐 2건 제외) 통과.
+- **남은 일**: (a) [v1.25.1 에서 120mm 8건은 검사 오탐으로 해소, 위 잔여 참조] (b) 한국 CAD 실기 열림 확인(INSTALL.md v1.25.0 실기 항목) — 안 열리면 「사진 포함」 끄고 재시도, 그래도 안 되면 CAD 이름·오류 문구 수집 (c) 아일랜드 전용 JSON(`output_samples/_____-1/furniture.json`, B_side/A_side 스키마)은 Ruby 모델로 변환 미구현 — 비교는 generic JSON 으로 함 (d) 상세 쪽(1/5·1/2 확대)은 실물 1:1 아님 (e) PR/머지는 사용자 확인 후.
+- **다음 세션 시작**: `git switch claude/dazzling-babbage-v46o8h && git pull`, `ruby test/sheet_dxf_test.rb`, `python3 -I tools/sheet/compare_ruby_python.py output_samples/___-1/furniture.json`, `python3 -I tools/sheet/verify_dxf.py <dxf>`. 하네스가 WIP 자동 커밋을 만들 수 있으니 `git add` 는 경로 지정으로.
+
 ## (v1.24.0) CAD 도면 DXF → 시트 재구성 — 최신 인계 (맨 앞 절보다 최신)
 - 브랜치 `claude/tender-darwin-852d8m`. 사용자가 올린 CAD 도면 DXF 5개(아일랜드장·홈바장·냉장고장 데코·현관장·주방 하부장; 각 파일 = 몸통/도어/상판 3장 도곽)를 **치수(DIMENSION)+라벨(MTEXT)** 로 읽어 시트로 재구성하는 Ruby 기능 추가. 결과 `output_samples/reconstructed/*.dxf,json`.
 - **(미해결, 최우선) 사용자 CAD 에서 생성 DXF 가 안 열림**: 화면에 `Press ENTER to continue:` 만 뜨고 도면이 안 나옴(AC1015·AC1018 모두 동일). ezdxf 는 오류 0 으로 읽음. 가장 유력한 원인 = `output/sheet/dxf_writer.rb` 의 OBJECTS 가 빈 루트 DICTIONARY 하나뿐(LAYOUT/ACAD_LAYOUT/ACAD_GROUP/MATERIAL 등 없음)이고 CLASSES·DIMSTYLE Standard 도 비어 있음. 같은 파일을 ezdxf 로 재저장(`readfile→saveas`, LAYOUT 2개·딕셔너리 12개 생성)한 v2 를 사용자에게 보내 열리는지 확인 요청함. v2 가 열리면: Ruby 작성기에 LAYOUT(Model/Layout1)·ACAD_LAYOUT/ACAD_GROUP/ACAD_MATERIAL 딕셔너리·DIMSTYLE Standard·CLASSES 를 추가(ezdxf 재저장본 OBJECTS 를 참고). 안 열리면 사용자에게 CAD 이름과 Enter 전 오류 문구를 받아야 함.
