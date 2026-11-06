@@ -19,9 +19,9 @@ module Kabinet
         module_function
 
         DEFAULT_NOTES = {
-          'DOOR' => '목림 지정 자재-안도크림 색상 (확인필요)',
-          'BODY' => '목림 지정 자재 (확인필요)',
-          'handle' => '지정 손잡이 (확인필요)'
+          'DOOR' => '한솔 엘리 내추럴',     # 최종본(A) 재질: DOOR 한솔 엘리 내추럴, BODY 줄 없음, 손잡이 목찬넬
+          'BODY' => '',
+          'handle' => '목찬넬'
         }.freeze
 
         def num(v, d = 0.0)
@@ -109,7 +109,7 @@ module Kabinet
             'sink' => s['sink'].is_a?(Hash) ? %w[x y w d].each_with_object({}) { |k, h| h[k] = num(s['sink'][k]) } : nil,
             'cuts' => cuts_from(s),
             'table_rows' => (s['table_rows'] || []).select { |r| r.is_a?(Array) && r.size >= 3 },
-            'notes' => DEFAULT_NOTES.merge((s['notes'] || {}).select { |_k, v| v.to_s != '' }),
+            'notes' => DEFAULT_NOTES.merge((s['notes'] || {}).select { |_k, v| v.to_s != '' }),   # (BODY 는 기본이 빈 값 = 줄 없음)
             'room' => { 'W' => num((s['room'] || {})['W'], 5200), 'D' => num((s['room'] || {})['D'], 3400),
                         'name' => ((s['room'] || {})['name'] || '공간').to_s },
             'flags' => (s['flags'] || [])

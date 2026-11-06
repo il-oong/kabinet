@@ -299,7 +299,7 @@ Dir.mktmpdir do |dir|
   txt = ents.select { |e| e[:type] == 'TEXT' }.map { |e| [e[:pairs].find { |cc, _| cc == 1 }[1], e[:layer]] }
   strs = txt.map(&:first)
   ['SITE INFO', 'NOTE', '현장 주소', '경기도 수원시 영통구 광교호수공원로 80', '광교아이파크 101동 4601호', '-. 정문으로 출입해주세요.', '-. 작업차량 B3 출입 꼭 지켜주세요.',
-   '주차차단기 호출로 공사차량이라고 해주세요', '공동현관비번  경비실호출', '현관번호 7777', '1. 가구 시공일정 : 11/13(금) ~ 11/17(화) 예상', '2. 특이사항 : 한솔 4*9 자재 발주할 것(11/2)'].each do |t|
+   '주차차단기 호출로 공사차량이라고 해주세요', '공동현관비번  경비실호출', '현관번호 7777', '1. 가구 시공일정 : ', '2. 특이사항 : 한솔 자재 발주, 세라믹 발주 시공일정 체크'].each do |t|
     assert strs.include?(t), "info text missing: #{t}"
   end
   assert txt.any? { |t, l| t.start_with?('** 8시50분 차량 입차 불가') && l == 'NOTE_RED' }, 'red emphasis'

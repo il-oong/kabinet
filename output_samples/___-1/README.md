@@ -7,3 +7,9 @@
 - 불확실: 우측 EP, 선반 높이, 상판·걸레받이 100 추정, 홈바 용도 추정, 도면 두 번째 시트(-2) 미반영
 - 재생성: `python3 -I tools/sheet/build_generic.py output_samples/___-1/furniture.json --name 가구명` (아일랜드는 `build_sheet.py`)
 - 산출물: sheet.pdf, sheet.dxf(흰 배경), sheet_dark.dxf(어두운 배경), furniture.json, preview-N.png(60dpi)
+
+## v1.26.0 — 최종본(A) 기준 재구성 (전달용: `sheet_1대1.dxf`)
+- 원본 `e21d1154-___-1.dwg`(AC1021) → DXF 변환 후 3장(몸통·도어·상판) 판독: 2060×892×620, 조리장(2D)B ×2(1,021 + 1,021), EP 판넬 [18T] 좌측 18, 상판 12T, 걸레받이 100(추정), 도어 485/486 ×2짝, 선반 347/322/368.
+- A 와 동일: 현장 주소·현장 안내 쪽, 재질(`DOOR : 한솔 엘리 내추럴`, BODY 줄 없음, `손잡이 : 목찬넬`), 장 결합(측판 18T×2)·DIMENSION·블록·1:1.
+- 추정: 목찬넬 마감(원본 도어 문자 `주방장 도어 공용 부엌 도어 KK DR 112` 는 대체), 선반 높이, 우측 EP 없음. 원본 도어에 그려진 여닫이 사선은 힌지 표현 금지 규칙에 따라 제외.
+- 기준 비교: `python3 -I tools/sheet/compare_to_reference.py 149fea82-_____.dxf sheet_1대1.dxf` → PASS.

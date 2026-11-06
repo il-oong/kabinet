@@ -38,8 +38,8 @@ def norm(d):
         m.setdefault("doors", 0); m.setdefault("drawers", 0); m.setdefault("shelves", []); m.setdefault("rods", [])
     d.setdefault("notes", {})
     n = d["notes"]
-    n.setdefault("DOOR", "목림 지정 자재 (확인필요)"); n.setdefault("BODY", "목림 지정 자재 (확인필요)")
-    n.setdefault("handle", "목찬넬 (확인필요)" if d.get("channel") else "지정 손잡이 (확인필요)")
+    n.setdefault("DOOR", "한솔 엘리 내추럴"); n.setdefault("BODY", "")      # 최종본(A) 재질: DOOR 한솔 엘리 내추럴, BODY 줄 없음
+    n.setdefault("handle", "목찬넬")
     d.setdefault("room", {"W": 5200, "D": 3400, "name": "공간"})
     d.setdefault("flags", [])
     return d
@@ -287,7 +287,7 @@ def body_view(sh, d, ox, gy, s):
                     sh.rect(X(md["x"] + 4.5), Z(z0 - CH_GAP + CH_H), X(md["x"] + md["w"] - 4.5), Z(z0 - CH_GAP), "BLUE")
     ep_strips(sh, d, X, Z, body, k)
     elev_dims(sh, d, X, Z)
-    for a_, b_ in inner_row:                                                                         # 모듈 내경(= 외곽 − 36) DIMENSION
+    for a_, b_ in inner_row:                                                                         # 모듈 내경(= 외곽 - 36) DIMENSION
         bs.dim_h(sh, [X(a_ + BT), X(b_ - BT)], Z(0) + 7.0, [fmt(b_ - a_ - 2 * BT) + " 내경"], ref=Z(0), size=1.7)
     x = X(cut_x(d)); yt = Z(o["H"]) - 29.0; yb = gy + 9.5
     sh.chain(x, yt + 3.3, x, yb - 3.3, "FR")
@@ -300,8 +300,9 @@ def body_view(sh, d, ox, gy, s):
 def note_block(sh, d, lines):
     n = d["notes"]
     sh.text(218.3, 26.6, "DOOR : " + n["DOOR"], 3.9)
-    sh.text(218.3, 38.6, "BODY : " + n["BODY"], 3.9)
-    sh.text(218.3, 50.6, "손잡이 : " + n["handle"], 3.9, "r" if "확인" in n["handle"] else "k")
+    if n.get("BODY"):                                   # 최종본(A)은 BODY 줄을 삭제 — 비어 있으면 그리지 않음
+        sh.text(218.3, 38.6, "BODY : " + n["BODY"], 3.9)
+    sh.text(218.3, 50.6, "손잡이 : " + n["handle"], 3.9, "r")        # A: 손잡이 줄은 빨강(NOTE_RED)
     y = 61.0
     for t, c in lines:
         sh.text(218.3, y, t, 3.0, c); y += 5.3
@@ -314,7 +315,7 @@ def default_notes(d):
         L.append((f"*EP = 마감판 {d['ep']['thickness']}T (측판·천판) / 몸통 18T / 도어 20T", "b"))
     if d.get("channel"): L.append(("*목찬넬 60*40 : 전판 상단(상판 하면 25 이격) (확인필요)", "r"))
     if any(tb(d, m) for m in d["modules"]): L.append(("*상·하부 목찬넬: 전판 위 찬넬(상향 개구) + 아래 거꾸로 찬넬(하향 개구), 전판 상하 25 틈 (추정)", "b"))
-    L.append(("*장 결합 시공: 장마다 측판 18T x 2 (인접 장 사이 36), 모듈 폭 = 측판 포함 외곽, 내경 = 외곽 − 36", "b"))
+    L.append(("*장 결합 시공: 장마다 측판 18T x 2 (인접 장 사이 36), 모듈 폭 = 측판 포함 외곽, 내경 = 외곽 - 36", "b"))
     L.append(("*선반 18T · 뒷판 9T · 서랍 레일 13*2 (일반 기준, 추정)", "k"))
     for f in d["flags"][:5]: L.append(("*" + f, "r"))
     L.append(("*단면 1 : SIDE VIEW 시트 / 확인 목록 : 생산 확인표", "k"))
@@ -482,7 +483,7 @@ def page_table(d, den=25):
     raw = sum(m["w"] for m in d["modules"]); outer = sum(m["w"] for m in cl)
     if abs(raw - outer) > 0.5:
         rows.append(["합계 불일치 [추정]", f"원본 Σ모듈={fmt(raw)}, EP 제외 Σ외곽={fmt(outer)} (전체 {fmt(d['overall']['W'])}) → 끝 모듈을 EP 두께만큼 보정(원본 전체 유지)", "원본 모듈 폭의 EP 포함 여부 확인"])
-    rows.append(["판재 목록(장당)", "측판 18T 2장, 상·하판 18T 폭 = 내경, 뒷판 9T 폭 = 내경, 선반 18T 폭 = 내경 − 여유(추정)", "재단도 확정"])
+    rows.append(["판재 목록(장당)", "측판 18T 2장, 상·하판 18T 폭 = 내경, 뒷판 9T 폭 = 내경, 선반 18T 폭 = 내경 - 여유(추정)", "재단도 확정"])
     rows = rows + [[f, "도면에서 읽지 못함/추정", "확인 필요"] for f in d["flags"]] + base
     sh = Sheet("table"); sh.den = den
     sh.rect(4.5, 3.2, 415.5, 293.9, "FR")
