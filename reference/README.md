@@ -16,3 +16,4 @@
 - `originals/island_2cf8a67e.dwg`, `originals/island_7f646231.dxf` — 이전 아일랜드 원본 도면.
 - `spec/` — `REFERENCE_SPEC.md` 의 시트별 전체 덤프와 샘플 PDF 벡터 추출, `rules.md` 규칙 해설.
 - `.gitattributes` 로 DXF diff 는 숨김 처리.
+- `originals/entrance_0e67cdfe.dwg` — 현관장 DWG(AC1021, 업로드명 `0e67cdfe-___.dwg`), `originals/entrance_0e67cdfe_converted.dxf` — aspose-cad 변환본(inch 단위·글자 폴리선, 2.7MB). 재구성 결과는 `output_samples/___2/`.

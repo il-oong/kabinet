@@ -1,5 +1,9 @@
 # Kabinet — 설치 및 검증 가이드
 
+## v1.26.2 — 현관장 DWG 판(`___2`) 재구성
+
+- `0e67cdfe-___.dwg` → `output_samples/___2/`(기존 `___` 와 같은 도면, 서랍 3단 870 + 도어 1540 반영). 원본·변환본은 `reference/originals/entrance_0e67cdfe*`.
+
 ## v1.26.1 — 냉장고장 데코 ep-2 재구성
 
 - `output_samples/________ep-2/`(ep-1 의 2번째 시트, 같은 가구) 최종본(A) 양식으로 재구성, ep-1 도 같은 규칙으로 재생성. 상부장 높이 ep-1 740 / ep-2 540 원본 충돌은 README 에 병기.
