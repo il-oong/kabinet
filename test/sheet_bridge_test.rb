@@ -16,7 +16,7 @@ S = Kabinet::Output::Sheet
 
 m = FakeModel.new
 cfg = B.load_config(m)
-assert cfg['pages'].size == 7 && cfg['pages'].map { |p| p['type'] } == %w[photos view3d floor furniture side detail table], 'default pages'
+assert cfg['pages'].size == 8 && cfg['pages'].map { |p| p['type'] } == %w[info photos view3d floor furniture side detail table], 'default pages'
 
 # 순서 변경·숨김·제목/번호/축척 저장 → 다시 열어도 유지
 c2 = Marshal.load(Marshal.dump(cfg))
@@ -57,6 +57,6 @@ assert rd['modules'][0]['drawers'] == 3, 'drawers'
 require 'tmpdir'
 Dir.mktmpdir do |dir|
   out = S::Builder.export(r, data, File.join(dir, 'a.dxf'))
-  assert File.size(out[:path]) > 10_000 && out[:pages] == 6, "export pages #{out[:pages]}"   # table 위치 바뀜, 사진/3D 포함 7 중 숨김 1 = 6
+  assert File.size(out[:path]) > 10_000 && out[:pages] == 7, "export pages #{out[:pages]}"   # table 위치 바뀜, 사진/3D 포함 8 중 숨김 1 = 7
 end
 puts 'sheet_bridge_test OK'

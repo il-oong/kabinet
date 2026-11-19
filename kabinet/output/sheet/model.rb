@@ -9,16 +9,19 @@ module Kabinet
       #   'furniture_name' =>, 'overall' => {'W','H','D','top_thickness','kick'},
       #   'ep' => {'left','right','top','thickness'},
       #   'modules' => [{'name','x','z','w','h','d','type'(doors|drawers|open),
-      #                   'doors'(0..2),'drawers'(n),'shelves'=>[z...],'rods'=>[z...],'flags'=>[]}],
+      #                   'doors'(0..2),'drawers'(n),'shelves'=>[z...],'rods'=>[z...],'flags'=>[],'label'=>'짧은 표기'}],
+      #   'type'(appliance 모듈 = 가전 자리), 'channel'(목찬넬 손잡이 → 상세 쪽), 'sink' => {'x','y','w','d'}(평면 싱크 컷),
+      #   'cut_x' => 단면 1 절단 X(평면 좌표) 또는 'cuts' => [x1, x2](단면 1~2), 'table_rows' => [[항목, 가정값, 확인]...],
       #   'notes' => {'DOOR','BODY','handle'}, 'room' => {'W','D','name'}, 'flags' => []
+      # (tools/sheet/build_generic.py 의 furniture.json 스키마와 같은 모양이라 같은 JSON 을 Ruby/Python 양쪽에 넣을 수 있다)
       # }
       module Model
         module_function
 
         DEFAULT_NOTES = {
-          'DOOR' => '목림 지정 자재-안도크림 색상 (확인필요)',
-          'BODY' => '목림 지정 자재 (확인필요)',
-          'handle' => '지정 손잡이 (확인필요)'
+          'DOOR' => '한솔 엘리 내추럴',     # 최종본(A) 재질: DOOR 한솔 엘리 내추럴, BODY 줄 없음, 손잡이 목찬넬
+          'BODY' => '',
+          'handle' => '목찬넬'
         }.freeze
 
         def num(v, d = 0.0)
@@ -53,7 +56,8 @@ module Kabinet
             end
           end
           h = mods.map { |m| m['z'] + m['h'] }.max.to_f + top
-          normalize('furniture_name' => furniture_name || spec['name'] || 'Furniture',
+          channel = mods.any? { |m| m['channel'] }          # 시트 전체 안내(NOTE·상세)용. 도어/서랍 지오메트리는 모듈별
+          normalize('furniture_name' => furniture_name || spec['name'] || 'Furniture', 'channel' => channel,
                     'overall' => { 'W' => w, 'H' => h, 'D' => d, 'top_thickness' => top, 'kick' => base },
                     'ep' => { 'left' => ep['left'], 'right' => ep['right'], 'top' => ep['top'], 'thickness' => num(ep['thickness'], 20) },
                     'modules' => mods, 'flags' => flags,
@@ -68,7 +72,8 @@ module Kabinet
         end
 
         def module_from(m, i, x, z, w, h, d)
-          out = { 'name' => (m['label'] || "M#{i + 1}").to_s, 'x' => x, 'z' => z, 'w' => w, 'h' => h, 'd' => d,
+          out = { 'channel' => m['handle_type'].to_s == 'channel',   # Core::Gaps.channel? 와 같은 기준(모듈별)
+                  'name' => (m['label'] || "M#{i + 1}").to_s, 'x' => x, 'z' => z, 'w' => w, 'h' => h, 'd' => d,
                   'type' => 'open', 'doors' => 0, 'drawers' => 0, 'shelves' => [], 'rods' => [], 'flags' => [] }
           case m['kind']
           when 'shelf_module'
@@ -99,19 +104,32 @@ module Kabinet
                            'top_thickness' => num(o['top_thickness'], 0), 'kick' => num(o['kick'], 0) },
             'ep' => { 'left' => !!(s['ep'] || {})['left'], 'right' => !!(s['ep'] || {})['right'],
                       'top' => !!(s['ep'] || {})['top'], 'thickness' => num((s['ep'] || {})['thickness'], 20) },
-            'modules' => (s['modules'] || []).map { |m| module_defaults(m, o) },
-            'notes' => DEFAULT_NOTES.merge((s['notes'] || {}).select { |_k, v| v.to_s != '' }),
+            'modules' => (s['modules'] || []).map { |m| module_defaults(m, o, !!s['channel'], !!s['channel_tb']) },
+            'type' => (s['type'] || '가구').to_s, 'channel' => !!s['channel'], 'channel_tb' => !!s['channel_tb'],
+            'sink' => s['sink'].is_a?(Hash) ? %w[x y w d].each_with_object({}) { |k, h| h[k] = num(s['sink'][k]) } : nil,
+            'cuts' => cuts_from(s),
+            'table_rows' => (s['table_rows'] || []).select { |r| r.is_a?(Array) && r.size >= 3 },
+            'notes' => DEFAULT_NOTES.merge((s['notes'] || {}).select { |_k, v| v.to_s != '' }),   # (BODY 는 기본이 빈 값 = 줄 없음)
             'room' => { 'W' => num((s['room'] || {})['W'], 5200), 'D' => num((s['room'] || {})['D'], 3400),
                         'name' => ((s['room'] || {})['name'] || '공간').to_s },
             'flags' => (s['flags'] || [])
           }
+          out['ep']['top'] = false if out['modules'].any? { |md| md['channel'] }     # 목찬넬 하부장은 천판 EP 없음
           out['modules'] = [module_defaults({ 'name' => 'M1', 'w' => out['overall']['W'], 'h' => out['overall']['H'] }, o)] if out['modules'].empty?
           out
         end
 
-        def module_defaults(m, o)
+        # 절단 위치 목록(최대 2). 지정이 없으면 빈 배열(= 페이지 쪽에서 가운데 모듈로 자동)
+        def cuts_from(s)
+          list = s['cuts'].is_a?(Array) ? s['cuts'] : (s['cut_x'].nil? ? [] : [s['cut_x']])
+          list.map { |v| num(v, nil) }.compact.first(2)
+        end
+
+        def module_defaults(m, o, default_channel = false, default_tb = false)
           {
-            'name' => (m['name'] || 'M').to_s, 'x' => num(m['x']), 'z' => num(m['z']),
+            'channel' => m.key?('channel') ? !!m['channel'] : default_channel,
+            'channel_tb' => m.key?('channel_tb') ? !!m['channel_tb'] : default_tb,
+            'name' => (m['name'] || 'M').to_s, 'label' => (m['label'] || m['name'] || 'M').to_s, 'x' => num(m['x']), 'z' => num(m['z']),
             'w' => num(m['w'], num(o['W'], 900)), 'h' => num(m['h'], num(o['H'], 900)), 'd' => num(m['d'], num(o['D'], 600)),
             'type' => (m['type'] || 'open').to_s, 'doors' => m['doors'].to_i, 'drawers' => m['drawers'].to_i,
             'shelves' => (m['shelves'] || []).map { |v| num(v) }, 'rods' => (m['rods'] || []).map { |v| num(v) },
@@ -135,7 +153,7 @@ module Kabinet
         end
 
         # 일반 가구에서 자동 선택하는 축척 분모 (한 시트 내 모든 뷰 동일)
-        def pick_scale(m, max_w: 140.0, max_h: 92.0, max_d: 44.0)
+        def pick_scale(m, max_w: 140.0, max_h: 88.0, max_d: 44.0)
           o = m['overall']
           [20, 25, 30, 40, 50, 60, 80, 100].find do |den|
             o['W'] / den <= max_w && o['H'] / den <= max_h && o['D'] / den <= max_d

@@ -7,3 +7,6 @@
 - 불확실: 서랍/도어 세부 분할(385/324, 331.5/377.5)은 칸 구성 추정, 싱크 없음
 - 재생성: `python3 -I tools/sheet/build_generic.py output_samples/______/furniture.json --name 가구명` (아일랜드는 `build_sheet.py`)
 - 산출물: sheet.pdf, sheet.dxf(흰 배경), sheet_dark.dxf(어두운 배경), furniture.json, preview-N.png(60dpi)
+
+## v1.25.7
+- 총높이 900 = 상판 12 + 몸통 888(걸레받이 100 포함, 추정) → 순 몸통 788. 양개도어·서랍장 상·하부 목찬넬(전판 상/하/단간 25 틈, 추정). 뷰를 시트 패널 가운데로 정렬. `sheet_1대1.dxf` = 1:1 실치수(블록·DIMENSION 포함).

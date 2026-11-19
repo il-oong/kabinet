@@ -164,7 +164,7 @@ Dir.mktmpdir do |root|
     c = S::Builder.normalize_config(state)
     r = S::Builder.export(c, B.placeholder_model, path)
     assert File.file?(path), 'dxf written'
-    assert r[:pages] == 7, "pages #{r[:pages]}"
+    assert r[:pages] == 8, "pages #{r[:pages]}"
     assert r[:copied].size >= 1, "images copied #{r[:copied]}"
   end
 
@@ -177,12 +177,12 @@ Dir.mktmpdir do |root|
     assert s.valid_encoding?, 'script valid'
     dxf = cp(File.join(root, '출력 폴더', '콜백 결과.dxf'))
     assert File.file?(dxf), 'dxf exists'
-    imgs_dir = cp(File.join(root, '출력 폴더', '콜백 결과_images'))
+    imgs_dir = cp(File.join(root, '출력 폴더', S::Builder.ascii_stem('콜백 결과') + '_images'))      # 한글 파일명이어도 이미지 폴더·파일은 ASCII
     assert File.directory?(imgs_dir) && Dir.children(imgs_dir).size >= 1, '_images copied'
     # DXF 를 CP949 로 읽어 한글 확인
     txt = File.binread(dxf).force_encoding('CP949').encode('UTF-8')
     assert txt.include?('판교 푸르지오 그랑블') && txt.include?('현장 사진1'), 'korean text in dxf'
-    assert txt.include?('콜백 결과_images/'), 'relative image path with korean folder'
+    assert txt.include?(S::Builder.ascii_stem('콜백 결과') + '_images/img_01.'), 'ASCII-safe relative image path'
     assert txt.include?('AC1018') && txt.include?('ANSI_949'), 'codepage'
   end
 
