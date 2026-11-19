@@ -1,3 +1,4 @@
+require_relative 'sheet_bridge'
 module Kabinet
   module UI
     module Dialog
@@ -59,6 +60,7 @@ module Kabinet
 
       def register_callbacks(d)
         register_drawing_callbacks(d)
+        register_sheet_callbacks(d)
         d.add_action_callback('kabinet:ready') do |_ctx, _params|
           @ready = true
           d.execute_script("kabinet.setCommon(#{JSON.generate(Kabinet::Commands::Common.load)})") rescue nil
@@ -506,6 +508,88 @@ module Kabinet
       end
 
       # ── LayOut 도면 · 내 가구 보관함 · EP 판재 (Kabinet 2.0 기능을 이 창에 통합) ──
+      # ── 도면 시트(DXF): 페이지 구성 저장/불러오기, 이미지 추가, DXF 내보내기 ──────
+      # 모든 경로/문자열은 SheetBridge.utf8 로 정규화(한글 Windows CP949 대응), 실패는 동작 이름과 함께 표시.
+      def register_sheet_callbacks(d)
+        bridge = Kabinet::UI::SheetBridge
+        home = lambda { bridge.utf8(Dir.home) }
+
+        d.add_action_callback('kabinet:sheet_load') do |_ctx, _params|
+          bridge.guard(d, '도면 시트 불러오기') do
+            model = Sketchup.active_model
+            payload = { config: bridge.load_config(model), furniture: bridge.summary(model), scenes: bridge.scene_names(model),
+                        page_types: Kabinet::Output::Sheet::Builder::PAGE_TYPES }
+            d.execute_script("kabinetSheet.setState(#{bridge.js(payload)})")
+          end
+        end
+
+        d.add_action_callback('kabinet:sheet_save') do |_ctx, raw|
+          bridge.guard(d, '구성 저장') { bridge.save_config(Sketchup.active_model, JSON.parse(bridge.utf8(raw))) }
+        end
+
+        # 이미지 파일 추가 (파일 선택 대화상자, 한 장씩) / 폴더 안 이미지 일괄
+        d.add_action_callback('kabinet:sheet_pick_image') do |_ctx, raw|
+          bridge.guard(d, '이미지 추가') do
+            req = JSON.parse(bridge.utf8(raw))
+            path = ::UI.openpanel('이미지 선택 (JPG/PNG)', home.call, 'Images|*.jpg;*.jpeg;*.png||')
+            d.execute_script(bridge.add_images_script(req['page_id'], [path])) if path
+          end
+        end
+        d.add_action_callback('kabinet:sheet_pick_folder') do |_ctx, raw|
+          bridge.guard(d, '폴더 이미지 추가') do
+            req = JSON.parse(bridge.utf8(raw))
+            dir = ::UI.select_directory(title: '이미지가 들어 있는 폴더 선택', directory: home.call)
+            if dir
+              files = bridge.images_in(dir)
+              d.execute_script(bridge.add_images_script(req['page_id'], files))
+              d.execute_script("kabinet.onSuccess(#{bridge.js("#{files.size}장 추가")})") if files.any?
+            end
+          end
+        end
+        # SketchUp 현재 시점/장면 → PNG → 이 페이지에 추가
+        d.add_action_callback('kabinet:sheet_capture') do |_ctx, raw|
+          bridge.guard(d, '화면 캡처') do
+            req = JSON.parse(bridge.utf8(raw))
+            path = bridge.capture(Sketchup.active_model, scene_index: req.fetch('scene', -1), width: req['width'] || 1600)
+            d.execute_script(bridge.add_images_script(req['page_id'], [path], req['caption'].to_s))
+            d.execute_script("kabinet.onSuccess(#{bridge.js("캡처 완료: #{File.basename(path)}")})")
+          end
+        end
+
+        # 입력 CAD 도면 DXF 를 골라 → 가구별/면별 제작도면 시트 DXF 로 재구성 (같은 폴더에 저장)
+        d.add_action_callback('kabinet:sheet_import_cad') do |_ctx, raw|
+          bridge.guard(d, 'CAD 도면 재구성') do
+            req = JSON.parse(bridge.utf8(raw))
+            cfg = bridge.save_config(Sketchup.active_model, req['config'] || {})
+            src = ::UI.openpanel('재구성할 CAD 도면 DXF 선택', home.call, 'DXF|*.dxf||')
+            if src
+              r = bridge.import_cad(src, cfg)
+              msg = "재구성 완료: #{r[:files].size}개 시트 저장 — #{r[:files].map { |f| File.basename(f) }.join(', ')} / " + r[:report].join(' · ')
+              d.execute_script("kabinet.onSuccess(#{bridge.js(msg)})")
+            end
+          end
+        end
+
+        d.add_action_callback('kabinet:sheet_export') do |_ctx, raw|
+          bridge.guard(d, 'DXF 내보내기') do
+            req = JSON.parse(bridge.utf8(raw))
+            model = Sketchup.active_model
+            cfg = bridge.save_config(model, req['config'] || {})
+            ids = req['page_ids'].is_a?(Array) ? req['page_ids'] : nil
+            name = bridge.utf8(cfg['furniture_name']).empty? ? 'sheet' : Kabinet::Output::Sheet::Text.safe_name(cfg['furniture_name'])
+            path = ::UI.savepanel('도면 시트 DXF 저장', home.call, "#{name}_도면시트.dxf")
+            if path
+              # 파일 I/O 는 대화상자가 준 원본 경로(인코딩 그대로), 표시용 문자열만 UTF-8
+              path += Kabinet::Output::Sheet::Text.native('.dxf', path) unless bridge.utf8(path).downcase.end_with?('.dxf')
+              r = bridge.export(model, cfg, path, only_ids: ids)
+              msg = "도면 시트 저장 완료: #{File.basename(r[:path])} (#{r[:pages]}장)"
+              msg += " — 이미지는 #{File.basename(r[:images_dir])} 폴더에 복사됨. DXF와 이 폴더를 함께 옮기세요." if r[:images_dir]
+              d.execute_script("kabinet.onSuccess(#{bridge.js(msg)})")
+            end
+          end
+        end
+      end
+
       def register_drawing_callbacks(d)
         # 가구 공통사항: 모델에 저장 + 모델 안 모든 Kabinet 가구 다시 생성
         d.add_action_callback('kabinet:common_apply') do |_ctx, raw|

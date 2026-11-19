@@ -823,3 +823,19 @@ details.ep-adv > summary { cursor: pointer; font-size: 11px; color: var(--text-d
 .di-paste { margin: 8px 0 12px; }
 .di-paste summary { cursor: pointer; font-size: 12px; }
 .di-paste textarea { width: 100%; box-sizing: border-box; margin: 6px 0; font: inherit; font-size: 11px; }
+
+/* 도면 시트(DXF) 페이지 목록 */
+.sh-pages { display: flex; flex-direction: column; gap: 4px; }
+.sh-row { display: flex; align-items: center; gap: 5px; padding: 4px 6px; border: 1px solid var(--border, #ddd); border-radius: 6px; background: var(--card-bg, #fff); font-size: 11px; }
+.sh-row.hidden-page { opacity: .5; }
+.sh-row.dragging { outline: 2px dashed var(--accent, #3b82f6); }
+.sh-handle { cursor: grab; color: var(--text-dim, #888); user-select: none; }
+.sh-no { width: 16px; text-align: right; color: var(--text-dim, #888); }
+.sh-type { min-width: 92px; font-weight: 600; }
+.sh-row input.sh-title { flex: 1; min-width: 90px; font: inherit; font-size: 11px; padding: 3px 4px; }
+.sh-row input.sh-small { width: 74px; font: inherit; font-size: 11px; padding: 3px 4px; }
+.sh-chk { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
+.sh-extra { margin: 0 0 4px 26px; padding: 6px 8px; border: 1px dashed var(--border, #ccc); border-radius: 6px; font-size: 11px; }
+.sh-img { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+.sh-img img { width: 44px; height: 34px; object-fit: cover; border: 1px solid #ccc; }
+.sh-img input { flex: 1; font: inherit; font-size: 11px; padding: 3px 4px; }

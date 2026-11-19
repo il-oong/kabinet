@@ -1,1 +1,3 @@
 *.rbz
+__pycache__/
+*.pyc

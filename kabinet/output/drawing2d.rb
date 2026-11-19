@@ -289,32 +289,7 @@ module Kabinet
         off = mount == 'inset' ? bt : 0.0
         doors.each do |d|
           rect(v, x + off + d[:x], z + off + d[:z], d[:w], d[:h], 'FRONTS')
-          # 개폐 방향 표시 (실무 관행: 힌지 반대쪽 꼭짓점에서 V자 사선)
-          # 양개(pair): 항상 바깥쪽 힌지 — role로 자동 판정.
-          # 단문(single): door_hinge_side 설정값 사용 (기본 left).
-          # 접이식(folding)은 경첩이 패널 사이에도 있어 단순 V자로 표현 불가 — 생략.
-          if (m['door_type'] || 'swing') == 'swing'
-            hinge_left =
-              if d[:role].to_s == 'door_pair_right'
-                false
-              elsif d[:role].to_s == 'door_pair_left'
-                true
-              else
-                (m['door_hinge_side'] || 'left') == 'left'
-              end
-            swing_mark(v, x + off + d[:x], z + off + d[:z], d[:w], d[:h], hinge_left)
-          end
-        end
-      end
-
-      # 여닫이 개폐 표시: 힌지측 상/하 꼭짓점 → 손잡이측 중앙 (V자 사선)
-      def swing_mark(v, x, z, w, h, hinge_left)
-        if hinge_left
-          line(v, x, z, x + w, z + h / 2.0, 'SYMBOL')
-          line(v, x, z + h, x + w, z + h / 2.0, 'SYMBOL')
-        else
-          line(v, x + w, z, x, z + h / 2.0, 'SYMBOL')
-          line(v, x + w, z + h, x, z + h / 2.0, 'SYMBOL')
+          # 도어는 단순 도어선만 그린다 (요청에 따라 여닫이 표시 제거)
         end
       end
 

@@ -1,0 +1,4 @@
+reference/*.dxf -diff linguist-generated
+reference/*.dwg binary
+reference/*.pdf binary
+reference/spec/*.md linguist-generated
