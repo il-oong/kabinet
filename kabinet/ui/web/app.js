@@ -1328,7 +1328,8 @@ const kabinet = (() => {
     { id: 'slab_thickness', label: '선택 판재 두께 → T 일괄 변경', hint: '판재나 가구 그룹을 선택하고 누르면 안의 판재가 모두 아래 두께로' },
     { id: 'face_panel',   label: '면 클릭 → 판재 만들기', hint: '면을 클릭해 판재 생성 / 그룹 안 판재 두께 변경' },
     { id: 'space_divide', label: '공간 균등 분할', hint: '캐비닛 안쪽 클릭 → 칸 수 입력 → 칸막이·도어 균등 분할' },
-    { id: 'countertop',   label: '주방 상판 설치', hint: '하부장들을 선택 → 규격·재질·높이 입력 → 상판 한 장' }
+    { id: 'countertop',   label: '주방 상판 설치', hint: '하부장들을 선택 → 규격·재질·높이 입력 → 상판 한 장' },
+    { id: 'door_toggle',  label: '도어 열기/닫기', hint: '선택한 Kabinet 가구(없으면 모델 전체)의 여닫이 도어를 열거나 닫기 — 툴바·메뉴와 같은 기능' }
   ];
   const SIDEBAR_OUTPUTS = [
     { id: 'furniture_drawing', label: '가구 도면 (LayOut)', hint: '선택한 가구 → A3 평면·정면·측면·컬러 입체도 + PDF' },
@@ -1354,6 +1355,7 @@ const kabinet = (() => {
         break;
       }
       case 'space_divide': callSketchup('kabinet:tool', JSON.stringify({ name: 'space_divide' })); break;
+      case 'door_toggle':  callSketchup('kabinet:tool', JSON.stringify({ name: 'door_toggle' })); break;
       case 'common':       showView('common'); renderCommonForm(); break;
       case 'ep_board':     showView('ep'); break;
       case 'countertop':   showView('countertop'); loadCountertopForm(); break;
