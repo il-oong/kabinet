@@ -206,6 +206,9 @@ module Kabinet
               d.execute_script("kabinet.onSuccess('공간 분할 도구 실행: 캐비닛 안쪽을 클릭하세요 (Esc: 종료)')")
             when 'regenerate'
               Kabinet::Commands::Regenerate.run
+            when 'door_toggle'
+              n = Kabinet::Commands::DoorToggle.run
+              d.execute_script("kabinet.onSuccess(#{JSON.generate("도어 열기/닫기 실행: 도어 #{n.to_i}개")})") if n.to_i > 0
             when 'slab_thickness'
               msg = Kabinet::Commands::SlabThickness.run(opts['thickness'])
               d.execute_script("kabinet.onSuccess(#{JSON.generate(msg)})")
