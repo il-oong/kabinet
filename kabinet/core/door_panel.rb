@@ -186,7 +186,7 @@ module Kabinet
 
         panel_grp = parent_entities.add_group
         panel_grp.transformation = local_tx
-        Kabinet::Persistence::Attributes.set_role(panel_grp, role, label: role)
+        Kabinet::Persistence::Attributes.set_role(panel_grp, role, label: role, hinge_side: @hinge_side)
 
         # 패널 바디 — 찬넬도 전판은 평판 (포켓은 몸통 쪽, Joinery.channel_rail)
         Kabinet::Geometry::Builder.box(

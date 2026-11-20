@@ -207,8 +207,32 @@ module Kabinet
             when 'regenerate'
               Kabinet::Commands::Regenerate.run
             when 'door_toggle'
-              n = Kabinet::Commands::DoorToggle.run
-              d.execute_script("kabinet.onSuccess(#{JSON.generate("도어 열기/닫기 실행: 도어 #{n.to_i}개")})") if n.to_i > 0
+              deg = Kabinet::Commands::DoorToggle.clamp_deg(opts['angle'])
+              n = Kabinet::Commands::DoorToggle.run(deg)
+              d.execute_script("kabinet.onSuccess(#{JSON.generate("도어 열기/닫기 실행: 도어 #{n.to_i}개 (열림 각도 #{deg.round(1)}°)")})") if n.to_i > 0
+            when 'door_angle'
+              deg = Kabinet::Commands::DoorToggle.clamp_deg(opts['angle'])
+              n = Kabinet::Commands::DoorToggle.reangle(deg)
+              if n > 0
+                d.execute_script("kabinet.onSuccess(#{JSON.generate("열려 있는 도어 #{n}개를 #{deg.round(1)}°로 바꿨습니다")})")
+              else
+                d.execute_script("kabinet.onError(#{JSON.generate('열려 있는 도어가 없습니다. 먼저 「도어 열기/닫기」로 여세요.')})")
+              end
+            when 'door_designate'
+              n = Kabinet::Commands::DoorToggle.designate(opts['side'])
+              if n > 0
+                side_ko = opts['side'].to_s == 'right' ? '오른쪽' : '왼쪽'
+                d.execute_script("kabinet.onSuccess(#{JSON.generate("도어로 지정했습니다: #{n}개 (경첩 #{side_ko})")})")
+              else
+                d.execute_script("kabinet.onError(#{JSON.generate('SketchUp 에서 도어로 쓸 그룹/컴포넌트를 먼저 선택하세요.')})")
+              end
+            when 'door_undesignate'
+              n = Kabinet::Commands::DoorToggle.undesignate
+              if n > 0
+                d.execute_script("kabinet.onSuccess(#{JSON.generate("도어 지정을 해제했습니다: #{n}개")})")
+              else
+                d.execute_script("kabinet.onError(#{JSON.generate('도어로 지정된 그룹/컴포넌트를 선택하세요.')})")
+              end
             when 'slab_thickness'
               msg = Kabinet::Commands::SlabThickness.run(opts['thickness'])
               d.execute_script("kabinet.onSuccess(#{JSON.generate(msg)})")
