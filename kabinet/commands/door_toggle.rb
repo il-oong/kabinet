@@ -57,18 +57,29 @@ module Kabinet
         e.is_a?(::Sketchup::Group) || e.is_a?(::Sketchup::ComponentInstance)
       end
 
-      def collect(entity, out)
+      # 도어(경첩 쪽이 정해진 그룹/컴포넌트)를 안쪽 끝까지 찾아 out 에 모은다.
+      # seen: 같은 정의(definition)를 여러 번 훑지 않도록 하는 방문 기록(컴포넌트 복제본이 많을 때 중복·지연 방지)
+      def collect(entity, out, seen = {})
         return unless instance?(entity) && entity.valid?
-        out << entity if side_of(entity)
+        out << entity if side_of(entity) && !out.include?(entity)
         ents = entity.respond_to?(:definition) ? entity.definition.entities : entity.entities
-        ents.each { |c| collect(c, out) }
+        key = entity.respond_to?(:definition) ? entity.definition : entity
+        return if seen[key]
+        seen[key] = true
+        ents.each { |c| collect(c, out, seen) }
+      end
+
+      # 선택이 없을 때 훑을 최상위 개체: 모든 그룹/컴포넌트(직접 만든 가구 안에 지정한 도어도 찾기 위해)
+      def top_level_roots(model)
+        model.entities.to_a.select { |e| instance?(e) }
       end
 
       def find_doors(model)
         roots = model.selection.to_a.select { |e| instance?(e) }
-        roots = model.entities.to_a.select { |e| instance?(e) && (Kabinet::Persistence::Attributes.assembly?(e) || designated_side(e)) } if roots.empty?
+        roots = top_level_roots(model) if roots.empty?
         doors = []
-        roots.each { |e| collect(e, doors) }
+        seen = {}
+        roots.each { |e| collect(e, doors, seen) }
         doors
       end
 
@@ -124,10 +135,7 @@ module Kabinet
       end
 
       def run(deg = OPEN_DEG, model: Sketchup.active_model)
-        roots = model.selection.to_a.select { |e| instance?(e) }
-        roots = model.entities.to_a.select { |e| instance?(e) && (Kabinet::Persistence::Attributes.assembly?(e) || designated_side(e)) } if roots.empty?
-        doors = []
-        roots.each { |e| collect(e, doors) }
+        doors = find_doors(model)
         if doors.empty?
           ::UI.messagebox(NOT_FOUND_MSG)
           return 0

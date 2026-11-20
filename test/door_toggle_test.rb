@@ -8,12 +8,26 @@ module Kabinet
     end
   end
 end
+module Sketchup
+  class Group; end
+  class ComponentInstance; end
+end
 require_relative '../kabinet/commands/door_toggle'
 D = Kabinet::Commands::DoorToggle
 def assert(v, m); raise m unless v; end
 class FakeEnt
   attr_reader :attrs
   def initialize(attrs = {}); @attrs = attrs; end
+end
+# 그룹 흉내: entities(하위 개체)와 attrs. Sketchup::Group 을 상속해 instance? 를 통과한다.
+class FakeGroup < Sketchup::Group
+  attr_reader :attrs, :entities
+  def initialize(attrs = {}, children = []); @attrs = attrs; @entities = children; end
+  def valid?; true; end
+end
+class FakeModel
+  attr_reader :entities, :selection
+  def initialize(entities, selection = []); @entities = entities; @selection = selection; end
 end
 
 assert D.hinge_side('door_single') == :left && D.hinge_side('door_pair_left') == :left, 'left hinge'
@@ -39,4 +53,20 @@ assert D.side_of(FakeEnt.new('role' => 'panel', 'door_hinge' => 'right')) == :ri
 assert D.side_of(FakeEnt.new('role' => 'door_single', 'door_hinge' => 'right')) == :right, 'designation overrides role'
 assert D.side_of(FakeEnt.new('door_hinge' => 'left')) == :left, 'designated left without role'
 assert D.designated_side(FakeEnt.new('door_hinge' => 'bogus')).nil?, 'bogus designation ignored'
+
+# 선택이 없을 때: 직접 만든 일반 캐비닛 그룹 안(중첩)의 지정 도어도 찾아야 한다
+door  = FakeGroup.new('door_hinge' => 'left')
+shelf = FakeGroup.new({}, [FakeGroup.new({})])
+cab   = FakeGroup.new({ 'label' => 'custom' }, [shelf, door])      # 지정도 role 도 없는 일반 그룹
+other = FakeGroup.new({}, [FakeGroup.new('role' => 'door_pair_right')])
+plain = FakeGroup.new({})
+model = FakeModel.new([cab, other, plain, FakeEnt.new])           # FakeEnt 는 그룹이 아님 → 무시
+assert D.top_level_roots(model).size == 3, 'top-level roots are all groups'
+found = D.find_doors(model)
+assert found.include?(door) && found.size == 2, 'nested designated + role door found without selection: ' + found.size.to_s
+# 선택이 있으면 선택한 것만
+assert D.find_doors(FakeModel.new([cab, other], [other])).size == 1, 'selection limits search'
+# 같은 정의를 가리키는 중복 방문 없이 도어는 한 번만
+dup = FakeGroup.new({}, [door])
+assert D.find_doors(FakeModel.new([dup, dup])).size == 1, 'no duplicates'
 puts 'door_toggle_test: OK'
