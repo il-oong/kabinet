@@ -1329,7 +1329,10 @@ const kabinet = (() => {
     { id: 'face_panel',   label: '면 클릭 → 판재 만들기', hint: '면을 클릭해 판재 생성 / 그룹 안 판재 두께 변경' },
     { id: 'space_divide', label: '공간 균등 분할', hint: '캐비닛 안쪽 클릭 → 칸 수 입력 → 칸막이·도어 균등 분할' },
     { id: 'countertop',   label: '주방 상판 설치', hint: '하부장들을 선택 → 규격·재질·높이 입력 → 상판 한 장' },
-    { id: 'door_toggle',  label: '도어 열기/닫기', hint: '선택한 Kabinet 가구(없으면 모델 전체)의 여닫이 도어를 열거나 닫기 — 툴바·메뉴와 같은 기능' }
+    { id: 'door_toggle',  label: '도어 열기/닫기', hint: '선택한 가구(없으면 모델 전체)의 여닫이 도어를 열거나 닫기 — 아래 열림 각도로 엽니다' },
+    { id: 'door_angle',   label: '열린 도어 각도 적용', hint: '이미 열려 있는 도어를 아래 열림 각도로 다시 열기' },
+    { id: 'door_designate',   label: '선택 → 도어 지정', hint: '직접 만든 도어 그룹/컴포넌트를 선택하고 누르면 열기/닫기 대상이 됩니다(경첩 쪽 선택)' },
+    { id: 'door_undesignate', label: '도어 지정 해제', hint: '도어로 지정한 그룹/컴포넌트를 선택하고 누르면 해제' }
   ];
   const SIDEBAR_OUTPUTS = [
     { id: 'furniture_drawing', label: '가구 도면 (LayOut)', hint: '선택한 가구 → A3 평면·정면·측면·컬러 입체도 + PDF' },
@@ -1355,7 +1358,10 @@ const kabinet = (() => {
         break;
       }
       case 'space_divide': callSketchup('kabinet:tool', JSON.stringify({ name: 'space_divide' })); break;
-      case 'door_toggle':  callSketchup('kabinet:tool', JSON.stringify({ name: 'door_toggle' })); break;
+      case 'door_toggle':  callSketchup('kabinet:tool', JSON.stringify({ name: 'door_toggle', angle: _doorAngle() })); break;
+      case 'door_angle':   callSketchup('kabinet:tool', JSON.stringify({ name: 'door_angle', angle: _doorAngle() })); break;
+      case 'door_designate':   callSketchup('kabinet:tool', JSON.stringify({ name: 'door_designate', side: _doorSide() })); break;
+      case 'door_undesignate': callSketchup('kabinet:tool', JSON.stringify({ name: 'door_undesignate' })); break;
       case 'common':       showView('common'); renderCommonForm(); break;
       case 'ep_board':     showView('ep'); break;
       case 'countertop':   showView('countertop'); loadCountertopForm(); break;
@@ -1483,6 +1489,16 @@ const kabinet = (() => {
       let inner = '';
       tools.forEach(t => {
         inner += actionBtn(t);
+        if (t.id === 'door_toggle') {
+          inner += '<label class="sb-inline">열림 각도 <input type="number" id="tool-door-angle" min="5" max="175" step="1" ' +
+                   `value="${escAttr(_doorAngleStored())}"> °</label>`;
+        }
+        if (t.id === 'door_designate') {
+          const side = _doorSideStored();
+          inner += '<label class="sb-inline">경첩 쪽 <select id="tool-door-side">' +
+                   `<option value="left"${side === 'left' ? ' selected' : ''}>왼쪽</option>` +
+                   `<option value="right"${side === 'right' ? ' selected' : ''}>오른쪽</option></select></label>`;
+        }
         if (t.id === 'slab_thickness') {
           inner += '<label class="sb-inline">패널 두께 <input type="number" id="tool-thickness" min="3" max="100" step="1" ' +
                    `value="${escAttr(_toolThickness())}"> T</label>`;
@@ -1532,6 +1548,15 @@ const kabinet = (() => {
     const tt = document.getElementById('tool-thickness');
     if (tt) tt.addEventListener('change', () => {
       try { localStorage.setItem('kabinet.toolThickness', tt.value); } catch (e) {}
+    });
+    const da = document.getElementById('tool-door-angle');
+    if (da) da.addEventListener('change', () => {
+      try { localStorage.setItem('kabinet.doorAngle', String(_doorAngle())); } catch (e) {}
+      da.value = _doorAngle();
+    });
+    const ds = document.getElementById('tool-door-side');
+    if (ds) ds.addEventListener('change', () => {
+      try { localStorage.setItem('kabinet.doorSide', ds.value); } catch (e) {}
     });
   }
 
@@ -1679,6 +1704,24 @@ const kabinet = (() => {
   function setLibrary(items) {
     furnitureLibrary = Array.isArray(items) ? items : [];
     renderPresetSidebar();
+  }
+
+  // 도어 열림 각도(5~175°, 기본 80) · 지정할 경첩 쪽(left/right) — 입력창 값 우선, 없으면 저장값
+  function _doorAngleStored() {
+    try { return localStorage.getItem('kabinet.doorAngle') || '80'; } catch (e) { return '80'; }
+  }
+  function _doorAngle() {
+    const el = document.getElementById('tool-door-angle');
+    let v = parseFloat(el ? el.value : _doorAngleStored());
+    if (!isFinite(v) || v <= 0) v = 80;
+    return Math.min(175, Math.max(5, v));
+  }
+  function _doorSideStored() {
+    try { return localStorage.getItem('kabinet.doorSide') === 'right' ? 'right' : 'left'; } catch (e) { return 'left'; }
+  }
+  function _doorSide() {
+    const el = document.getElementById('tool-door-side');
+    return (el ? el.value : _doorSideStored()) === 'right' ? 'right' : 'left';
   }
 
   function _toolThickness() {
