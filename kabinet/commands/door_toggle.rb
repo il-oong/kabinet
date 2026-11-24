@@ -193,6 +193,17 @@ module Kabinet
         side == :left ? edge_min : edge_max
       end
 
+      # 형제 상자들 중 도어와 겹치는 것만 골라 x 범위 [min, max] 로 합친다(없으면 nil).
+      # 먼저 합치면 멀리 있는 무관한 개체 때문에 범위가 도어 밖으로 퍼지므로, 합치기 전에 걸러낸다.
+      # boxes: [[xmin, xmax, zmin, zmax], ...]  — 도어와 x·z 범위가 모두 겹치는 것만 같은 몸통으로 본다.
+      def body_x_range(edge_min, edge_max, z_min, z_max, boxes)
+        near = boxes.select do |x0, x1, z0, z1|
+          x1 > edge_min && x0 < edge_max && z1 > z_min && z0 < z_max
+        end
+        return nil if near.empty?
+        [near.map(&:first).min, near.map { |b| b[1] }.max]
+      end
+
       # 같은 부모 안의 도어가 아닌 형제 개체(직접 만든 가구의 몸통)의 x 범위 [min, max], 없으면 nil
       def sibling_x_range(door)
         parent = door.respond_to?(:parent) ? door.parent : nil
@@ -201,9 +212,9 @@ module Kabinet
           e.equal?(door) || !e.respond_to?(:bounds) || (instance?(e) && side_of(e))
         end
         return nil if others.empty?
-        bb = ::Geom::BoundingBox.new
-        others.each { |e| bb.add(e.bounds) }
-        bb.empty? ? nil : [bb.min.x, bb.max.x]
+        db = door.bounds
+        boxes = others.map { |e| b = e.bounds; [b.min.x, b.max.x, b.min.z, b.max.z] }
+        body_x_range(db.min.x, db.max.x, db.min.z, db.max.z, boxes)
       rescue StandardError
         nil
       end

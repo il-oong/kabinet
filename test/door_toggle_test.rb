@@ -130,4 +130,16 @@ t = 20.0
   assert (back[0] - line_x).abs < 1e-9, "#{side}: back face stays on body line"
   assert (front[0] - (line_x + out * t)).abs < 1e-9 && front[1].abs < 1e-9, "#{side}: door swings outside body line"
 end
+
+# 형제 상자: 도어와 겹치는 것만 합친다(멀리 있는 무관한 개체가 범위를 넓히면 안 됨)
+far = [[-200.0, -100.0, 0.0, 80.0], [200.0, 300.0, 0.0, 80.0]]
+assert D.body_x_range(10.0, 90.0, 0.0, 80.0, far).nil?, 'far siblings -> nil'
+body = [0.0, 100.0, 0.0, 80.0]
+assert D.body_x_range(10.0, 90.0, 0.0, 80.0, far + [body]) == [0.0, 100.0], 'only overlapping body counts'
+assert D.body_x_range(10.0, 90.0, 0.0, 80.0, [[0.0, 50.0, 0.0, 80.0], [60.0, 100.0, 0.0, 80.0]]) == [0.0, 100.0], 'two overlapping bodies merge'
+assert D.body_x_range(10.0, 90.0, 0.0, 80.0, [[0.0, 100.0, 100.0, 180.0]]).nil?, 'stacked-above body (no z overlap) ignored'
+assert D.body_x_range(10.0, 90.0, 0.0, 80.0, []).nil?, 'no boxes -> nil'
+# 걸러낸 결과가 hinge_line 으로 이어졌을 때 먼 개체 위치로 축이 가지 않는다
+rng = D.body_x_range(10.0, 90.0, 0.0, 80.0, far)
+assert D.hinge_line(:left, 10.0, 90.0, nil, nil, rng) == 10.0, 'fallback to door edge when no overlapping body'
 puts 'door_toggle_test: OK'
