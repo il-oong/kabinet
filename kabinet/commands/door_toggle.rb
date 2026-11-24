@@ -178,11 +178,44 @@ module Kabinet
         doors.size
       end
 
+      # 경첩 축의 x(부모 좌표): 90°로 열었을 때 도어 안쪽 면이 '몸통 외면 선'에 맞도록 축을 몸통 선에 둔다.
+      # 우선순위: ① Kabinet 도어가 저장한 몸통 선(body_x0/body_x1, 도어 그룹 좌표) ② 같은 부모 안의 도어 아닌 형제 개체의
+      #           경첩 쪽 끝(직접 만든 가구) ③ 도어 자신의 경첩 쪽 모서리(이전 동작)
+      # 인자: edge_min/edge_max = 도어 bounds 의 x 범위, sibling = 형제 개체 범위(없으면 nil)
+      def hinge_line(side, edge_min, edge_max, body_x0 = nil, body_x1 = nil, sibling = nil)
+        v = side == :left ? body_x0 : body_x1
+        return v.to_f if v.is_a?(Numeric)
+        if sibling
+          lo, hi = sibling
+          overlap = hi > edge_min && lo < edge_max          # 도어와 x 범위가 겹치는 몸통일 때만
+          return (side == :left ? lo : hi) if overlap
+        end
+        side == :left ? edge_min : edge_max
+      end
+
+      # 같은 부모 안의 도어가 아닌 형제 개체(직접 만든 가구의 몸통)의 x 범위 [min, max], 없으면 nil
+      def sibling_x_range(door)
+        parent = door.respond_to?(:parent) ? door.parent : nil
+        return nil unless parent && parent.respond_to?(:entities)
+        others = parent.entities.to_a.reject do |e|
+          e.equal?(door) || !e.respond_to?(:bounds) || (instance?(e) && side_of(e))
+        end
+        return nil if others.empty?
+        bb = ::Geom::BoundingBox.new
+        others.each { |e| bb.add(e.bounds) }
+        bb.empty? ? nil : [bb.min.x, bb.max.x]
+      rescue StandardError
+        nil
+      end
+
       def open_door(d, deg = OPEN_DEG)
         return if Kabinet::Persistence::Attributes.get(d, 'door_open')
         side = side_of(d)
         b = d.bounds   # 부모(도어 그룹) 좌표
-        pivot = ::Geom::Point3d.new(side == :left ? b.min.x : b.max.x, b.max.y, b.min.z)
+        px = hinge_line(side, b.min.x, b.max.x,
+                        Kabinet::Persistence::Attributes.get(d, 'body_x0'),
+                        Kabinet::Persistence::Attributes.get(d, 'body_x1'), sibling_x_range(d))
+        pivot = ::Geom::Point3d.new(px, b.max.y, b.min.z)
         Kabinet::Persistence::Attributes.set(d, 'closed_tx', d.transformation.to_a)
         Kabinet::Persistence::Attributes.set(d, 'door_open', true)
         Kabinet::Persistence::Attributes.set(d, 'door_open_deg', clamp_deg(deg))

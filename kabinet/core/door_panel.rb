@@ -186,7 +186,9 @@ module Kabinet
 
         panel_grp = parent_entities.add_group
         panel_grp.transformation = local_tx
-        Kabinet::Persistence::Attributes.set_role(panel_grp, role, label: role, hinge_side: @hinge_side)
+        # body_x0/body_x1: 몸통 좌/우 외면 선(도어 그룹 좌표, in) — 도어를 열 때 경첩 축을 이 선에 둬서 90°에서 몸통 선에 맞춘다
+        Kabinet::Persistence::Attributes.set_role(panel_grp, role, label: role, hinge_side: @hinge_side,
+                                                  body_x0: 0.0, body_x1: (2 * @x_origin + @opening_width).to_f)
 
         # 패널 바디 — 찬넬도 전판은 평판 (포켓은 몸통 쪽, Joinery.channel_rail)
         Kabinet::Geometry::Builder.box(
