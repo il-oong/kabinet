@@ -210,6 +210,10 @@ module Kabinet
               deg = Kabinet::Commands::DoorToggle.clamp_deg(opts['angle'])
               n = Kabinet::Commands::DoorToggle.run(deg)
               d.execute_script("kabinet.onSuccess(#{JSON.generate("도어 열기/닫기 실행: 도어 #{n.to_i}개 (열림 각도 #{deg.round(1)}°)")})") if n.to_i > 0
+            when 'door_click'
+              deg = Kabinet::Commands::DoorToggle.clamp_deg(opts['angle'])
+              model.select_tool(Kabinet::UI::DoorClickTool.new(deg))
+              d.execute_script("kabinet.onSuccess(#{JSON.generate("도어 클릭 토글 도구 실행: 도어를 클릭하세요 (Shift+클릭: 같은 가구 전체, Esc: 종료, 열림 #{deg.round(1)}°)")})")
             when 'door_angle'
               deg = Kabinet::Commands::DoorToggle.clamp_deg(opts['angle'])
               n = Kabinet::Commands::DoorToggle.reangle(deg)

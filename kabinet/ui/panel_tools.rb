@@ -505,5 +505,114 @@ module Kabinet
           end
       end
     end
+    # ── 도어 클릭 토글: 도어를 클릭하면 그 도어만 열리고/닫힌다 ───────────────
+    # 클릭: 그 도어 한 장 · Shift+클릭: 같은 가구(최상위 그룹)의 모든 도어 · Esc: 종료
+    # 대상: 여닫이 도어(Kabinet 가구)와 '도어 지정'한 그룹/컴포넌트. 열림 각도는 호출할 때 받는다.
+    class DoorClickTool
+      def initialize(deg = Kabinet::Commands::DoorToggle::OPEN_DEG)
+        @deg = Kabinet::Commands::DoorToggle.clamp_deg(deg)
+        @door = nil
+        @parents = []
+        @key = nil
+        @message = nil
+      end
+
+      def activate
+        update_status
+        Sketchup.active_model.active_view.invalidate
+      end
+
+      def deactivate(view)
+        view.invalidate
+      end
+
+      def resume(view)
+        update_status
+        view.invalidate
+      end
+
+      def onCancel(_reason, _view)
+        Sketchup.active_model.select_tool(nil)
+      end
+
+      def onMouseMove(_flags, x, y, view)
+        pick(view, x, y)
+        update_status
+        view.invalidate
+      rescue StandardError => e
+        @door = nil
+        @message = e.message
+        view.invalidate
+      end
+
+      def onLButtonDown(flags, x, y, view)
+        pick(view, x, y)
+        unless @door
+          @message = '도어가 아닙니다 — 도어를 클릭하세요 (직접 만든 도어는 먼저 「선택 → 도어 지정」)'
+          update_status
+          return
+        end
+        all = (flags & CONSTRAIN_MODIFIER_MASK) != 0
+        doors = all && @parents.first ? collect_under(@parents.first) : [@door]
+        doors = [@door] if doors.empty?
+        closing = Kabinet::Commands::DoorToggle.toggle(doors, @deg, model: view.model)
+        @message = "도어 #{doors.size}개를 #{closing ? '닫았습니다' : '열었습니다'}"
+        update_status
+        view.invalidate
+      rescue StandardError => e
+        @message = e.message
+        update_status
+      end
+
+      def draw(view)
+        return unless @door && @door.valid?
+        tr = @parents.inject(::Geom::Transformation.new) { |t, e| t * e.transformation }
+        b = @door.bounds
+        corners = (0..7).map do |i|
+          ::Geom::Point3d.new((i >> 2) & 1 == 0 ? b.min.x : b.max.x,
+                              (i >> 1) & 1 == 0 ? b.min.y : b.max.y,
+                              i & 1 == 0 ? b.min.z : b.max.z).transform(tr)
+        end
+        Highlight.fill_box(view, corners, Highlight::DOOR)
+        view.line_width = 2
+        view.line_stipple = ''
+        view.drawing_color = ::Sketchup::Color.new(40, 170, 90)
+        [[0, 1, 3, 2], [4, 5, 7, 6]].each { |q| view.draw(GL_LINE_LOOP, q.map { |i| corners[i] }) }
+        [[0, 4], [1, 5], [2, 6], [3, 7]].each { |a, c| view.draw(GL_LINES, [corners[a], corners[c]]) }
+      rescue StandardError
+        nil
+      end
+
+      private
+
+      def pick(view, x, y)
+        ph = view.pick_helper
+        ph.do_pick(x, y)
+        found = Kabinet::Commands::DoorToggle.door_in_path(ph.path_at(0))
+        key = found ? found[0].entityID : nil
+        return if key == @key && (found.nil? || @door)
+        @key = key
+        @door, @parents = found ? [found[0], found[1]] : [nil, []]
+        @message = nil
+      end
+
+      def collect_under(root)
+        out = []
+        Kabinet::Commands::DoorToggle.collect(root, out)
+        out
+      end
+
+      def update_status
+        open_now = @door && Kabinet::Persistence::Attributes.get(@door, 'door_open')
+        Sketchup.status_text =
+          if @message
+            @message + ' · 클릭: 도어 · Shift+클릭: 같은 가구 전체 · Esc: 종료'
+          elsif @door
+            "도어 #{open_now ? '닫기' : '열기'} (#{@deg.round(1)}°) — 클릭: 이 도어 · Shift+클릭: 같은 가구의 모든 도어 · Esc: 종료"
+          else
+            "[도어 클릭 토글] 도어를 가리키세요 · 클릭: 열기/닫기 · Shift+클릭: 같은 가구 전체 · Esc: 종료"
+          end
+      end
+    end
   end
 end

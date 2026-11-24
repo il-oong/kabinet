@@ -69,4 +69,21 @@ assert D.find_doors(FakeModel.new([cab, other], [other])).size == 1, 'selection 
 # 같은 정의를 가리키는 중복 방문 없이 도어는 한 번만
 dup = FakeGroup.new({}, [door])
 assert D.find_doors(FakeModel.new([dup, dup])).size == 1, 'no duplicates'
+
+# 클릭 도구: 경로(루트→말단)에서 가장 안쪽 도어와 그 부모 인스턴스 찾기
+class FakeFace; end   # 면/엣지 등 인스턴스가 아닌 개체 흉내
+door2 = FakeGroup.new('role' => 'door_pair_left', 'x' => 1)
+handle = FakeGroup.new('role' => 'handle_knob')
+cab2 = FakeGroup.new({}, [door2])
+r = D.door_in_path([cab2, door2, handle, FakeFace.new])      # 손잡이/면을 눌러도 도어를 찾는다
+assert r && r[0].equal?(door2) && r[1].size == 1 && r[1][0].equal?(cab2), 'door in path with parents'
+assert D.door_in_path([cab2, FakeGroup.new({}), FakeFace.new]).nil?, 'no door in path'
+assert D.door_in_path(nil).nil? && D.door_in_path([]).nil?, 'empty path'
+# 안쪽 도어가 우선(도어 안의 도어는 가장 안쪽)
+inner = FakeGroup.new('door_hinge' => 'right')
+outer = FakeGroup.new({ 'door_hinge' => 'left' }, [inner])
+assert D.door_in_path([outer, inner])[0].equal?(inner), 'innermost door wins'
+# 열기/닫기 판단: 하나라도 열려 있으면 닫기
+assert D.closing?([FakeGroup.new('door_open' => false), FakeGroup.new('door_open' => true)]), 'any open -> closing'
+assert !D.closing?([FakeGroup.new({}), FakeGroup.new('door_open' => false)]), 'all closed -> opening'
 puts 'door_toggle_test: OK'

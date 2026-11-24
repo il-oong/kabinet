@@ -1330,6 +1330,7 @@ const kabinet = (() => {
     { id: 'space_divide', label: '공간 균등 분할', hint: '캐비닛 안쪽 클릭 → 칸 수 입력 → 칸막이·도어 균등 분할' },
     { id: 'countertop',   label: '주방 상판 설치', hint: '하부장들을 선택 → 규격·재질·높이 입력 → 상판 한 장' },
     { id: 'door_toggle',  label: '도어 열기/닫기', hint: '선택한 가구(없으면 모델 전체)의 여닫이 도어를 열거나 닫기 — 아래 열림 각도로 엽니다' },
+    { id: 'door_click',   label: '도어 클릭 열기/닫기 도구', hint: '모델에서 도어를 클릭하면 그 도어만 열리고 닫힘 · Shift+클릭: 같은 가구의 모든 도어 · Esc: 종료' },
     { id: 'door_angle',   label: '열린 도어 각도 적용', hint: '이미 열려 있는 도어를 아래 열림 각도로 다시 열기' },
     { id: 'door_designate',   label: '선택 → 도어 지정', hint: '직접 만든 도어 그룹/컴포넌트를 선택하고 누르면 열기/닫기 대상이 됩니다(경첩 쪽 선택)' },
     { id: 'door_undesignate', label: '도어 지정 해제', hint: '도어로 지정한 그룹/컴포넌트를 선택하고 누르면 해제' }
@@ -1359,6 +1360,7 @@ const kabinet = (() => {
       }
       case 'space_divide': callSketchup('kabinet:tool', JSON.stringify({ name: 'space_divide' })); break;
       case 'door_toggle':  callSketchup('kabinet:tool', JSON.stringify({ name: 'door_toggle', angle: _doorAngle() })); break;
+      case 'door_click':   callSketchup('kabinet:tool', JSON.stringify({ name: 'door_click', angle: _doorAngle() })); break;
       case 'door_angle':   callSketchup('kabinet:tool', JSON.stringify({ name: 'door_angle', angle: _doorAngle() })); break;
       case 'door_designate':   callSketchup('kabinet:tool', JSON.stringify({ name: 'door_designate', side: _doorSide() })); break;
       case 'door_undesignate': callSketchup('kabinet:tool', JSON.stringify({ name: 'door_undesignate' })); break;
