@@ -107,4 +107,39 @@ assert D.door_in_path([FakeFace.new], [active]).nil?, 'prefix alone is not a doo
 # 편집 중인 그룹 자체가 지정 도어이고 그 안의 면을 클릭해도 그 도어를 찾는다
 edited_door = FakeGroup.new('door_hinge' => 'right')
 assert D.door_in_path([FakeFace.new], [edited_door])[0].equal?(edited_door), 'editing inside a door'
+
+# 경첩 축: 몸통 선(속성) > 형제 몸통의 끝 > 도어 모서리(이전 동작)
+assert D.hinge_line(:left, 10.0, 90.0, 0.0, 100.0) == 0.0, 'left hinge on body line x0'
+assert D.hinge_line(:right, 10.0, 90.0, 0.0, 100.0) == 100.0, 'right hinge on body line x1'
+assert D.hinge_line(:left, 10.0, 90.0) == 10.0 && D.hinge_line(:right, 10.0, 90.0) == 90.0, 'fallback door edge'
+assert D.hinge_line(:left, 10.0, 90.0, nil, nil, [0.0, 100.0]) == 0.0, 'sibling body left'
+assert D.hinge_line(:right, 10.0, 90.0, nil, nil, [0.0, 100.0]) == 100.0, 'sibling body right'
+assert D.hinge_line(:left, 10.0, 90.0, nil, nil, [200.0, 300.0]) == 10.0, 'far sibling ignored'
+assert D.hinge_line(:left, 10.0, 90.0, 'x', nil, [0.0, 100.0]) == 0.0, 'non-numeric attr -> sibling'
+
+# 90° 에서 도어 안쪽(뒤) 면이 몸통 선과 같은 평면: 축=(x_line, 뒤쪽 y), 도어 앞면 모서리는 바깥으로 두께만큼
+def rot2(px, py, x, y, a)   # (x,y) 를 (px,py) 중심으로 a 라디안(반시계 +) 회전
+  dx = x - px; dy = y - py
+  [px + dx * Math.cos(a) - dy * Math.sin(a), py + dx * Math.sin(a) + dy * Math.cos(a)]
+end
+t = 20.0
+[[:left, 0.0, -1.0], [:right, 100.0, 1.0]].each do |side, line_x, out|
+  a = D.open_angle(side, 90)
+  back  = rot2(line_x, 0.0, line_x, 0.0, a)                  # 뒤쪽 모서리(축)
+  front = rot2(line_x, 0.0, line_x, -t, a)                   # 앞쪽 모서리
+  assert (back[0] - line_x).abs < 1e-9, "#{side}: back face stays on body line"
+  assert (front[0] - (line_x + out * t)).abs < 1e-9 && front[1].abs < 1e-9, "#{side}: door swings outside body line"
+end
+
+# 형제 상자: 도어와 겹치는 것만 합친다(멀리 있는 무관한 개체가 범위를 넓히면 안 됨)
+far = [[-200.0, -100.0, 0.0, 80.0], [200.0, 300.0, 0.0, 80.0]]
+assert D.body_x_range(10.0, 90.0, 0.0, 80.0, far).nil?, 'far siblings -> nil'
+body = [0.0, 100.0, 0.0, 80.0]
+assert D.body_x_range(10.0, 90.0, 0.0, 80.0, far + [body]) == [0.0, 100.0], 'only overlapping body counts'
+assert D.body_x_range(10.0, 90.0, 0.0, 80.0, [[0.0, 50.0, 0.0, 80.0], [60.0, 100.0, 0.0, 80.0]]) == [0.0, 100.0], 'two overlapping bodies merge'
+assert D.body_x_range(10.0, 90.0, 0.0, 80.0, [[0.0, 100.0, 100.0, 180.0]]).nil?, 'stacked-above body (no z overlap) ignored'
+assert D.body_x_range(10.0, 90.0, 0.0, 80.0, []).nil?, 'no boxes -> nil'
+# 걸러낸 결과가 hinge_line 으로 이어졌을 때 먼 개체 위치로 축이 가지 않는다
+rng = D.body_x_range(10.0, 90.0, 0.0, 80.0, far)
+assert D.hinge_line(:left, 10.0, 90.0, nil, nil, rng) == 10.0, 'fallback to door edge when no overlapping body'
 puts 'door_toggle_test: OK'
