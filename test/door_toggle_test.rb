@@ -24,6 +24,7 @@ class FakeGroup < Sketchup::Group
   attr_reader :attrs, :entities
   def initialize(attrs = {}, children = []); @attrs = attrs; @entities = children; end
   def valid?; true; end
+  def entityID; object_id; end
 end
 class FakeModel
   attr_reader :entities, :selection
@@ -86,4 +87,24 @@ assert D.door_in_path([outer, inner])[0].equal?(inner), 'innermost door wins'
 # 열기/닫기 판단: 하나라도 열려 있으면 닫기
 assert D.closing?([FakeGroup.new('door_open' => false), FakeGroup.new('door_open' => true)]), 'any open -> closing'
 assert !D.closing?([FakeGroup.new({}), FakeGroup.new('door_open' => false)]), 'all closed -> opening'
+
+# 같은 컴포넌트의 두 인스턴스: 같은 도어 개체라도 부모 경로가 다르면 호버 키가 달라야 한다
+shared_door = FakeGroup.new('role' => 'door_single')
+inst_a = FakeGroup.new({}, [shared_door])
+inst_b = FakeGroup.new({}, [shared_door])
+fa = D.door_in_path([inst_a, shared_door])
+fb = D.door_in_path([inst_b, shared_door])
+assert fa[0].equal?(fb[0]), 'same door entity'
+assert D.pick_key(fa) != D.pick_key(fb), 'pick key differs by parent instance'
+assert D.pick_key(fa) == D.pick_key(D.door_in_path([inst_a, shared_door])), 'same pick same key'
+assert D.pick_key(nil).nil?, 'no door -> nil key'
+# 편집 중인 그룹(active_path) 안을 클릭: PickHelper 경로에는 편집 중인 조상이 없다 → prefix 로 보완
+active = FakeGroup.new({}, [shared_door])
+fp = D.door_in_path([shared_door], [active])
+assert fp && fp[0].equal?(shared_door) && fp[1].size == 1 && fp[1][0].equal?(active), 'active path becomes parent'
+assert D.door_in_path([shared_door], nil)[1].empty?, 'no prefix -> no parents'
+assert D.door_in_path([FakeFace.new], [active]).nil?, 'prefix alone is not a door'
+# 편집 중인 그룹 자체가 지정 도어이고 그 안의 면을 클릭해도 그 도어를 찾는다
+edited_door = FakeGroup.new('door_hinge' => 'right')
+assert D.door_in_path([FakeFace.new], [edited_door])[0].equal?(edited_door), 'editing inside a door'
 puts 'door_toggle_test: OK'

@@ -588,8 +588,8 @@ module Kabinet
       def pick(view, x, y)
         ph = view.pick_helper
         ph.do_pick(x, y)
-        found = Kabinet::Commands::DoorToggle.door_in_path(ph.path_at(0))
-        key = found ? found[0].entityID : nil
+        found = Kabinet::Commands::DoorToggle.door_in_path(ph.path_at(0), view.model.active_path)
+        key = Kabinet::Commands::DoorToggle.pick_key(found)
         return if key == @key && (found.nil? || @door)
         @key = key
         @door, @parents = found ? [found[0], found[1]] : [nil, []]
