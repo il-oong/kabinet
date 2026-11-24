@@ -13,7 +13,7 @@ const assert = (ok, m) => { if (!ok) throw new Error(m); };
   await page.goto('file://' + path.resolve(__dirname, '../kabinet/ui/web/index.html'));
   await page.waitForTimeout(300);
   const labels = await page.$$eval('.sb-tools .sb-action, .sb-tools button', els => els.map(e => e.textContent.trim()));
-  for (const l of ['도어 열기/닫기', '열린 도어 각도 적용', '선택 → 도어 지정', '도어 지정 해제']) {
+  for (const l of ['도어 열기/닫기', '도어 클릭 열기/닫기 도구', '열린 도어 각도 적용', '선택 → 도어 지정', '도어 지정 해제']) {
     assert(labels.some(x => x.includes(l)), '사이드바 항목 없음: ' + l + ' / ' + labels.join('|'));
   }
   assert(await page.inputValue('#tool-door-angle') === '80', '기본 각도 80');
@@ -22,6 +22,8 @@ const assert = (ok, m) => { if (!ok) throw new Error(m); };
   await page.dispatchEvent('#tool-door-angle', 'change');
   await page.evaluate(() => kabinet.runSidebarAction('door_toggle'));
   let c = await last(); assert(c.name === 'door_toggle' && c.angle === 110, 'toggle angle 110: ' + JSON.stringify(c));
+  await page.evaluate(() => kabinet.runSidebarAction('door_click'));
+  c = await last(); assert(c.name === 'door_click' && c.angle === 110, 'click tool angle: ' + JSON.stringify(c));
   await page.evaluate(() => kabinet.runSidebarAction('door_angle'));
   c = await last(); assert(c.name === 'door_angle' && c.angle === 110, 'angle apply: ' + JSON.stringify(c));
   await page.fill('#tool-door-angle', '999');

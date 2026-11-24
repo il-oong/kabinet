@@ -69,6 +69,40 @@ module Kabinet
         ents.each { |c| collect(c, out, seen) }
       end
 
+      # 클릭/호버로 얻은 경로(루트→말단)에서 가장 안쪽 도어를 찾는다.
+      # prefix: 편집 중인 컨텍스트(model.active_path, 루트→활성 그룹). PickHelper 의 경로는 활성 엔티티부터 시작하므로
+      #         편집 중인 그룹 안을 클릭하면 조상이 빠진다 — 앞에 붙여서 월드 변환·'같은 가구 전체'가 맞게 한다.
+      # 반환: [도어, 도어의 부모 인스턴스들(루트→부모)] 또는 nil
+      def door_in_path(path, prefix = nil)
+        list = (prefix || []).to_a + (path || []).to_a
+        idx = (list.size - 1).downto(0).find { |i| instance?(list[i]) && side_of(list[i]) }
+        idx ? [list[idx], list[0...idx].select { |e| instance?(e) }] : nil
+      end
+
+      # 같은 도어라도 부모 경로(복제된 가구 인스턴스)가 다르면 다른 대상 — 호버 캐시 키
+      def pick_key(found)
+        found ? (found[1] + [found[0]]).map(&:entityID) : nil
+      end
+
+      # 한 장이라도 열려 있으면 '닫기', 모두 닫혀 있으면 '열기'
+      def closing?(doors)
+        doors.any? { |d| Kabinet::Persistence::Attributes.get(d, 'door_open') }
+      end
+
+      # 주어진 도어들을 한 번의 되돌리기 단위로 열거나 닫는다. 닫는 중이면 true 반환
+      def toggle(doors, deg = OPEN_DEG, model: Sketchup.active_model)
+        closing = closing?(doors)
+        model.start_operation(closing ? 'Kabinet — 도어 닫기' : 'Kabinet — 도어 열기', true)
+        begin
+          doors.each { |d| closing ? close_door(d) : open_door(d, deg) }
+          model.commit_operation
+        rescue StandardError
+          model.abort_operation
+          raise
+        end
+        closing
+      end
+
       # 선택이 없을 때 훑을 최상위 개체: 모든 그룹/컴포넌트(직접 만든 가구 안에 지정한 도어도 찾기 위해)
       def top_level_roots(model)
         model.entities.to_a.select { |e| instance?(e) }
@@ -140,15 +174,7 @@ module Kabinet
           ::UI.messagebox(NOT_FOUND_MSG)
           return 0
         end
-        closing = doors.any? { |d| Kabinet::Persistence::Attributes.get(d, 'door_open') }
-        model.start_operation(closing ? 'Kabinet — 도어 닫기' : 'Kabinet — 도어 열기', true)
-        begin
-          doors.each { |d| closing ? close_door(d) : open_door(d, deg) }
-          model.commit_operation
-        rescue StandardError
-          model.abort_operation
-          raise
-        end
+        toggle(doors, deg, model: model)
         doors.size
       end
 
