@@ -12,6 +12,9 @@ module Kabinet
       HIDDEN_COLOR = '#1f5fa8'.freeze
       HIDDEN_WEIGHT = 0.5
       VISIBLE_COLOR = '#43483f'.freeze
+      # 투영 뷰별 시선 방향(가구 로컬: x 오른쪽, y 뒤, z 위). 좌측면은 -X 쪽에서 본다.
+      VIEW_DIRS_LOCAL = { 'front' => [0.0, -1.0, 0.0], 'side' => [1.0, 0.0, 0.0], 'side_left' => [-1.0, 0.0, 0.0], 'top' => [0.0, 0.0, 1.0] }.freeze
+      DEFAULT_SITE = '경기도 수원시 영통구 광교호수공원로 80 광교아이파크 101동 4601호'.freeze
       ISO_TURNS = { 'front_right' => 0, 'front_left' => 90, 'back_left' => 180, 'back_right' => -90 }.freeze
 
       def axis_from_vector(vector)
@@ -145,7 +148,7 @@ module Kabinet
           # Hide non-selected geometry only during ray tests; abort restores it.
           model.entities.each { |e| e.hidden = true if e.respond_to?(:hidden=) && !targets.include?(e) }
           visible = {}
-          %w[top side elevation front].each do |name|
+          %w[top side side_left front].each do |name|
             visible[name] = classify_edges(model, segs, name, right, back, to_local)
           end
           root = model.entities.add_group
@@ -190,7 +193,7 @@ module Kabinet
       # Sample each edge, then refine visible/occluded transitions. A partially
       # covered edge must not become one solid line through the cabinet door.
       def classify_edges(model, segments, name, right, back, to_local)
-        local_direction = name == 'elevation' ? [0.45, -1.0, 0.3] : GroupProjection::VIEW_DIRS.fetch(name)
+        local_direction = VIEW_DIRS_LOCAL.fetch(name)
         direction = Geom::Vector3d.new(right[0] * local_direction[0] + back[0] * local_direction[1], right[1] * local_direction[0] + back[1] * local_direction[1], local_direction[2])
         result = { visible: [], hidden: [] }
         segments.each do |p, q|
@@ -342,67 +345,36 @@ module Kabinet
         end
       end
 
+      DEFAULT_PAGES = %w[iso front side].freeze
+
+      def pages_option(options)
+        pages = options['pages']
+        pages = DEFAULT_PAGES if pages.nil?
+        pages = DEFAULT_PAGES & Array(pages).map(&:to_s)
+        raise '출력할 쪽(입체도 / 정면·평면 / 측면)을 하나 이상 선택하세요.' if pages.empty?
+        pages
+      end
+
+      # 쪽 구성은 SheetLayout 이 계산한다(겹침 없음, 쪽마다 표준 배율 하나).
+      # 여기서는 그 사각형·배율대로 LayOut 요소를 놓는 얇은 어댑터만 둔다.
       def compose(data, title, options = {})
         # Keep LayOut's tool defaults in the document, so dimensions drawn
         # later by hand match the dimensions generated below.
         doc = Layout::Document.open(File.join(__dir__, 'drawing_template.layout'))
         doc.units = Layout::Document::DECIMAL_MILLIMETERS
         doc.precision = 1.0
-        doc.page_info.width = 420.0 / 25.4
-        doc.page_info.height = 297.0 / 25.4
-        doc.pages.first.name = title
-        w, d, h = data[:size]
-        # One scale across all orthographic views, with fixed room for dimensions.
-        scale = [130.0 / (w + d * 0.45), 165.0 / (h + d * 0.3), 47.0 / d, 1.0].min
-        # Round the actual scale denominator upward, so its integer label
-        # matches the geometry without making the views overflow their frames.
-        scale = 1.0 / (1.0 / scale).ceil
-        draw_view(doc, data, 'top', 0, 1, 20, 22, scale, 22 + d * scale + 12, 'TOP VIEW')
-        front_mark_x = 5
-        front_mark_y = 22 + d * scale / 2 - 2
-        line(doc, front_mark_x, front_mark_y, front_mark_x, front_mark_y + 5, color: '#a54b25', weight: 0.9)
-        line(doc, front_mark_x - 2, front_mark_y + 3, front_mark_x, front_mark_y + 5, color: '#a54b25', weight: 0.9)
-        line(doc, front_mark_x + 2, front_mark_y + 3, front_mark_x, front_mark_y + 5, color: '#a54b25', weight: 0.9)
-        text(doc, '정면', front_mark_x + 3, front_mark_y, 10, 6, size: 9, bold: true)
-        draw_surface_marks(doc, options, 20, 22, w * scale, d * scale)
-        draw_elevation(doc, data, 20, 275, scale)
-        draw_view(doc, data, 'side', 1, 2, 183, 120 + 155 - h * scale, scale, 287, 'RIGHT SIDE VIEW')
-        iso = Layout::SketchUpModel.new(data[:skp], bounds(271, 22, 137, 194))
-        iso.view = Layout::SketchUpModel::ISO_VIEW
-        iso.perspective = false
-        iso.scale = [117.0 / ((w + d) / Math.sqrt(2)), 174.0 / (h * Math.sqrt(2.0 / 3) + (w + d) / Math.sqrt(6))].min
-        iso.render_mode = Layout::SketchUpModel::HYBRID_RENDER
-        iso.display_background = false
-        iso.line_weight = 0.35
-        add(doc, iso)
-        fit_model(iso, data[:snapshot_corners])
-        text(doc, title, 271, 10, 130, 10, size: 14)
-        draw_materials(doc, data[:materials])
-        draw_notes(doc, title, options)
-        text(doc, "단위 mm · 정면 축척 1:#{number(1.0 / scale)} · 깊이는 사선 축약 · #{data[:internal] ? '파란 점선: 가려진 선(옷걸이봉·선반·칸막이 포함)' : '실선: 보이는 선'}", 20, 291, 245, 6, size: 8)
-        compose_detail_page(doc, data, title) if options.fetch('detail_page', true) && data[:views]['front']
-
+        doc.page_info.width = SheetLayout::PAGE_W / 25.4
+        doc.page_info.height = SheetLayout::PAGE_H / 25.4
+        plan = SheetLayout.plan(data[:size], 'pages' => pages_option(options))
+        # 공유 레이어에 그리면 쪽끼리 겹쳐 인쇄되므로, 쪽 전용(비공유) 레이어에 그린다.
+        doc.layers.add('가구 도면 내용', false)
+        layer = doc.layers[doc.layers.length - 1]
+        plan[:pages].each_with_index do |pg, i|
+          page = i.zero? ? doc.pages.first : doc.pages.add(SheetLayout.clean_text(pg[:title]))
+          page.name = SheetLayout.clean_text("#{title} #{pg[:number]}-#{pg[:title]}")
+          PageCanvas.new(page, layer).draw_page(doc, data, pg, plan, title, options)
+        end
         doc
-      end
-
-      # 2장째: 정면도·측면도를 크게(실제 직교 투영) — 가려진 선(옷걸이봉·선반·칸막이)과
-      # 부품 경계 치수를 더 많이 보여 준다. 1장은 개요, 2장은 상세.
-      DETAIL_SCALE_MIN = 1.0 / 60
-
-      def compose_detail_page(doc, data, title)
-        w, d, h = data[:size]
-        scale = [315.0 / (w + d), 185.0 / h, 1.0].min
-        scale = 1.0 / (1.0 / scale).ceil
-        return if scale < DETAIL_SCALE_MIN
-        page = doc.pages.add("#{title} — 상세")
-        sheet = DetailSheet.new(page)
-        top = 50.0
-        front_x = 35.0
-        side_x = front_x + w * scale + 60
-        sheet.draw_view(doc, data, 'front', 0, 2, front_x, top, scale, top + h * scale + 22, 'FRONT VIEW 정면도')
-        sheet.draw_view(doc, data, 'side', 1, 2, side_x, top, scale, top + h * scale + 22, 'RIGHT SIDE VIEW 우측면도')
-        sheet.text(doc, "#{title} — 상세 도면", 35, 10, 250, 10, size: 14)
-        sheet.text(doc, "단위 mm · 축척 1:#{number(1.0 / scale)} · #{data[:internal] ? '파란 점선: 가려진 선(옷걸이봉·선반·칸막이 포함) · 실선: 보이는 선' : '실선: 보이는 선'}", 35, 280, 360, 6, size: 8)
       end
 
       # Measure the actual projected corners, rather than assuming an ideal
@@ -425,97 +397,13 @@ module Kabinet
         raise '입체도 영역을 맞추지 못했습니다. 선택한 가구의 형상을 확인하세요.'
       end
 
-      # Cabinet projection: X/Z keep their true scale and depth recedes up/right.
-      # Thus elevation dimensions stay readable without pretending the depth
-      # diagonal is a true-scale orthographic measurement.
-      def draw_elevation(doc, data, x, bottom, scale)
-        w, d, h = data[:size]
-        front_top = bottom - h * scale
-        dx = d * 0.45 * scale
-        dy = d * 0.3 * scale
-        project = lambda do |point|
-          px, py, pz = point.zip(data[:lo]).map { |a, b| a - b }
-          [x + (px + py * 0.45) * scale, bottom - (pz + py * 0.3) * scale]
-        end
-        before_geometry = page_of(doc).entities.to_a
-        [:hidden, :visible].each do |kind|
-          next if kind == :hidden && !data[:internal]
-          seen = {}
-          data[:views]['elevation'][kind].each do |a, b|
-            p, q = project.call(a), project.call(b)
-            key = [p.map { |v| v.round(4) }, q.map { |v| v.round(4) }].sort
-            next if seen[key]
-            seen[key] = true
-            line(doc, *p, *q, dashed: kind == :hidden, color: kind == :hidden ? HIDDEN_COLOR : VISIBLE_COLOR, weight: kind == :hidden ? HIDDEN_WEIGHT : 0.5)
-          end
-        end
-        scaled_geometry(doc, before_geometry, scale, 'ELEVATION')
-        # Width dimensions: door including 1mm internal / 2mm external clearances, EP/body, overall.
-        roof = front_top - dy
-        # Anchor the overall width to the rear roof edge of the projected
-        # cabinet, as the side-view height is anchored to its rear edge.
-        horizontal_dimension(doc, x + dx, x + dx + w * scale, roof, roof - 20, w)
-        door_runs(data[:tiers][:doors]).each do |run|
-          a, b = run.first[0], run.last[1]
-          dim = horizontal_dimension(doc, x + a * scale, x + b * scale, front_top, roof - 6, b - a)
-          next if run.length == 1
-          label = dim.text
-          label.plain_text = "#{number(b - a)}/#{run.length} EQ"
-          dim.text = label
-          dim.custom_text = true
-        end
-        data[:tiers][:bodies].each_with_index do |(a, b), i|
-          dim = horizontal_dimension(doc, x + a * scale, x + b * scale, front_top, roof - 13, b - a)
-          # Narrow EPs retain their own dimension. Stagger the label above/below
-          # the middle tier instead of silently dropping the panel thickness.
-          if (b - a) * scale < 7
-            label = dim.text
-            label.transform!(Geom::Transformation2d.translation(Geom::Vector2d.new(0, (i.even? ? -3.0 : 3.0) / 25.4)))
-            dim.text = label
-          end
-        end
-        vertical_dimension(doc, x + w * scale + dx, front_top - dy, bottom - dy, x + w * scale + dx + 14, h)
-        chain(data, 2, scale).each_cons(2) do |a, b|
-          vertical_dimension(doc, x + w * scale + dx, bottom - b * scale - dy, bottom - a * scale - dy, x + w * scale + dx + 6, b - a)
-        end
-        text(doc, "깊이 #{number(d)}", x + w * scale + 2, front_top - dy - 9, 36, 5, size: 9, color: '#ad5868')
-        caption(doc, x, 287, 'ELEVATION')
-      end
-
-      def draw_view(doc, data, name, ai, bi, x, y, scale, caption_y, label)
-        width = data[:size][ai] * scale
-        height = data[:size][bi] * scale
-        before_geometry = page_of(doc).entities.to_a
-        [:hidden, :visible].each do |kind|
-          next if kind == :hidden && !data[:internal]
-          segments = GroupProjection.project(data[:views][name][kind], ai, bi, data[:lo][ai], data[:lo][bi])
-          segments.each do |s|
-            line(doc, x + s[:x1] * scale, y + height - s[:y1] * scale,
-                 x + s[:x2] * scale, y + height - s[:y2] * scale,
-                 dashed: kind == :hidden, color: kind == :hidden ? HIDDEN_COLOR : VISIBLE_COLOR, weight: kind == :hidden ? HIDDEN_WEIGHT : 0.5)
-          end
-        end
-        scaled_geometry(doc, before_geometry, scale, label)
-        horizontal_dimension(doc, x, x + width, y, y - 12, data[:size][ai])
-        vertical_dimension(doc, x + width, y, y + height, x + width + 12, data[:size][bi])
-        if name == 'front'
-          chain(data, ai, scale).each_cons(2) do |a, b|
-            horizontal_dimension(doc, x + a * scale, x + b * scale, y, y - 5, b - a)
-          end
-          chain(data, bi, scale).each_cons(2) do |a, b|
-            vertical_dimension(doc, x + width, y + height - b * scale, y + height - a * scale, x + width + 5, b - a)
-          end
-        end
-        caption(doc, x, caption_y, label)
-      end
-
-      def caption(doc, x, caption_y, label)
-        line(doc, x, caption_y, x + 62, caption_y, color: '#8b8d87')
+      def caption(doc, x, caption_y, label, width = 62.0)
+        line(doc, x, caption_y, x + width, caption_y, color: '#8b8d87')
         line(doc, x, caption_y - 2, x + 2, caption_y)
         line(doc, x + 2, caption_y, x, caption_y + 2)
         line(doc, x, caption_y + 2, x - 2, caption_y)
         line(doc, x - 2, caption_y, x, caption_y - 2)
-        text(doc, label, x + 7, caption_y - 6, 55, 6, size: 11, bold: true)
+        text(doc, label, x + 7, caption_y - 6, width - 7, 6, size: 9, bold: true)
       end
 
       # Interior boundaries closer than 10 paper mm are omitted to keep labels
@@ -579,73 +467,6 @@ module Kabinet
         add(doc, dim)
       end
 
-      def draw_notes(doc, title, options)
-        text(doc, '메모 / 시공 유의사항', 183, 20, 78, 8, size: 11, bold: true)
-        line(doc, 183, 29, 261, 29)
-        memo = options.fetch('memo', '').to_s.strip
-        memo = '메모를 입력하세요.' if memo.empty?
-        text(doc, memo, 183, 32, 78, 48, size: 11, color: '#222222', bold: true)
-        rows = [
-          ['가구명', options.fetch('furniture_name', '').to_s.strip],
-          ['현장정보', options.fetch('site', '').to_s.strip],
-          ['제작날짜', options.fetch('drawing_date', '').to_s.strip],
-          ['작성자', options.fetch('author', '').to_s.strip]
-        ]
-        rows[0][1] = title if rows[0][1].empty?
-        rows[2][1] = Time.now.strftime('%Y-%m-%d') if rows[2][1].empty?
-        rows.each_with_index do |(label, value), i|
-          x = 271 + (i % 2) * 68.5
-          y = 271 + (i / 2) * 9
-          text(doc, label, x + 2, y + 1, 19, 7, size: 9, bold: true)
-          text(doc, value.empty? ? '입력하세요' : value, x + 23, y + 1, 43.5, 7, size: value.length > 12 ? 8 : 10, bold: true)
-        end
-        [271, 280, 289].each { |y| line(doc, 271, y, 408, y) }
-        [271, 292, 339.5, 360.5, 408].each { |x| line(doc, x, 271, x, 289) }
-      end
-
-      # Project-specific legend; vector marks and text remain editable in LayOut.
-      def draw_surface_marks(doc, options, x, y, width, depth)
-        choices=[['left','좌측',x-3,y+depth/2],['right','우측',x+width+3,y+depth/2],['back','뒤쪽',x+width/2,y-3]]
-        legend=[]
-        choices.each do |key,name,px,py|
-          value=options.fetch("surface_#{key}",'none')
-          next unless %w[open wall].include?(value)
-          if value=='open'
-            line(doc,px-1.3,py-2,px+1.3,py,color:'#c67b12',weight:0.8)
-            line(doc,px+1.3,py,px-1.3,py+2,color:'#c67b12',weight:0.8)
-            line(doc,px-1.3,py+2,px-1.3,py-2,color:'#c67b12',weight:0.8)
-            legend << "#{name}: △ 노출"
-          else
-            [-1,1].each { |offset| line(doc,px+offset-0.8,py+2,px+offset+0.8,py-2,weight:0.6) }
-            legend << "#{name}: // 벽면"
-          end
-        end
-        text(doc,legend.join("\n"),183,83,78,18,size:10,bold:true) unless legend.empty?
-      end
-
-      def draw_materials(doc, materials)
-        if materials.empty?
-          text(doc, '마감재 미지정', 285, 234, 112, 8, size: 10, color: '#96968e')
-          return
-        end
-        materials.each_with_index do |mat, i|
-          x = 280 + i * 42
-          entity = if mat[:image]
-                     Layout::Image.new(mat[:image], bounds(x, 221, 37, 21))
-                   else
-                     rect = Layout::Rectangle.new(bounds(x, 221, 37, 21))
-                     style = rect.style
-                     style.solid_filled = true
-                     style.fill_color = mat[:color]
-                     style.stroked = false
-                     rect.style = style
-                     rect
-                   end
-          add(doc, entity)
-          text(doc, mat[:name][0, 32], x, 243, 38, 9, size: 9, color: '#ad5868')
-        end
-      end
-
       def number(value)
         format('%.0f', value)
       end
@@ -654,7 +475,7 @@ module Kabinet
         Geom::Bounds2d.new(x / 25.4, y / 25.4, w / 25.4, h / 25.4)
       end
 
-      # 그릴 페이지: 상세 도면(DetailPage)은 @page 를 지정, 그 외에는 첫 페이지
+      # 그릴 페이지: PageCanvas 는 @page 를 지정, 그 외에는 첫 페이지
       def page_of(doc)
         @page || doc.pages.first
       end
@@ -677,7 +498,7 @@ module Kabinet
       end
 
       def text(doc, value, x, y, w, h, size: 8, color: '#353b34', bold: false, center: false)
-        entity = Layout::FormattedText.new(value, bounds(x, y, w, h))
+        entity = Layout::FormattedText.new(SheetLayout.clean_text(value), bounds(x, y, w, h))
         style = entity.style
         style.font_family = '맑은 고딕'
         style.font_size = size.to_f
@@ -689,13 +510,229 @@ module Kabinet
       end
     end
 
-    # 2장째(상세 도면)가 그릴 페이지를 지정하는 그리기 도우미. 모든 그리기 메서드를 그대로 재사용한다.
-    class DetailSheet
+    # 한 쪽(Layout page)에 그리는 도우미 — FurnitureSheet 의 선·글자·치수 도구를 쪽 전용으로 재사용한다.
+    class PageCanvas
       include FurnitureSheet
-      public :draw_view, :line, :text
+      public :line, :text, :horizontal_dimension, :vertical_dimension
 
-      def initialize(page)
+      HIDDEN_VIEWS = %w[front side_r side_l].freeze   # 평면도에는 점선을 넣지 않는다(과다 방지)
+      HIDDEN_MIN_PAPER = 3.0                          # 종이 3mm 미만 점선 조각은 생략
+
+      def initialize(page, layer = nil)
         @page = page
+        @layer = layer
+      end
+
+      def add(doc, entity)
+        doc.add_entity(entity, @layer || doc.layers.first, @page)
+        entity
+      end
+
+      def draw_page(doc, data, pg, plan, title, options)
+        header(doc, pg, title)
+        if pg[:id] == 'iso'
+          draw_iso_page(doc, data, pg, title, options)
+        else
+          pg[:views].each { |v| draw_plan_view(doc, data, v, options) }
+        end
+        foot_note(doc, data, pg)
+        title_block(doc, plan, pg, title, options)
+      end
+
+      def header(doc, pg, title)
+        text(doc, "#{title} - #{pg[:title]}", 15, 8, 300, 10, size: 14, bold: true)
+        text(doc, "SCALE #{SheetLayout.scale_label(pg[:scale])}", 330, 8, 75, 10, size: 13, bold: true)
+        line(doc, 15, 22, 405, 22, weight: 0.5)
+      end
+
+      def foot_note(doc, data, pg)
+        hidden = data[:internal] && pg[:views].any? { |v| HIDDEN_VIEWS.include?(v[:name]) } ? ' · 파란 점선: 가려진 선' : ''
+        note = pg[:scale] ? "단위 mm · SCALE #{SheetLayout.scale_label(pg[:scale])} (이 쪽의 모든 뷰 동일)#{hidden}" : '단위 mm · 입체도는 축척 없음(N.T.S) · 치수는 정면도·평면도·측면도 쪽 참고'
+        note += " · 구간 #{pg[:window][0].round}~#{pg[:window][1].round} mm" if pg[:window]
+        text(doc, note, 15, 262.5, 390, 5, size: 8)
+      end
+
+      def title_block(doc, plan, pg, title, options)
+        site = options.fetch('site', '').to_s.strip
+        site = FurnitureSheet::DEFAULT_SITE if site.empty?
+        furniture = options.fetch('furniture_name', '').to_s.strip
+        furniture = title if furniture.empty?
+        date = options.fetch('drawing_date', '').to_s.strip
+        date = Time.now.strftime('%Y-%m-%d') if date.empty?
+        values = {
+          'furniture' => furniture, 'site' => site, 'date' => date, 'author' => options.fetch('author', '').to_s.strip,
+          'scale' => SheetLayout.scale_label(pg[:scale]), 'page' => "#{pg[:number]} / #{pg[:total]}"
+        }
+        cells = plan[:title_block]
+        t = SheetLayout::TITLE_BLOCK
+        [t[:y], t[:y] + t[:h] / 2, t[:y] + t[:h]].each { |y| line(doc, t[:x], y, t[:x] + t[:w], y, weight: 0.5) }
+        line(doc, t[:x], t[:y], t[:x], t[:y] + t[:h], weight: 0.5)
+        line(doc, t[:x] + t[:w], t[:y], t[:x] + t[:w], t[:y] + t[:h], weight: 0.5)
+        cells.each do |c|
+          x, y, w, h = c[:rect]
+          line(doc, x + w, y, x + w, y + h, weight: 0.3)
+          value = values[c[:key]].to_s
+          text(doc, c[:label], x + 2, y + 1.2, 19, h - 1.5, size: 8, bold: true)
+          text(doc, value.empty? ? '-' : value, x + 22, y + 1.0, w - 24, h - 1.5, size: value.length > 36 ? 8 : 9, bold: true)
+        end
+      end
+
+      def draw_plan_view(doc, data, v, options)
+        x, y, w, h = v[:rect]
+        den = v[:den]
+        scale = 1.0 / den
+        name = v[:name]
+        ai, bi = SheetLayout::AXES.fetch(name)
+        win = v[:clip]
+        extent = data[:size][ai]
+        source = { 'side_r' => 'side', 'side_l' => 'side_left' }.fetch(name, name)
+        before = page_of(doc).entities.to_a
+        kinds = [:visible]
+        kinds.unshift(:hidden) if data[:internal] && HIDDEN_VIEWS.include?(name)
+        kinds.each do |kind|
+          GroupProjection.project(data[:views][source][kind], ai, bi, data[:lo][ai], data[:lo][bi]).each do |s|
+            seg = [s[:x1], s[:y1], s[:x2], s[:y2]]
+            seg = [extent - seg[0], seg[1], extent - seg[2], seg[3]] if name == 'side_l'
+            seg = win ? SheetLayout.clip_segment(seg, win[0], win[1]) : seg
+            next unless seg
+            next if kind == :hidden && Math.hypot(seg[2] - seg[0], seg[3] - seg[1]) * scale < HIDDEN_MIN_PAPER
+            line(doc, x + seg[0] * scale, y + h - seg[1] * scale, x + seg[2] * scale, y + h - seg[3] * scale,
+                 dashed: kind == :hidden, color: kind == :hidden ? HIDDEN_COLOR : VISIBLE_COLOR, weight: kind == :hidden ? HIDDEN_WEIGHT : 0.5)
+          end
+        end
+        draw_surface_marks(doc, options, x, y, w, h) if name == 'top' && !win
+        scaled_geometry(doc, before, scale, v[:label])
+        draw_dimensions(doc, data, v, scale)
+        label = "#{v[:label]}  SCALE #{SheetLayout.scale_label(den)}"
+        caption(doc, v[:outer][0], y + h + 6 + SheetLayout::CAPTION_H - 1, label, [v[:outer][2], 72.0].max)
+      end
+
+      # 가로 치수줄 단: 구분(chain) → 도어 → EP·몸통 → 전체. 세로는 오른쪽(좌측면은 왼쪽)에 전체 + 구분.
+      def draw_dimensions(doc, data, v, scale)
+        x, y, w, h = v[:rect]
+        name = v[:name]
+        ai, bi = SheetLayout::AXES.fetch(name)
+        win = v[:clip]
+        rows = []
+        chain_a = chain(data, ai, scale)
+        if win
+          chain_a = (chain_a + win).select { |c| c >= win[0] - 1e-6 && c <= win[1] + 1e-6 }.map { |c| c.round(3) }.uniq.sort
+        end
+        chain_a = chain_a.map { |c| name == 'side_l' ? data[:size][ai] - c : c }.sort if name == 'side_l'
+        if chain_a.length > 2 || (win && chain_a.length >= 2)
+          rows << lambda do |off|
+            chain_a.each_cons(2) { |a, b| horizontal_dimension(doc, x + (a - (win ? win[0] : 0)) * scale, x + (b - (win ? win[0] : 0)) * scale, y, y - off, b - a) }
+          end
+        end
+        if name == 'front' && !win
+          door_rows = door_runs(data[:tiers][:doors])
+          unless door_rows.empty?
+            rows << lambda do |off|
+              door_rows.each do |run|
+                a, b = run.first[0], run.last[1]
+                dim = horizontal_dimension(doc, x + a * scale, x + b * scale, y, y - off, b - a)
+                next if run.length == 1
+                label = dim.text
+                label.plain_text = "#{number(b - a)}/#{run.length} EQ"
+                dim.text = label
+                dim.custom_text = true
+              end
+            end
+          end
+          unless data[:tiers][:bodies].empty?
+            rows << lambda do |off|
+              data[:tiers][:bodies].each { |a, b| horizontal_dimension(doc, x + a * scale, x + b * scale, y, y - off, b - a) }
+            end
+          end
+        end
+        rows << ->(off) { horizontal_dimension(doc, x, x + w, y, y - off, data[:size][ai]) } unless win
+        rows.each_with_index { |row, i| row.call(6.0 + 7.0 * i) }
+        # 세로
+        side = name == 'side_l' ? -1 : 1
+        edge = name == 'side_l' ? x : x + w
+        vertical_dimension(doc, edge, y, y + h, edge + side * 12, data[:size][bi])
+        if name == 'front'
+          chain(data, bi, scale).each_cons(2) do |a, b|
+            vertical_dimension(doc, edge, y + h - b * scale, y + h - a * scale, edge + side * 5, b - a)
+          end
+        end
+      end
+
+      # 평면도 노출면/벽면 기호(옵션). 범례 글자는 입체도 쪽 메모 칸에 둔다.
+      def draw_surface_marks(doc, options, x, y, width, depth)
+        choices = [['left', x - 3, y + depth / 2], ['right', x + width + 3, y + depth / 2], ['back', x + width / 2, y - 3]]
+        choices.each do |key, px, py|
+          value = options.fetch("surface_#{key}", 'none')
+          if value == 'open'
+            line(doc, px - 1.3, py - 2, px + 1.3, py, color: '#c67b12', weight: 0.8)
+            line(doc, px + 1.3, py, px - 1.3, py + 2, color: '#c67b12', weight: 0.8)
+            line(doc, px - 1.3, py + 2, px - 1.3, py - 2, color: '#c67b12', weight: 0.8)
+          elsif value == 'wall'
+            [-1, 1].each { |offset| line(doc, px + offset - 0.8, py + 2, px + offset + 0.8, py - 2, weight: 0.6) }
+          end
+        end
+      end
+
+      def surface_legend(options)
+        names = { 'left' => '좌측', 'right' => '우측', 'back' => '뒤쪽' }
+        names.map do |key, name|
+          value = options.fetch("surface_#{key}", 'none')
+          next unless %w[open wall].include?(value)
+          "#{name}: #{value == 'open' ? '△ 노출' : '// 벽면'}"
+        end.compact
+      end
+
+      def draw_iso_page(doc, data, pg, title, options)
+        w, d, h = data[:size]
+        bx, by, bw, bh = pg[:boxes][:iso]
+        iso = Layout::SketchUpModel.new(data[:skp], bounds(bx, by, bw, bh))
+        iso.view = Layout::SketchUpModel::ISO_VIEW
+        iso.perspective = false
+        iso.scale = [(bw - 20.0) / ((w + d) / Math.sqrt(2)), (bh - 20.0) / (h * Math.sqrt(2.0 / 3) + (w + d) / Math.sqrt(6))].min
+        iso.render_mode = Layout::SketchUpModel::HYBRID_RENDER
+        iso.display_background = false
+        iso.line_weight = 0.35
+        add(doc, iso)
+        fit_model(iso, data[:snapshot_corners])
+        mx, my, mw, = pg[:boxes][:materials]
+        text(doc, '마감재', mx, my, mw, 7, size: 11, bold: true)
+        line(doc, mx, my + 8, mx + mw, my + 8)
+        draw_materials(doc, data[:materials], mx, my + 11, mw)
+        nx, ny, nw, nh = pg[:boxes][:memo]
+        text(doc, '메모 / 시공 유의사항', nx, ny, nw, 7, size: 11, bold: true)
+        line(doc, nx, ny + 8, nx + nw, ny + 8)
+        memo = options.fetch('memo', '').to_s.strip
+        memo = '메모를 입력하세요.' if memo.empty?
+        text(doc, memo, nx, ny + 10, nw, nh - 10, size: 10, color: '#222222', bold: true)
+        ox, oy, ow, oh = pg[:boxes][:notes]
+        legend = surface_legend(options)
+        lines = ['도면 구성: 1쪽 입체도 · 2쪽 정면도/평면도 · 3쪽 측면도 (가구가 작으면 2쪽에 함께)']
+        lines.concat(legend)
+        text(doc, lines.join("\n"), ox, oy, ow, oh, size: 8)
+      end
+
+      def draw_materials(doc, materials, x0, y0, width)
+        if materials.empty?
+          text(doc, '마감재 미지정', x0, y0 + 4, width, 8, size: 10, color: '#96968e')
+          return
+        end
+        sw = (width - 6.0) / 3
+        materials.each_with_index do |mat, i|
+          x = x0 + i * (sw + 3)
+          entity = if mat[:image]
+                     Layout::Image.new(mat[:image], bounds(x, y0, sw, 21))
+                   else
+                     rect = Layout::Rectangle.new(bounds(x, y0, sw, 21))
+                     style = rect.style
+                     style.solid_filled = true
+                     style.fill_color = mat[:color]
+                     style.stroked = false
+                     rect.style = style
+                     rect
+                   end
+          add(doc, entity)
+          text(doc, mat[:name][0, 32], x, y0 + 23, sw, 9, size: 8, color: '#ad5868')
+        end
       end
     end
   end
