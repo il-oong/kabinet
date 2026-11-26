@@ -2,6 +2,11 @@
 
 새 세션에서 이 파일부터 읽고 이어서 작업하세요. 사용자 선호: **한국어로 답변, 코드는 항상 PR 먼저 만든 뒤 머지, Railway 사용(이 저장소는 SketchUp 플러그인이라 해당 없음)**, 컨텍스트 70% 넘으면 중단하고 정리.
 
+## (v1.31.0) 방향 검증·전면 표시·장별 세부 쪽
+- `FurnitureSheet.local_frame/world_view_direction/view_segments`(순수) + `SheetLayout.front_marker/unit_pages/unit_table_lines`. 장 캡처 `capture_units`(module_index 그룹별 숨김→collect→classify), 뷰 이름 `u_front/u_inner/u_top/u_section`. UI `pg-units`·`ep_units` 콜백(`epUnits`).
+- 방향: 코드 경로상 뒤집힘 없음(물리 좌표 테스트 통과) — 사용자 재확인 필요. 측면 단면은 우측 측판 제거 근사.
+- 남은 일: 작은 장 2개를 한 쪽에(미구현, 장 하나당 한 쪽), 진짜 절단 단면, 스택 모드 실기, 장 쪽 가려진 선 품질, 판재 목록 커트리스트와의 일치 검증.
+
 ## (v1.30.0) 가구 도면(LayOut) 여러 쪽·표준 배율·겹침 없음
 - `kabinet/output/sheet_layout.rb`(순수 계산 `SheetLayout.plan/problems/clip_segment/clean_text`) + `furniture_sheet.rb`(`compose` 가 계획대로 `PageCanvas` 로 쪽마다 그림, 비공유 레이어 '가구 도면 내용'). 뷰 캡처는 top/side/side_left/front(사선 입면 폐지). UI 쪽 체크박스(`pages` 옵션), 현장정보 기본값.
 - 검증: `test/sheet_layout_test.rb`, `test/furniture_sheet_draw_test.rb`, 미리보기 `tools/sheet/preview_layout.py` → `output_samples/layout_preview/`.

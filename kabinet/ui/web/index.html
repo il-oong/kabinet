@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabinet</title>
-  <link rel="stylesheet" href="styles.css?v=1.30.0">
+  <link rel="stylesheet" href="styles.css?v=1.31.0">
 </head>
 <body>
 
@@ -12,7 +12,7 @@
 <aside class="preset-sidebar">
   <div class="preset-sidebar-head">
     <span class="preset-sidebar-title">Kabinet</span>
-    <span class="version-badge">v1.30.0</span>
+    <span class="version-badge">v1.31.0</span>
   </div>
   <input type="search" id="preset-search" class="preset-search" placeholder="프리셋·도구 검색…"
          oninput="kabinet.renderPresetSidebar()">
@@ -316,7 +316,7 @@
     </div>
 
     <div id="ep-furniture-options">
-      <div class="ep-sheet" aria-label="쪽 구성 미리보기"><div class="iso">1쪽 입체도·재질·메모</div><div class="front">2쪽 정면도 + 평면도</div><div class="side">3쪽 좌·우 측면도</div></div>
+      <div class="ep-sheet" aria-label="쪽 구성 미리보기"><div class="iso">1쪽 입체도·재질·메모</div><div class="front">2쪽 정면도 + 평면도</div><div class="side">3쪽 좌·우 측면도</div><div class="side">(선택) 장별 세부 쪽</div></div>
       <p class="ep-hint">① 가구 전체를 선택 → ② 사용자가 서는 쪽에서 바라본 뒤 <b>현재 화면을 정면으로</b> → ③ 아래 정보 입력 → ④ 출력.</p>
       <div class="ep-grid">
         <button type="button" class="btn-secondary" data-front="set">현재 화면을 정면으로</button>
@@ -355,6 +355,12 @@
       <label class="ep-check"><input id="ep-pg-iso" type="checkbox" checked> 입체도 · 재질 · 메모</label>
       <label class="ep-check"><input id="ep-pg-front" type="checkbox" checked> 정면도 · 평면도 (너무 크면 구간을 나눠 쪽 추가)</label>
       <label class="ep-check"><input id="ep-pg-side" type="checkbox" checked> 좌 · 우 측면도 (작은 가구는 정면도 쪽에 함께)</label>
+      <label class="ep-check"><input id="ep-pg-units" type="checkbox"> 장별 세부 도면 (장마다 한 쪽: 정면·내부·평면·측면 단면·장 표)</label>
+      <div id="ep-unit-box" hidden>
+        <button id="ep-units-load" type="button" class="btn-secondary">선택한 가구의 장 목록 불러오기</button>
+        <div id="ep-unit-list" class="ep-unit-list"></div>
+        <p class="ep-hint">목록을 불러오지 않거나 하나도 체크하지 않으면 모든 장을 출력합니다(최대 16개). Kabinet 으로 만든 가구만 장을 구분할 수 있습니다.</p>
+      </div>
     </fieldset>
     <button id="ep-export" type="button" class="btn-primary ep-big">도면 출력 · LayOut + PDF</button>
     <p class="ep-hint">출력 후 LayOut에서 메모·치수를 더블클릭해 수정할 수 있습니다. .layout / .pdf / _assets 폴더를 함께 보관하세요.</p>
@@ -556,11 +562,11 @@
 
 </div><!-- /.main-col -->
 
-<script src="app.js?v=1.30.0"></script>
-<script src="modules.js?v=1.30.0"></script>
-<script src="live-preview.js?v=1.30.0"></script>
-<script src="drawing.js?v=1.30.0"></script>
-<script src="drawing_import.js?v=1.30.0"></script>
-<script src="sheet.js?v=1.30.0"></script>
+<script src="app.js?v=1.31.0"></script>
+<script src="modules.js?v=1.31.0"></script>
+<script src="live-preview.js?v=1.31.0"></script>
+<script src="drawing.js?v=1.31.0"></script>
+<script src="drawing_import.js?v=1.31.0"></script>
+<script src="sheet.js?v=1.31.0"></script>
 </body>
 </html>

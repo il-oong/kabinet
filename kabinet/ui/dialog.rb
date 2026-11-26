@@ -733,6 +733,13 @@ module Kabinet
             "#{msg}\n모델 화면: 초록 면이 도면 정면도, 화살표가 정면 방향입니다 (Esc로 닫기)."
           end
         end
+        d.add_action_callback('ep_units') do |_ctx, _arg|
+          ep_respond(d) do
+            units = Kabinet::Output::FurnitureSheet.list_units
+            d.execute_script("epUnits(#{JSON.generate(units)})")
+            "장 #{units.length}개를 찾았습니다. 출력할 장을 고르세요."
+          end
+        end
         d.add_action_callback('ep_space_role') do |_ctx, role|
           ep_respond(d) { "#{Kabinet::Output::SpaceSheet.mark(role)}개 공간 부품 지정 완료. 공간 전체를 선택하고 출력하세요." }
         end

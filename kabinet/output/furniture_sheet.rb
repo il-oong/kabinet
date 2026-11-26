@@ -83,11 +83,36 @@ module Kabinet
         "정면 반전 완료: #{axis} 방향에서 바라본 모습."
       end
 
-      def orientation(axis)
+      # 가구 로컬 좌표(정면에서 본 사람 기준): x = 오른쪽, y = 뒤(깊이), z = 위. 순수 계산(SketchUp 불필요).
+      #   (fx, fy) = 가구에서 보는 사람 쪽으로 향하는 수평 단위벡터(정면 방향). 보는 사람은 -F 를 향해 서 있으므로
+      #   보는 사람의 오른쪽 = (-F) x Z = (-fy, fx), 뒤 = -F.
+      def local_frame(axis)
         fx, fy = FRONT_AXES.fetch(axis)
         right = [-fy, fx]
         back = [-fx, -fy]
         to_local = ->(p) { [p[0] * right[0] + p[1] * right[1], p[0] * back[0] + p[1] * back[1], p[2]] }
+        [to_local, right, back]
+      end
+
+      # 로컬 시선 방향(뷰어 쪽 단위벡터: 가구 -> 보는 사람) 을 월드 수평 벡터로.
+      def world_view_direction(name, right, back)
+        ld = VIEW_DIRS_LOCAL.fetch(name)
+        [right[0] * ld[0] + back[0] * ld[1], right[1] * ld[0] + back[1] * ld[1], ld[2]]
+      end
+
+      # 뷰별 2D 선분(뷰 좌표: x 오른쪽, y 위, 원점 = 해당 뷰 최소점). 순수 계산 — 방향 검증 테스트에 사용.
+      #   정면도 x=폭(왼->오), 평면도 y=깊이(뒤가 위, 전면이 아래), 우측면도 x=깊이(전면이 왼쪽),
+      #   좌측면도는 우측면도를 좌우 반전(전면이 오른쪽). 3각법 배치 규칙과 같다.
+      def view_segments(name, segs, lo, size, window = nil)
+        ai, bi = SheetLayout::AXES.fetch(name)
+        extent = size[ai]
+        list = GroupProjection.project(segs, ai, bi, lo[ai], lo[bi]).map { |s| [s[:x1], s[:y1], s[:x2], s[:y2]] }
+        list = list.map { |a, b, c, d| [extent - a, b, extent - c, d] } if name == 'side_l'
+        window ? list.map { |sg| SheetLayout.clip_segment(sg, window[0], window[1]) }.compact : list
+      end
+
+      def orientation(axis)
+        to_local, right, back = local_frame(axis)
         rotation = Geom::Transformation.axes(ORIGIN, Geom::Vector3d.new(right[0], right[1], 0), Geom::Vector3d.new(back[0], back[1], 0), Z_AXIS).inverse
         [to_local, rotation, right, back]
       end
@@ -112,7 +137,7 @@ module Kabinet
         asset_dir = path.sub(/\.layout\z/i, '') + "_assets_#{Time.now.strftime('%Y%m%d_%H%M%S')}_#{Process.pid}"
         asset_dir += '_1' while File.exist?(asset_dir)
         FileUtils.mkdir_p(asset_dir)
-        data = capture(model, targets, asset_dir, options.fetch('internal', true), options.fetch('iso_direction', 'front_right'))
+        data = capture(model, targets, asset_dir, options.fetch('internal', true), options.fetch('iso_direction', 'front_right'), options)
         doc = compose(data, title, options)
         doc.save(path)
         begin
@@ -123,7 +148,7 @@ module Kabinet
         path
       end
 
-      def capture(model, targets, dir, internal, iso_direction = 'front_right')
+      def capture(model, targets, dir, internal, iso_direction = 'front_right', options = {})
         raise '아이소 방향을 다시 선택하세요.' unless ISO_TURNS.key?(iso_direction)
         axis = front_axis(targets)
         to_local, rotation, right, back = orientation(axis)
@@ -169,6 +194,7 @@ module Kabinet
           model.selection.clear
           selection.each { |e| model.selection.add(e) if e.valid? }
         end
+        units = pages_option(options).include?('units') ? capture_units(model, targets, to_local, right, back, options) : []
         swatches = mats.uniq.first(3).map.with_index do |mat, i|
           image = nil
           if mat.texture
@@ -187,14 +213,13 @@ module Kabinet
           { role: part[:role], lo: local_lo, hi: local_hi }
         end
         local_boxes = boxes.map { |a, b| local_box.call(a, b) }
-        { tiers: width_tiers(local_parts, lo), size: size, lo: lo, views: visible, boxes: local_boxes, skp: skp, snapshot_corners: snapshot_corners, materials: swatches, internal: internal, front_axis: axis }
+        { units: units, tiers: width_tiers(local_parts, lo), size: size, lo: lo, views: visible, boxes: local_boxes, skp: skp, snapshot_corners: snapshot_corners, materials: swatches, internal: internal, front_axis: axis }
       end
 
       # Sample each edge, then refine visible/occluded transitions. A partially
       # covered edge must not become one solid line through the cabinet door.
       def classify_edges(model, segments, name, right, back, to_local)
-        local_direction = VIEW_DIRS_LOCAL.fetch(name)
-        direction = Geom::Vector3d.new(right[0] * local_direction[0] + back[0] * local_direction[1], right[1] * local_direction[0] + back[1] * local_direction[1], local_direction[2])
+        direction = Geom::Vector3d.new(*world_view_direction(name, right, back))
         result = { visible: [], hidden: [] }
         segments.each do |p, q|
           delta = p.zip(q).map { |a, b| b - a }
@@ -346,13 +371,177 @@ module Kabinet
       end
 
       DEFAULT_PAGES = %w[iso front side].freeze
+      ALL_PAGES = (DEFAULT_PAGES + ['units']).freeze    # 'units' = 장별 세부 도면(기본 꺼짐)
 
       def pages_option(options)
         pages = options['pages']
         pages = DEFAULT_PAGES if pages.nil?
-        pages = DEFAULT_PAGES & Array(pages).map(&:to_s)
-        raise '출력할 쪽(입체도 / 정면·평면 / 측면)을 하나 이상 선택하세요.' if pages.empty?
+        pages = ALL_PAGES & Array(pages).map(&:to_s)
+        raise '출력할 쪽(입체도 / 정면·평면 / 측면 / 장별 세부)을 하나 이상 선택하세요.' if pages.empty?
         pages
+      end
+
+      # 장 쪽을 그릴 때 PageCanvas 가 쓰는 data 모양(size/lo/views/boxes/internal + table 정보)
+      def unit_data(data, index)
+        u = data[:units].find { |x| x[:index] == index }
+        { size: u[:size], lo: u[:lo], views: u[:views], boxes: u[:boxes], internal: data[:internal], tiers: { doors: [], bodies: [] },
+          unit: u, materials: [], skp: data[:skp], snapshot_corners: [] }
+      end
+
+      # ── 장(유닛) 세부 도면 ───────────────────────────────────────────────
+      # Assembly 가 만든 모듈 그룹은 'module_index' 속성을 가진다(flatten_module). 같은 번호의 그룹(몸통·도어·서랍)이 한 장.
+      # 런 모드는 좌→우, 스택 모드는 아래→위 모듈. 직접 모델링한 가구(속성 없음)는 장을 구분할 수 없다.
+      MAX_UNITS = 16
+      LEAF_PART_MAX = 400
+
+      def group_like?(e)
+        e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+      end
+
+      def children_of(e)
+        e.respond_to?(:definition) ? e.definition.entities : e.entities
+      end
+
+      # acc[index] = [{ entity:, path: [target, ..., holder] }]
+      def find_unit_groups(entity, acc, path, depth = 0)
+        return if depth > 6
+        children_of(entity).each do |c|
+          next unless group_like?(c)
+          idx = Kabinet::Persistence::Attributes.get(c, 'module_index')
+          if idx.nil?
+            find_unit_groups(c, acc, path + [c], depth + 1)
+          else
+            (acc[idx.to_i] ||= []) << { entity: c, path: path }
+          end
+        end
+      end
+
+      # module_index 는 가구(Assembly)마다 0 부터 시작하므로 둘 이상이면 번호가 섞인다 -> 하나만 허용.
+      def multiple_assemblies?(targets)
+        targets.count { |t| !unit_candidates([t]).empty? } > 1
+      end
+
+      def unit_candidates(targets)
+        acc = {}
+        targets.each { |t| find_unit_groups(t, acc, [t]) }
+        acc
+      end
+
+      # UI 용 장 목록: [{ index:, name: }] (이름 = 'M1 몸통' 같은 그룹명에서 'M1' 부분)
+      def list_units(model = Sketchup.active_model)
+        targets = model.selection.to_a
+        raise '가구 그룹 또는 컴포넌트를 선택하세요.' if targets.empty?
+        acc = unit_candidates(targets)
+        raise '장별 세부 도면은 가구 하나만 선택했을 때 만들 수 있습니다.' if multiple_assemblies?(targets)
+        raise '장(모듈)을 구분할 수 없습니다. Kabinet 으로 만든 가구(생성기)를 선택하세요.' if acc.empty?
+        acc.keys.sort.map { |i| { index: i, name: unit_name(acc[i], i) } }
+      end
+
+      def unit_name(entries, idx)
+        label = entries.map { |en| en[:entity].name.to_s }.find { |n| n =~ /\AM\d+/ }
+        "장 #{idx + 1}" + (label ? " (#{label.sub(/\A(M\d+).*/, '\\1')})" : '')
+      end
+
+      def leaf_parts(entity, transform, out, depth = 0)
+        return if out.length > LEAF_PART_MAX || depth > 8
+        t = transform * entity.transformation
+        kids = children_of(entity).select { |c| group_like?(c) && !c.hidden? }
+        role = Kabinet::Persistence::Attributes.role(entity).to_s
+        if kids.empty?
+          return if role.empty? || role.end_with?('_group')
+          bb = entity.definition.bounds
+          out << { role: role, dims: [bb.width, bb.height, bb.depth].map { |v| v.to_mm.round(1) } }
+        else
+          kids.each { |c| leaf_parts(c, t, out, depth + 1) }
+        end
+      end
+
+      def capture_units(model, targets, to_local, right, back, options)
+        found = unit_candidates(targets)
+        raise '장별 세부 도면은 가구 하나만 선택했을 때 만들 수 있습니다.' if multiple_assemblies?(targets)
+        raise '장(모듈)을 구분할 수 없어 장별 세부 도면을 만들 수 없습니다. Kabinet 으로 만든 가구를 선택하세요.' if found.empty?
+        only = Array(options['unit_indices']).map(&:to_i)
+        indices = found.keys.sort
+        indices &= only unless only.empty?
+        raise '선택한 장이 없습니다.' if indices.empty?
+        raise "장이 너무 많습니다(최대 #{MAX_UNITS}개). 일부만 선택하세요." if indices.length > MAX_UNITS
+        out = []
+        model.start_operation('도면용 장별 투영', true)
+        begin
+          model.entities.each { |e| e.hidden = true if e.respond_to?(:hidden=) && !targets.include?(e) }
+          indices.each { |idx| u = capture_unit(model, targets, idx, found[idx], to_local, right, back, options); out << u if u }
+        ensure
+          model.abort_operation
+        end
+        raise '장별 투영 결과가 비어 있습니다.' if out.empty?
+        out.sort_by { |u| [u[:lo_abs][0].round(1), u[:lo_abs][2].round(1)] }
+      end
+
+      def capture_unit(model, targets, idx, entries, to_local, right, back, options)
+        keep = entries.map { |en| en[:entity] }
+        allowed = keep + entries.flat_map { |en| en[:path] }
+        hid = []
+        hide = lambda { |e| next if e.hidden?; e.hidden = true; hid << e }
+        entries.flat_map { |en| en[:path] }.uniq.each do |holder|
+          children_of(holder).each { |c| hide.call(c) if group_like?(c) && !allowed.include?(c) }
+        end
+        gather = lambda do
+          segs = []; boxes = []; mats = []
+          targets.each { |e| collect(e, Geom::Transformation.new, segs, boxes, mats) }
+          [segs, boxes]
+        end
+        segs, boxes = gather.call
+        return nil if segs.empty?
+        points = segs.flatten(1).map(&to_local)
+        lo = (0..2).map { |i| points.map { |p| p[i] }.min }
+        hi = (0..2).map { |i| points.map { |p| p[i] }.max }
+        size = hi.zip(lo).map { |a, b| a - b }
+        return nil if size.any? { |v| v < 0.01 }
+        views = {}
+        views['u_front'] = classify_edges(model, segs, 'front', right, back, to_local)
+        views['u_top'] = classify_edges(model, segs, 'top', right, back, to_local)
+        parts = []
+        keep.each { |g| leaf_parts(g, Geom::Transformation.new, parts) }
+        # 도어(문짝) 그룹을 숨긴 정면 내부
+        doors = []
+        keep.each { |g| doors << g if Kabinet::Persistence::Attributes.role(g).to_s == 'doors_group' }
+        doors.each { |g| hide.call(g) }
+        segs2, = gather.call
+        views['u_inner'] = classify_edges(model, segs2, 'front', right, back, to_local)
+        # 보는 사람 오른쪽 측판을 숨긴 우측면 = 측면 단면 근사(진짜 절단이 아님)
+        sides = []
+        entries.each do |en|
+          base = en[:path].inject(Geom::Transformation.new) { |t, e| t * e.transformation }
+          find_roles(en[:entity], %w[side_left side_right], sides, base * en[:entity].transformation)
+        end
+        far = sides.max_by { |pair| g_center_x(pair[0], pair[1], to_local) }
+        hide.call(far[0]) if far
+        segs3, = gather.call
+        views['u_section'] = classify_edges(model, segs3, 'side', right, back, to_local)
+        local_box = lambda do |a, b|
+          corners = (0..7).map { |i| to_local.call([(i & 1) != 0 ? b[0] : a[0], (i & 2) != 0 ? b[1] : a[1], (i & 4) != 0 ? b[2] : a[2]]) }
+          [(0..2).map { |i| corners.map { |p| p[i] }.min }, (0..2).map { |i| corners.map { |p| p[i] }.max }]
+        end
+        name = unit_name(entries, idx)
+        { index: idx, name: name, size: size, lo: lo, lo_abs: lo, views: views, boxes: boxes.map { |a, b| local_box.call(a, b) },
+          parts: parts, info: { name: name, size: size, index: idx, parts: parts } }
+      ensure
+        hid.each { |e| e.hidden = false if e.respond_to?(:valid?) ? e.valid? : true }
+      end
+
+      # out << [group, 그 그룹이 놓인 좌표계 -> 월드 변환]. bounds 는 부모 좌표계 값이라 월드로 올려서 비교해야 한다.
+      def find_roles(entity, roles, out, acc, depth = 0)
+        return if depth > 8
+        children_of(entity).each do |c|
+          next unless group_like?(c)
+          out << [c, acc] if roles.include?(Kabinet::Persistence::Attributes.role(c).to_s)
+          find_roles(c, roles, out, acc * c.transformation, depth + 1)
+        end
+      end
+
+      def g_center_x(group, acc, to_local)
+        c = acc * group.bounds.center
+        to_local.call([c.x.to_mm, c.y.to_mm, c.z.to_mm])[0]
       end
 
       # 쪽 구성은 SheetLayout 이 계산한다(겹침 없음, 쪽마다 표준 배율 하나).
@@ -365,14 +554,16 @@ module Kabinet
         doc.precision = 1.0
         doc.page_info.width = SheetLayout::PAGE_W / 25.4
         doc.page_info.height = SheetLayout::PAGE_H / 25.4
-        plan = SheetLayout.plan(data[:size], 'pages' => pages_option(options))
+        plan_opts = { 'pages' => pages_option(options) }
+        plan_opts['units'] = data[:units].map { |u| { index: u[:index], name: u[:name], size: u[:size] } } if plan_opts['pages'].include?('units')
+        plan = SheetLayout.plan(data[:size], plan_opts)
         # 공유 레이어에 그리면 쪽끼리 겹쳐 인쇄되므로, 쪽 전용(비공유) 레이어에 그린다.
         doc.layers.add('가구 도면 내용', false)
         layer = doc.layers[doc.layers.length - 1]
         plan[:pages].each_with_index do |pg, i|
           page = i.zero? ? doc.pages.first : doc.pages.add(SheetLayout.clean_text(pg[:title]))
           page.name = SheetLayout.clean_text("#{title} #{pg[:number]}-#{pg[:title]}")
-          PageCanvas.new(page, layer).draw_page(doc, data, pg, plan, title, options)
+          PageCanvas.new(page, layer).draw_page(doc, pg[:id] == 'unit' ? unit_data(data, pg[:unit]) : data, pg, plan, title, options)
         end
         doc
       end
@@ -515,7 +706,7 @@ module Kabinet
       include FurnitureSheet
       public :line, :text, :horizontal_dimension, :vertical_dimension
 
-      HIDDEN_VIEWS = %w[front side_r side_l].freeze   # 평면도에는 점선을 넣지 않는다(과다 방지)
+      HIDDEN_VIEWS = %w[front side_r side_l u_front].freeze   # 평면도에는 점선을 넣지 않는다(과다 방지)
       HIDDEN_MIN_PAPER = 3.0                          # 종이 3mm 미만 점선 조각은 생략
 
       def initialize(page, layer = nil)
@@ -532,11 +723,24 @@ module Kabinet
         header(doc, pg, title)
         if pg[:id] == 'iso'
           draw_iso_page(doc, data, pg, title, options)
+        elsif pg[:id] == 'unit'
+          pg[:views].each { |v| draw_plan_view(doc, data, v, options) }
+          draw_unit_table(doc, data, pg, plan)
         else
           pg[:views].each { |v| draw_plan_view(doc, data, v, options) }
         end
         foot_note(doc, data, pg)
         title_block(doc, plan, pg, title, options)
+      end
+
+      # 장 쪽 오른쪽 표: 번호·이름·외곽/내경·칸·판재 목록(3D 부재 외곽 치수)
+      def draw_unit_table(doc, data, pg, plan)
+        x, y, w, h = pg[:boxes][:table]
+        units = plan[:pages].select { |p| p[:id] == 'unit' }
+        info = data[:unit][:info].merge(number: units.index(pg).to_i + 1, count: units.length)
+        text(doc, '장 표', x, y, w, 7, size: 11, bold: true)
+        line(doc, x, y + 8, x + w, y + 8)
+        text(doc, SheetLayout.unit_table_lines(info).join("\n"), x, y + 10, w, h - 10, size: 8)
       end
 
       def header(doc, pg, title)
@@ -549,6 +753,7 @@ module Kabinet
         hidden = data[:internal] && pg[:views].any? { |v| HIDDEN_VIEWS.include?(v[:name]) } ? ' · 파란 점선: 가려진 선' : ''
         note = pg[:scale] ? "단위 mm · SCALE #{SheetLayout.scale_label(pg[:scale])} (이 쪽의 모든 뷰 동일)#{hidden}" : '단위 mm · 입체도는 축척 없음(N.T.S) · 치수는 정면도·평면도·측면도 쪽 참고'
         note += " · 구간 #{pg[:window][0].round}~#{pg[:window][1].round} mm" if pg[:window]
+        note += ' · 측면 단면 = 우측 측판을 제거한 우측면(절단 근사)' if pg[:id] == 'unit'
         text(doc, note, 15, 262.5, 390, 5, size: 8)
       end
 
@@ -590,21 +795,35 @@ module Kabinet
         kinds = [:visible]
         kinds.unshift(:hidden) if data[:internal] && HIDDEN_VIEWS.include?(name)
         kinds.each do |kind|
-          GroupProjection.project(data[:views][source][kind], ai, bi, data[:lo][ai], data[:lo][bi]).each do |s|
-            seg = [s[:x1], s[:y1], s[:x2], s[:y2]]
-            seg = [extent - seg[0], seg[1], extent - seg[2], seg[3]] if name == 'side_l'
-            seg = win ? SheetLayout.clip_segment(seg, win[0], win[1]) : seg
-            next unless seg
+          view_segments(name, data[:views][source][kind], data[:lo], data[:size], win).each do |seg|
             next if kind == :hidden && Math.hypot(seg[2] - seg[0], seg[3] - seg[1]) * scale < HIDDEN_MIN_PAPER
             line(doc, x + seg[0] * scale, y + h - seg[1] * scale, x + seg[2] * scale, y + h - seg[3] * scale,
                  dashed: kind == :hidden, color: kind == :hidden ? HIDDEN_COLOR : VISIBLE_COLOR, weight: kind == :hidden ? HIDDEN_WEIGHT : 0.5)
           end
         end
         draw_surface_marks(doc, options, x, y, w, h) if name == 'top' && !win
+        draw_front_marker(doc, v[:marker]) if v[:marker]
         scaled_geometry(doc, before, scale, v[:label])
         draw_dimensions(doc, data, v, scale)
         label = "#{v[:label]}  SCALE #{SheetLayout.scale_label(den)}"
         caption(doc, v[:outer][0], y + h + 6 + SheetLayout::CAPTION_H - 1, label, [v[:outer][2], 72.0].max)
+      end
+
+      # 전면 표시 — 선 화살표(글자 기호 대신 벡터)와 '전면' 글자
+      def draw_front_marker(doc, mk)
+        x1, y1, x2, y2 = mk[:arrow]
+        color = '#a54b25'
+        line(doc, x1, y1, x2, y2, color: color, weight: 0.6)
+        dx = x2 <=> x1
+        dy = y2 <=> y1
+        if dx != 0
+          line(doc, x2, y2, x2 - dx * 2.0, y2 - 1.2, color: color, weight: 0.6)
+          line(doc, x2, y2, x2 - dx * 2.0, y2 + 1.2, color: color, weight: 0.6)
+        else
+          line(doc, x2, y2, x2 - 1.2, y2 - dy * 2.0, color: color, weight: 0.6)
+          line(doc, x2, y2, x2 + 1.2, y2 - dy * 2.0, color: color, weight: 0.6)
+        end
+        text(doc, mk[:label], *mk[:text], size: 7, color: color, bold: true)
       end
 
       # 가로 치수줄 단: 구분(chain) → 도어 → EP·몸통 → 전체. 세로는 오른쪽(좌측면은 왼쪽)에 전체 + 구분.
@@ -623,6 +842,9 @@ module Kabinet
           rows << lambda do |off|
             chain_a.each_cons(2) { |a, b| horizontal_dimension(doc, x + (a - (win ? win[0] : 0)) * scale, x + (b - (win ? win[0] : 0)) * scale, y, y - off, b - a) }
           end
+        end
+        if %w[u_front u_inner].include?(name)
+          rows << ->(off) { horizontal_dimension(doc, x + 18.0 * scale, x + w - 18.0 * scale, y, y - off, data[:size][0] - 36.0) }
         end
         if name == 'front' && !win
           door_rows = door_runs(data[:tiers][:doors])
@@ -651,7 +873,7 @@ module Kabinet
         side = name == 'side_l' ? -1 : 1
         edge = name == 'side_l' ? x : x + w
         vertical_dimension(doc, edge, y, y + h, edge + side * 12, data[:size][bi])
-        if name == 'front'
+        if %w[front u_front u_inner u_section].include?(name)
           chain(data, bi, scale).each_cons(2) do |a, b|
             vertical_dimension(doc, edge, y + h - b * scale, y + h - a * scale, edge + side * 5, b - a)
           end

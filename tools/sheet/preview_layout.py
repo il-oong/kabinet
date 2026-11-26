@@ -18,8 +18,8 @@ def font(pt):                       # pt -> px (1pt = 0.3528 mm)
     return ImageFont.truetype(FONT, max(8, int(pt * 0.3528 * K)))
 
 
-def load_plan(size, pages):
-    out = subprocess.run(["ruby", os.path.join(HERE, "export_layout_plan.rb"), *map(str, size), pages], check=True, capture_output=True, text=True).stdout
+def load_plan(size, pages, units=""):
+    out = subprocess.run(["ruby", os.path.join(HERE, "export_layout_plan.rb"), *map(str, size), pages, units], check=True, capture_output=True, text=True).stdout
     return json.loads(out)
 
 
@@ -69,26 +69,32 @@ def nice(v):
     return "%d" % round(v)
 
 
-def draw_view(pg, v, size):
+def draw_view(pg, v, size, unit_size=None):
     x, y, w, h = v["rect"]; den = v["den"]; name = v["name"]
-    W, D, H = size
-    ai, bi = {"front": (W, H), "top": (W, D), "side_r": (D, H), "side_l": (D, H)}[name]
+    W, D, H = unit_size or size
+    kind = {"u_front": "front", "u_inner": "front", "u_top": "top", "u_section": "side_r"}.get(name, name)
+    ai, bi = {"front": (W, H), "top": (W, D), "side_r": (D, H), "side_l": (D, H)}[kind]
     clip = v.get("clip")
     pg.rect(x, y, w, h, DARK, 3)
-    # 칸 나눔 예시
-    if name == "front":
+    # 예시 칸 나눔: 전면 쪽(우측면 왼쪽 / 좌측면 오른쪽 / 평면 아래)에 도어 두께 띠, 반대쪽에 뒷판 띠 — 방향 확인용
+    if kind == "front":
         n = 2 if W < 1500 else 4
         for i in range(1, n):
             pg.line(x + w * i / n, y, x + w * i / n, y + h, GRAY, 2)
-        pg.line(x, y + h * 0.5, x + w, y + h * 0.5, BLUE, 2, dash=True)
-    elif name == "top":
-        pg.line(x, y + h * 0.12, x + w, y + h * 0.12, GRAY, 2)
+        pg.line(x, y + h * 0.5, x + w, y + h * 0.5, BLUE if name != "u_inner" else DARK, 2, dash=(name != "u_inner"))
+    elif kind == "top":
+        pg.line(x, y + h * 0.88, x + w, y + h * 0.88, GRAY, 2)   # 전면(아래) 도어 두께
+        pg.line(x, y + h * 0.06, x + w, y + h * 0.06, GRAY, 2)   # 뒷판(위)
     else:
-        pg.line(x + w * 0.15, y, x + w * 0.15, y + h, GRAY, 2)
-        pg.line(x, y + h * 0.5, x + w, y + h * 0.5, BLUE, 2, dash=True)
+        fx = x + w * 0.12 if kind == "side_r" else x + w * 0.88    # 전면 띠: 우측면 = 왼쪽, 좌측면 = 오른쪽
+        bx = x + w * 0.94 if kind == "side_r" else x + w * 0.06
+        pg.line(fx, y, fx, y + h, GRAY, 2); pg.line(bx, y, bx, y + h, GRAY, 2)
+        pg.line(x, y + h * 0.5, x + w, y + h * 0.5, BLUE if name != "u_section" else DARK, 2, dash=(name != "u_section"))
     rows = []
     if name == "front" and not clip:
         rows = [("door", "%d/%d EQ" % (W, 2)), ("body", nice(W - 36)), ("all", nice(W))]
+    elif name in ("u_front", "u_inner"):
+        rows = [("inner", nice(W - 36)), ("all", nice(W))]
     elif not clip:
         rows = [("all", nice(ai))]
     else:
@@ -98,10 +104,20 @@ def draw_view(pg, v, size):
         pg.dim_h(x, x + w, y, lab, 6 + 7 * i)
     edge = x if name == "side_l" else x + w
     pg.dim_v(edge, y, y + h, nice(bi), side * 12)
+    mk = v.get("marker")
+    if mk:
+        x1, y1, x2, y2 = mk["arrow"]
+        pg.line(x1, y1, x2, y2, (165, 75, 37), 2)
+        import math
+        dx = (x2 > x1) - (x2 < x1); dy = (y2 > y1) - (y2 < y1)
+        if dx:
+            pg.line(x2, y2, x2 - dx * 2, y2 - 1.2, (165, 75, 37), 2); pg.line(x2, y2, x2 - dx * 2, y2 + 1.2, (165, 75, 37), 2)
+        else:
+            pg.line(x2, y2, x2 - 1.2, y2 - dy * 2, (165, 75, 37), 2); pg.line(x2, y2, x2 + 1.2, y2 - dy * 2, (165, 75, 37), 2)
+        pg.text(mk["label"], mk["text"][0], mk["text"][1], 7, (165, 75, 37))
     cap_y = y + h + 6 + 8
     pg.line(v["outer"][0], cap_y, v["outer"][0] + max(v["outer"][2], 72), cap_y, GRAY, 2)
     pg.text("%s  SCALE 1/%d" % (v["label"], den), v["outer"][0] + 7, cap_y - 6, 9, DARK)
-    # 바깥 사각형(여백 포함) — 점선, 겹침 확인용
     pg.rect(*v["outer"], c=(190, 200, 215), wd=1)
 
 
@@ -123,7 +139,8 @@ def draw_iso_box(pg, box, size):
     pg.d.polygon([(px * K, py * K) for px, py in face], fill=(232, 226, 214), outline=DARK)
 
 
-def render(plan, name, size, out):
+def render(plan, name, size, out, units_by_index=None):
+    units_by_index = units_by_index or {}
     os.makedirs(out, exist_ok=True)
     files = []
     tb = plan["title_block"]
@@ -152,11 +169,20 @@ def render(plan, name, size, out):
             for r in b.values():
                 pg.rect(*r, c=(190, 200, 215), wd=1)
         else:
+            usz = None
+            if pgd["id"] == "unit":
+                usz = units_by_index[pgd["unit"]]
+                tx, ty, tw, th = pgd["boxes"]["table"]
+                pg.rect(tx, ty, tw, th, c=(190, 200, 215), wd=1)
+                pg.text("장 표", tx, ty, 11); pg.line(tx, ty + 8, tx + tw, ty + 8, DARK, 2)
+                pg.text("\n".join(pgd.get("table_lines", [])), tx, ty + 10, 8)
             for v in pgd["views"]:
-                draw_view(pg, v, size)
+                draw_view(pg, v, size, usz)
         note = ("단위 mm · SCALE %s (이 쪽의 모든 뷰 동일)" % sc) if pgd["scale"] else "단위 mm · 입체도는 축척 없음(N.T.S) · 치수는 정면도·평면도·측면도 쪽 참고"
         if pgd.get("window"):
             note += " · 구간 %d~%d mm" % tuple(round(a) for a in pgd["window"])
+        if pgd["id"] == "unit":
+            note += " · 측면 단면 = 우측 측판을 제거한 우측면(절단 근사)"
         pg.text(note, 15, 262.5, 8)
         vals = {"furniture": name, "site": DEFAULT_SITE, "date": "2026-11-26", "author": "", "scale": sc, "page": "%d / %d" % (pgd["number"], pgd["total"])}
         t = (15, 268, 390, 18)
@@ -180,10 +206,15 @@ def main():
     ap.add_argument("--size", nargs=3, type=float, required=True, metavar=("W", "D", "H"))
     ap.add_argument("--out", default="output_samples/layout_preview")
     ap.add_argument("--pages", default="iso,front,side")
+    ap.add_argument("--units", default="", help="장 목록 '이름:WxDxH,이름:WxDxH' (좌->우) — 주면 장별 세부 쪽 포함")
     a = ap.parse_args()
-    plan = load_plan(a.size, a.pages)
+    plan = load_plan(a.size, a.pages, a.units)
+    ubi = {}
+    if a.units:
+        for i, spec in enumerate(a.units.split(",")):
+            ubi[i] = [float(t) for t in spec.split(":")[1].split("x")]
     print("problems:", plan.get("problems"))
-    for f in render(plan, a.name, a.size, a.out):
+    for f in render(plan, a.name, a.size, a.out, ubi):
         print(f)
     sys.exit(1 if plan.get("problems") else 0)
 
