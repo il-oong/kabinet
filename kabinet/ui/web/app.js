@@ -1336,7 +1336,7 @@ const kabinet = (() => {
     { id: 'door_undesignate', label: '도어 지정 해제', hint: '도어로 지정한 그룹/컴포넌트를 선택하고 누르면 해제' }
   ];
   const SIDEBAR_OUTPUTS = [
-    { id: 'furniture_drawing', label: '가구 도면 (LayOut)', hint: '선택한 가구 → A3 평면·정면·측면·컬러 입체도 + PDF' },
+    { id: 'furniture_drawing', label: '가구 도면 (LayOut)', hint: '선택한 가구 → A3 여러 쪽(입체도·정면/평면·측면, 쪽마다 표준 배율) + PDF' },
     { id: 'sheet_dxf', label: '도면 시트 (DXF)', hint: '현장사진·3D·평면도·가구 시트·단면·확인표를 시트별 DXF로 — 페이지 순서/제목 편집' },
     { id: 'drawing_import', label: '도면 치수표 → 3D 가구', hint: '도면의 가구별 치수를 표로 입력 → 프리셋 구조로 한 번에 생성·배치' },
   ];

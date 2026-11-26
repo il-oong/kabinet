@@ -2,6 +2,11 @@
 
 새 세션에서 이 파일부터 읽고 이어서 작업하세요. 사용자 선호: **한국어로 답변, 코드는 항상 PR 먼저 만든 뒤 머지, Railway 사용(이 저장소는 SketchUp 플러그인이라 해당 없음)**, 컨텍스트 70% 넘으면 중단하고 정리.
 
+## (v1.30.0) 가구 도면(LayOut) 여러 쪽·표준 배율·겹침 없음
+- `kabinet/output/sheet_layout.rb`(순수 계산 `SheetLayout.plan/problems/clip_segment/clean_text`) + `furniture_sheet.rb`(`compose` 가 계획대로 `PageCanvas` 로 쪽마다 그림, 비공유 레이어 '가구 도면 내용'). 뷰 캡처는 top/side/side_left/front(사선 입면 폐지). UI 쪽 체크박스(`pages` 옵션), 현장정보 기본값.
+- 검증: `test/sheet_layout_test.rb`, `test/furniture_sheet_draw_test.rb`, 미리보기 `tools/sheet/preview_layout.py` → `output_samples/layout_preview/`.
+- 남은 일: LayOut 실기 확인(쪽 수·겹침·배율·한글·입체도 위치·레이어), 단면/상세 쪽(측면도 쪽에 단면 추가), 좌측면 가려진 선 품질, 분할 쪽의 구간 치수 표기(현재 구간 구분 치수 + 구간 안내문만), 스페이스(SpaceSheet) 도면에도 같은 쪽 배치 적용 여부. 입체도는 N.T.S(배율 표기 없음).
+
 ## (v1.26.2) 현관장 DWG 판 `___2`
 - 기존 `___`(텍스트 DXF)와 같은 도면. 서랍 3단/도어 1540 반영, L형은 일렬 근사. 확인 필요: 푸쉬형(손잡이 없음) vs A 규칙 목찬넬, 서랍-도어 사이 40·선반 추정. 검증 시 `verify_dxf.py <dxf> <json> --twin-panels` 처럼 JSON 을 함께 줘야 장 결합 검사가 정확함.
 

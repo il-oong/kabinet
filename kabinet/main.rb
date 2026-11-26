@@ -59,6 +59,7 @@ require File.join(Kabinet::PLUGIN_DIR, 'output', 'dimensions')
 require File.join(Kabinet::PLUGIN_DIR, 'output', 'views')
 require File.join(Kabinet::PLUGIN_DIR, 'output', 'png_export')
 require File.join(Kabinet::PLUGIN_DIR, 'output', 'pdf_bundler')
+require File.join(Kabinet::PLUGIN_DIR, 'output', 'sheet_layout')
 require File.join(Kabinet::PLUGIN_DIR, 'output', 'furniture_sheet')
 require File.join(Kabinet::PLUGIN_DIR, 'output', 'space_sheet')
 require File.join(Kabinet::PLUGIN_DIR, 'output', 'sheet')
@@ -113,7 +114,7 @@ module Kabinet
       core/desk_module.rb core/assembly.rb
       core/hardware.rb core/validation.rb core/cut_list.rb
       core/ep_board.rb core/furniture_library.rb
-      output/furniture_sheet.rb output/space_sheet.rb output/drawing_template.layout
+      output/sheet_layout.rb output/furniture_sheet.rb output/space_sheet.rb output/drawing_template.layout
       output/sheet.rb output/sheet/styles.rb output/sheet/canvas.rb output/sheet/frame.rb output/sheet/model.rb output/sheet/pages.rb
       output/sheet/text.rb output/sheet/image_info.rb output/sheet/dxf_writer.rb output/sheet/builder.rb ui/sheet_bridge.rb ui/web/sheet.js
       commands/generate.rb commands/regenerate.rb commands/export.rb
@@ -173,7 +174,7 @@ module Kabinet
       'output/drawing2d', 'output/dxf', 'output/order_sheet',
       'output/group_projection', 'output/dimensions', 'output/views',
       'output/png_export', 'output/pdf_bundler',
-      'output/furniture_sheet', 'output/space_sheet',
+      'output/sheet_layout', 'output/furniture_sheet', 'output/space_sheet',
       'geometry/preview_entities', 'ui/live_preview',
       'ui/dialog', 'ui/panel_tools', 'ui/place_tool', 'ui/front_view_tool', 'ui/menu', 'updater'
     ]

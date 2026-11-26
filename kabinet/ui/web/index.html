@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabinet</title>
-  <link rel="stylesheet" href="styles.css?v=1.29.1">
+  <link rel="stylesheet" href="styles.css?v=1.30.0">
 </head>
 <body>
 
@@ -12,7 +12,7 @@
 <aside class="preset-sidebar">
   <div class="preset-sidebar-head">
     <span class="preset-sidebar-title">Kabinet</span>
-    <span class="version-badge">v1.29.1</span>
+    <span class="version-badge">v1.30.0</span>
   </div>
   <input type="search" id="preset-search" class="preset-search" placeholder="프리셋·도구 검색…"
          oninput="kabinet.renderPresetSidebar()">
@@ -316,7 +316,7 @@
     </div>
 
     <div id="ep-furniture-options">
-      <div class="ep-sheet" aria-label="도면 배치 미리보기"><div class="top">평면도</div><div class="iso">컬러 입체도</div><div class="front">정면도</div><div class="side">측면도</div><div class="materials">마감재 견본</div></div>
+      <div class="ep-sheet" aria-label="쪽 구성 미리보기"><div class="iso">1쪽 입체도·재질·메모</div><div class="front">2쪽 정면도 + 평면도</div><div class="side">3쪽 좌·우 측면도</div></div>
       <p class="ep-hint">① 가구 전체를 선택 → ② 사용자가 서는 쪽에서 바라본 뒤 <b>현재 화면을 정면으로</b> → ③ 아래 정보 입력 → ④ 출력.</p>
       <div class="ep-grid">
         <button type="button" class="btn-secondary" data-front="set">현재 화면을 정면으로</button>
@@ -343,14 +343,19 @@
 
     <label class="ep-field" data-furniture-only>도면 이름<input id="ep-title" maxlength="60" value="가구 도면"></label>
     <label class="ep-field" data-furniture-only>가구명<input id="ep-furniture-name" maxlength="50" placeholder="비우면 도면 이름 사용"></label>
-    <label class="ep-field">현장정보<input id="ep-site" maxlength="50" placeholder="현장명 · 동/호수 · 설치 위치"></label>
+    <label class="ep-field">현장정보<input id="ep-site" maxlength="50" value="경기도 수원시 영통구 광교호수공원로 80 광교아이파크 101동 4601호" placeholder="현장명 · 동/호수 · 설치 위치"></label>
     <div class="ep-grid2">
       <label class="ep-field">도면 제작날짜<input id="ep-drawing-date" type="date"></label>
       <label class="ep-field">작성자<input id="ep-author" maxlength="30"></label>
     </div>
     <label class="ep-field">메모 · 시공 유의사항<textarea id="ep-memo" rows="4" maxlength="180" placeholder="마감, 설치, 확인사항 등"></textarea></label>
     <label class="ep-check" data-furniture-only><input id="ep-internal" type="checkbox" checked> 도어 뒤 선반·칸막이 등 가려진 선을 점선으로 표시</label>
-    <label class="ep-check" data-furniture-only><input id="ep-detail-page" type="checkbox" checked> 2장째 상세 도면 추가 (정면·측면을 크게, 치수 더 많이)</label>
+    <fieldset class="ep-pages" data-furniture-only>
+      <legend>출력할 쪽 (A3 가로, 쪽마다 표준 배율 하나)</legend>
+      <label class="ep-check"><input id="ep-pg-iso" type="checkbox" checked> 입체도 · 재질 · 메모</label>
+      <label class="ep-check"><input id="ep-pg-front" type="checkbox" checked> 정면도 · 평면도 (너무 크면 구간을 나눠 쪽 추가)</label>
+      <label class="ep-check"><input id="ep-pg-side" type="checkbox" checked> 좌 · 우 측면도 (작은 가구는 정면도 쪽에 함께)</label>
+    </fieldset>
     <button id="ep-export" type="button" class="btn-primary ep-big">도면 출력 · LayOut + PDF</button>
     <p class="ep-hint">출력 후 LayOut에서 메모·치수를 더블클릭해 수정할 수 있습니다. .layout / .pdf / _assets 폴더를 함께 보관하세요.</p>
   </div>
@@ -551,11 +556,11 @@
 
 </div><!-- /.main-col -->
 
-<script src="app.js?v=1.29.1"></script>
-<script src="modules.js?v=1.29.1"></script>
-<script src="live-preview.js?v=1.29.1"></script>
-<script src="drawing.js?v=1.29.1"></script>
-<script src="drawing_import.js?v=1.29.1"></script>
-<script src="sheet.js?v=1.29.1"></script>
+<script src="app.js?v=1.30.0"></script>
+<script src="modules.js?v=1.30.0"></script>
+<script src="live-preview.js?v=1.30.0"></script>
+<script src="drawing.js?v=1.30.0"></script>
+<script src="drawing_import.js?v=1.30.0"></script>
+<script src="sheet.js?v=1.30.0"></script>
 </body>
 </html>

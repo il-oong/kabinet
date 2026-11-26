@@ -15,6 +15,7 @@ module Geom
   class Transformation; end
 end
 class Numeric; def to_mm; self; end; end
+require_relative '../kabinet/output/sheet_layout'
 require_relative '../kabinet/output/furniture_sheet'
 def assert(v, m); raise m unless v; end
 FS = Kabinet::Output::FurnitureSheet
@@ -41,9 +42,36 @@ none = []
 FS.send(:rod_silhouette, FakeRod.new('door_pair_left'), [0, 0, 0], none)
 assert none.empty?, 'non-rod groups unchanged'
 
-# 상세 2장째 도우미: 모든 그리기 메서드를 공개로 재사용
-assert Kabinet::Output::DetailSheet.public_method_defined?(:draw_view), 'DetailSheet.draw_view'
+# 쪽 전용 캔버스: 선·글자·치수 도구를 공개로 재사용, 자기 쪽에만 그림
+%i[line text horizontal_dimension vertical_dimension draw_page].each do |m|
+  assert Kabinet::Output::PageCanvas.public_method_defined?(m), "PageCanvas.#{m}"
+end
 page = Object.new
-sheet = Kabinet::Output::DetailSheet.new(page)
-assert sheet.send(:page_of, nil).equal?(page), 'DetailSheet draws on its own page'
+sheet = Kabinet::Output::PageCanvas.new(page)
+assert sheet.send(:page_of, nil).equal?(page), 'PageCanvas draws on its own page'
+
+# 쪽 선택 옵션: 기본 3종, 잘못된 값은 걸러내고 비면 오류
+assert FS.pages_option({}) == %w[iso front side], 'default pages'
+assert FS.pages_option('pages' => %w[side iso bogus]) == %w[iso side], 'filter pages'
+begin
+  FS.pages_option('pages' => [])
+  assert false, 'empty pages must raise'
+rescue RuntimeError => e
+  assert e.message.include?('쪽'), 'empty pages message'
+end
+
+# 글자 깨짐 방지: 소스의 LayOut 에 들어가는 문자열은 CP949 로 표현 가능해야 한다(em dash 등 금지)
+%w[furniture_sheet.rb sheet_layout.rb space_sheet.rb].each do |f|
+  File.read(File.join(__dir__, '..', 'kabinet', 'output', f), encoding: 'UTF-8').each_line.with_index(1) do |line, no|
+    next if line.lstrip.start_with?('#') || line.include?('TEXT_MAP')
+    line.each_char do |ch|
+      next if ch.ord < 128
+      begin
+        ch.encode(Encoding::CP949)
+      rescue Encoding::UndefinedConversionError
+        assert false, "#{f}:#{no} CP949 에 없는 문자 U+#{ch.ord.to_s(16)} (LayOut 에서 ? 로 깨짐)"
+      end
+    end
+  end
+end
 puts 'furniture_sheet_test: OK'
