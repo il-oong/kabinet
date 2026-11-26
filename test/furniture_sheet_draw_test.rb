@@ -87,4 +87,37 @@ end
     assert !dims.empty?, "#{size} 쪽#{pg[:number]}: 치수 없음"
   end
 end
+
+# ── 장별 세부 쪽: 가짜 장 데이터로 끝까지 그려 본다 ──
+def unit_views(w, d, h)
+  edges = [[[0, 0, 0], [w, 0, 0]], [[w, 0, 0], [w, 0, h]], [[w, 0, h], [0, 0, h]], [[0, 0, h], [0, 0, 0]],
+           [[0, d, 0], [w, d, 0]], [[0, 0, h / 2.0], [w, 0, h / 2.0]], [[0, 0, 0], [0, d, 0]], [[w, 0, 0], [w, d, 0]], [[w, d, 0], [w, d, h]]]
+  vis = { visible: edges, hidden: [[[w / 3.0, d / 2, 0], [w / 3.0, d / 2, h]]] }
+  { 'u_front' => vis, 'u_inner' => vis, 'u_top' => vis, 'u_section' => vis }
+end
+unit_sizes = [[800.0, 580.0, 720.0], [600.0, 580.0, 720.0], [450.0, 600.0, 2100.0]]
+udata = {
+  size: [3600.0, 650.0, 900.0], lo: [0.0, 0.0, 0.0], internal: true, materials: [], skp: 'x', snapshot_corners: [], views: {}, boxes: [], tiers: { doors: [], bodies: [] },
+  units: unit_sizes.each_with_index.map do |sz, i|
+    parts = [{ role: 'side_left', dims: [sz[2], sz[1], 18.0] }, { role: 'side_right', dims: [sz[2], sz[1], 18.0] }, { role: 'bottom', dims: [sz[0] - 36, sz[1], 18.0] }]
+    { index: i, name: "장 #{i + 1} (M#{i + 1})", size: sz, lo: [0.0, 0.0, 0.0], lo_abs: [i * 900.0, 0.0, 0.0], views: unit_views(*sz),
+      boxes: [[[0, 0, 0], sz], [[0, 0, 0], [sz[0], sz[1], sz[2] / 2]]], parts: parts, info: { name: "장 #{i + 1} (M#{i + 1})", size: sz, index: i, parts: parts } }
+  end
+}
+uplan = L.plan(udata[:size], 'pages' => %w[iso], 'units' => udata[:units].map { |u| { index: u[:index], name: u[:name], size: u[:size] } })
+assert L.problems(uplan).empty?, "units plan: #{L.problems(uplan)}"
+uplan[:pages].select { |pg| pg[:id] == 'unit' }.each do |pg|
+  page = Page.new([])
+  doc = Doc.new([page])
+  canvas = Kabinet::Output::PageCanvas.new(page, :layer)
+  canvas.draw_page(doc, Kabinet::Output::FurnitureSheet.unit_data(udata, pg[:unit]), pg, uplan, '가구 도면', 'site' => '')
+  texts = page.entities.select { |e| e.is_a?(Layout::FormattedText) }.map { |e| e.args[0] }
+  assert texts.any? { |t| t.include?('SCALE ' + L.scale_label(pg[:scale])) }, '장 쪽 SCALE 표기'
+  assert texts.any? { |t| t.include?('내경(= 외곽 - 36)') }, '장 표 내경'
+  assert texts.any? { |t| t.include?('장 표') }, '장 표 제목'
+  assert texts.any? { |t| t.include?("#{pg[:number]} / #{pg[:total]}") }, '쪽 번호'
+  assert texts.count { |t| t == '전면' } == 2, "전면 표시(평면·단면) #{texts.count { |t| t == '전면' }}"
+  assert page.entities.count { |e| e.is_a?(Layout::LinearDimension) } >= 8, '장 쪽 치수'
+  texts.each { |t| t.each_char { |ch| ch.encode(Encoding::CP949) rescue assert(false, "깨질 문자 U+#{ch.ord.to_s(16)}") } }
+end
 puts 'furniture_sheet_draw_test: OK'

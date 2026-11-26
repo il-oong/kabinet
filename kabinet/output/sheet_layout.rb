@@ -32,9 +32,22 @@ module Kabinet
         'side_r' => { l: 6.0, r: 20.0, t: 18.0, b: 6.0 },
         'side_l' => { l: 20.0, r: 6.0, t: 18.0, b: 6.0 }
       }.freeze
-      AXES = { 'front' => [0, 2], 'top' => [0, 1], 'side_r' => [1, 2], 'side_l' => [1, 2] }.freeze
+      # 장(유닛) 세부 도면 뷰: 정면(도어 닫힘) / 정면 내부(도어 제거) / 평면 / 측면 단면(우측 측판 제거)
+      MARGINS_UNIT = {
+        'u_front' => { l: 10.0, r: 20.0, t: 28.0, b: 6.0 },
+        'u_inner' => { l: 10.0, r: 20.0, t: 28.0, b: 6.0 },
+        'u_top' => { l: 10.0, r: 20.0, t: 18.0, b: 6.0 },
+        'u_section' => { l: 6.0, r: 20.0, t: 18.0, b: 6.0 }
+      }.freeze
+      AXES = { 'front' => [0, 2], 'top' => [0, 1], 'side_r' => [1, 2], 'side_l' => [1, 2],
+               'u_front' => [0, 2], 'u_inner' => [0, 2], 'u_top' => [0, 1], 'u_section' => [1, 2] }.freeze
       LABELS = { 'front' => 'FRONT VIEW 정면도', 'top' => 'TOP VIEW 평면도',
-                 'side_r' => 'RIGHT SIDE VIEW 우측면도', 'side_l' => 'LEFT SIDE VIEW 좌측면도' }.freeze
+                 'side_r' => 'RIGHT SIDE VIEW 우측면도', 'side_l' => 'LEFT SIDE VIEW 좌측면도',
+                 'u_front' => 'FRONT VIEW 정면도(도어 닫힘)', 'u_inner' => 'FRONT VIEW 내부(도어 제거)',
+                 'u_top' => 'TOP VIEW 평면도', 'u_section' => 'SECTION 측면 단면' }.freeze
+      TABLE_W = 112.0         # 장 쪽 오른쪽 장 표 폭
+      MAX_UNIT_PAGES = 16
+      UNIT_VIEW_MODEL = { 'u_front' => 'front', 'u_inner' => 'front', 'u_top' => 'top', 'u_section' => 'side_r' }.freeze
 
       def area_w; AREA[:x1] - AREA[:x0]; end
       def area_h; AREA[:y1] - AREA[:y0]; end
@@ -42,15 +55,15 @@ module Kabinet
       # 모델 mm 크기 [w, d, h] 의 뷰 이름별 실물 크기(가로, 세로)
       def model_extent(name, w, d, h)
         case name
-        when 'front' then [w, h]
-        when 'top' then [w, d]
+        when 'front', 'u_front', 'u_inner' then [w, h]
+        when 'top', 'u_top' then [w, d]
         else [d, h]
         end
       end
 
       # 한 뷰: 기하 사각형 [gw, gh] 와 바깥 사각형(여백·캡션 포함)의 종이 크기
       def view_dims(name, ext, den)
-        m = MARGINS.fetch(name)
+        m = MARGINS[name] || MARGINS_UNIT.fetch(name)
         gw = ext[0] / den
         gh = ext[1] / den
         { gw: gw, gh: gh, ow: [gw + m[:l] + m[:r], MIN_OUTER_W].max, oh: gh + m[:t] + m[:b] + CAPTION_H, m: m }
@@ -64,7 +77,7 @@ module Kabinet
       # ── 한 쪽 안의 뷰 배치(가운데 정렬, 기준선 정렬) ──────────────────────
       # columns: [[view_name, ...] 위→아래, ...] 왼→오. 각 열은 아래 뷰 기준선 기하 하단을 공유한다.
       # 반환: 배치 가능하면 { views: [...] }, 아니면 nil. 모든 뷰는 같은 배율.
-      def arrange(columns, windows, size, den)
+      def arrange(columns, windows, size, den, area = AREA)
         w, d, h = size
         dims = {}
         columns.flatten.each do |n|
@@ -83,9 +96,11 @@ module Kabinet
         end
         below = columns.map { |col| dims[col.last][:m][:b] + CAPTION_H }
         total_h = above.max + below.max
-        return nil if total_w > area_w + 1e-6 || total_h > area_h + 1e-6
-        x = AREA[:x0] + (area_w - total_w) / 2
-        baseline = AREA[:y0] + (area_h - total_h) / 2 + above.max
+        aw = area[:x1] - area[:x0]
+        ah = area[:y1] - area[:y0]
+        return nil if total_w > aw + 1e-6 || total_h > ah + 1e-6
+        x = area[:x0] + (aw - total_w) / 2
+        baseline = area[:y0] + (ah - total_h) / 2 + above.max
         views = []
         columns.each_with_index do |col, ci|
           outer_top = nil
@@ -97,7 +112,8 @@ module Kabinet
             views << {
               name: n, label: LABELS.fetch(n), den: den, clip: windows[n] ? windows[n].dup : nil,
               rect: [gx, gy, dm[:gw], dm[:gh]],
-              outer: [x, gy - dm[:m][:t], dm[:ow], dm[:m][:t] + dm[:gh] + dm[:m][:b] + CAPTION_H]
+              outer: [x, gy - dm[:m][:t], dm[:ow], dm[:m][:t] + dm[:gh] + dm[:m][:b] + CAPTION_H],
+              marker: front_marker(n, [gx, gy, dm[:gw], dm[:gh]])
             }
             outer_top = gy - dm[:m][:t]
           end
@@ -107,12 +123,24 @@ module Kabinet
       end
 
       # 같은 배율로 columns 를 배치. 표준 배율 중 들어가는 가장 큰 값. 못 들어가면 nil.
-      def fit_columns(columns, windows, size)
+      def fit_columns(columns, windows, size, area = AREA)
         STD_DENS.each do |den|
-          arr = arrange(columns, windows, size, den)
+          arr = arrange(columns, windows, size, den, area)
           return arr.merge(den: den) if arr
         end
         nil
+      end
+
+      # 전면 표시(작은 화살표 + '전면'): 방향을 도면만 봐도 알 수 있게 한다. 정면도에는 없다.
+      #   우측면도 = 전면이 왼쪽(화살표 왼쪽), 좌측면도 = 전면이 오른쪽, 평면도 = 전면이 아래쪽.
+      #   arrow = [x1, y1, x2, y2] (머리는 끝점), 모두 뷰 바깥 여백 안(종이 mm, y 아래로).
+      def front_marker(name, rect)
+        x, y, w, h = rect
+        case name
+        when 'side_r', 'u_section' then { dir: 'left', label: '전면', arrow: [x + 9, y + h + 3, x, y + h + 3], text: [x + 11, y + h + 0.8, 14, 4.5] }
+        when 'side_l' then { dir: 'right', label: '전면', arrow: [x + w - 9, y + h + 3, x + w, y + h + 3], text: [x + w - 25, y + h + 0.8, 14, 4.5] }
+        when 'top', 'u_top' then { dir: 'down', label: '전면', arrow: [x - 5, y + h - 12, x - 5, y + h], text: [x - 9.5, y + h - 20, 9, 4.5] }
+        end
       end
 
       def view_page(id, title, fit, extra = {})
@@ -172,12 +200,68 @@ module Kabinet
         }
       end
 
+      # 장(유닛) 세부 쪽 하나: 평면 위 정면(도어 닫힘), 내부(도어 제거), 측면 단면, 오른쪽 장 표.
+      def unit_page(unit, size)
+        area = AREA.merge(x1: AREA[:x1] - TABLE_W - GAP)
+        cols = [%w[u_top u_front], ['u_inner'], ['u_section']]
+        fit = fit_columns(cols, {}, size, area)
+        raise "장 #{unit[:index].to_i + 1} 이(가) 너무 커서 쪽에 배치할 수 없습니다." unless fit
+        title = "장 #{unit[:number]} / #{unit[:count]} - #{unit[:name]} (#{unit[:size].map { |v| v.round }.join('x')})"
+        view_page('unit', title, fit, unit: unit[:index], boxes: { table: [AREA[:x1] - TABLE_W, AREA[:y0], TABLE_W, area_h] })
+      end
+
+      # units: [{ index:, name:, size: [w, d, h] }] (좌 -> 우 순서). 반환: 쪽 배열
+      def unit_pages(units)
+        raise "장이 너무 많습니다(최대 #{MAX_UNIT_PAGES}개). 일부만 선택하세요." if units.length > MAX_UNIT_PAGES
+        units.each_with_index.map do |u, i|
+          unit_page({ index: u[:index], name: u[:name].to_s, size: u[:size], number: i + 1, count: units.length }, u[:size].map(&:to_f))
+        end
+      end
+
+      # 장 표 글자(순수): info = { name:, size: [w,d,h], index:, count:, parts: [{role:, dims: [a,b,c]}] }
+      PART_NAMES = [[/drawer_front/, '서랍 전면'], [/drawer/, '서랍 부재'], [/door/, '도어'], [/channel/, '찬넬'], [/side/, '측판'],
+                    [/top/, '상판/레일'], [/bottom/, '하판'], [/back/, '뒷판'], [/shelf/, '선반'], [/divider/, '칸막이']].freeze
+
+      def part_name(role)
+        r = role.to_s
+        hit = PART_NAMES.find { |re, _| re =~ r }
+        hit ? hit[1] : r
+      end
+
+      def parts_table(parts)
+        rows = Hash.new(0)
+        parts.each do |pt|
+          dims = pt[:dims].map { |v| v.round }.sort.reverse
+          rows[[part_name(pt[:role]), dims]] += 1
+        end
+        rows.map { |(name, dims), qty| [name, "#{dims[0]} x #{dims[1]} x #{dims[2]}T", qty] }.sort_by { |n, d, _| [n, d] }
+      end
+
+      def unit_table_lines(info, body_t = 18)
+        w, d, h = info[:size].map { |v| v.round }
+        parts = info[:parts] || []
+        doors = parts.count { |pt| pt[:role].to_s =~ /door/ && pt[:role].to_s !~ /drawer/ }
+        drawers = parts.count { |pt| pt[:role].to_s =~ /drawer_front/ }
+        shelves = parts.count { |pt| pt[:role].to_s =~ /shelf/ }
+        lines = ["장 #{info[:number]} / #{info[:count]}", info[:name].to_s,
+                 "외곽 폭 x 깊이 x 높이: #{w} x #{d} x #{h}",
+                 "내경(= 외곽 - #{body_t * 2}): #{w - body_t * 2}",
+                 '측판: 장마다 양쪽 18T (이웃 장 사이 판 2장 = 36)',
+                 "도어 #{doors}장 / 서랍 #{drawers}단 / 선반 #{shelves}장 / 칸수 #{shelves + 1}"]
+        table = parts_table(parts)
+        lines << '' << '판재 목록 (부재 / 크기 / 수량)'
+        table.each { |n, dm, q| lines << "#{n}  #{dm}  x#{q}" }
+        lines << '(판재 크기는 3D 부재의 외곽 치수, 제작 전 확인)' unless table.empty?
+        lines
+      end
+
       # size = [w, d, h] (mm). opts: 'pages' => %w[iso front side] (기본 모두)
       def plan(size, opts = {})
         w, d, h = size.map(&:to_f)
         raise '가구 크기가 올바르지 않습니다.' if [w, d, h].any? { |v| v <= 0 }
         size = [w, d, h]
         want = (opts['pages'] || opts[:pages] || %w[iso front side]).map(&:to_s)
+        units = opts['units'] || opts[:units]
         pages = []
         pages << iso_page if want.include?('iso')
         if want.include?('front') || want.include?('side')
@@ -197,6 +281,8 @@ module Kabinet
             end
           end
         end
+        units = opts['units'] || opts[:units]
+        pages.concat(unit_pages(units)) if units && !units.empty?
         pages.each_with_index { |pg, i| pg[:number] = i + 1; pg[:total] = pages.length }
         { size: size, pages: pages, title_block: title_block_cells }
       end

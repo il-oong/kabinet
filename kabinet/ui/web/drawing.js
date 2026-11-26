@@ -30,6 +30,20 @@
 
   const selected = new Set();
 
+  window.epUnits = function (units) {
+    const box = document.getElementById('ep-unit-list');
+    if (!box) return;
+    box.innerHTML = '';
+    (units || []).forEach(u => {
+      const l = document.createElement('label');
+      const c = document.createElement('input');
+      c.type = 'checkbox'; c.value = u.index; c.checked = true;
+      l.appendChild(c);
+      l.appendChild(document.createTextNode(' ' + u.name));
+      box.appendChild(l);
+    });
+  };
+
   window.epLibrary = function (items) {
     library = Array.isArray(items) ? items : [];
     const ids = new Set(library.map(i => i.id));
@@ -181,11 +195,14 @@
     byId('lib-clear').addEventListener('click', () => { selected.clear(); renderLibrary(); });
     byId('library-filter').addEventListener('change', renderLibrary);
     byId('space-mode').addEventListener('change', applySpaceMode);
+    byId('pg-units').addEventListener('change', () => { byId('unit-box').hidden = !byId('pg-units').checked; });
+    byId('units-load').addEventListener('click', () => call('ep_units', '', '선택한 가구의 장 목록을 읽고 있습니다…'));
 
     byId('export').addEventListener('click', () => {
       const space = byId('space-mode').checked;
       call('ep_export', JSON.stringify({
-        title: byId('title').value.trim() || '가구 도면', internal: byId('internal').checked, pages: ['iso', 'front', 'side'].filter(k => byId('pg-' + k).checked),
+        title: byId('title').value.trim() || '가구 도면', internal: byId('internal').checked, pages: ['iso', 'front', 'side', 'units'].filter(k => byId('pg-' + k).checked),
+        unit_indices: [...document.querySelectorAll('#ep-unit-list input:checked')].map(i => Number(i.value)),
         iso_direction: byId('iso-direction').value, furniture_name: byId('furniture-name').value.trim(),
         site: byId('site').value.trim(), drawing_date: byId('drawing-date').value, author: byId('author').value.trim(),
         memo: byId('memo').value.trim(), surface_left: byId('surface-left').value,

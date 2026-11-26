@@ -79,3 +79,38 @@ assert L.clean_text("정면도·평면도 × 2") == "정면도·평면도 × 2",
 assert L.clean_text("😀A") == ' A', '이모지 제거'
 assert L.scale_label(20) == '1/20' && L.scale_label(nil) == 'N.T.S', 'scale label'
 puts 'sheet_layout_test: OK'
+
+# ── 장(유닛) 세부 쪽 ──
+units = [{ index: 0, name: '하부장 1', size: [800, 580, 720] }, { index: 1, name: '서랍장', size: [600, 580, 720] }, { index: 2, name: '키큰장', size: [450, 600, 2100] }]
+[[3600, 650, 900], [600, 550, 720]].each do |sz|
+  plan = L.plan(sz, 'units' => units)
+  assert L.problems(plan).empty?, "units: #{L.problems(plan)}"
+  ups = plan[:pages].select { |pg| pg[:id] == 'unit' }
+  assert ups.length == 3, '장마다 한 쪽'
+  assert ups.map { |pg| pg[:unit] } == [0, 1, 2], '장 순서 유지'
+  ups.each_with_index do |pg, i|
+    assert pg[:title].start_with?("장 #{i + 1} / 3 - "), "장 쪽 제목 #{pg[:title]}"
+    assert L::STD_DENS.include?(pg[:scale]), '장 쪽 표준 배율'
+    assert pg[:views].map { |v| v[:name] } .sort == %w[u_front u_inner u_section u_top], '장 쪽 뷰 구성'
+    assert pg[:boxes][:table][2] == L::TABLE_W, '장 표 폭'
+    assert pg[:views].all? { |v| v[:den] == pg[:scale] }, '장 쪽 단일 배율'
+  end
+  assert plan[:pages].last[:total] == plan[:pages].length && plan[:pages].last[:number] == plan[:pages].length, '쪽 번호'
+end
+assert L.plan([600, 550, 720], 'pages' => %w[iso], 'units' => units)[:pages].length == 4, '입체도 + 장 3쪽'
+big = (0...20).map { |i| { index: i, name: "m#{i}", size: [400, 580, 720] } }
+begin
+  L.plan([3600, 650, 900], 'units' => big)
+  assert false, '장 너무 많음'
+rescue RuntimeError => e
+  assert e.message.include?('장이 너무 많습니다'), e.message
+end
+lines = L.unit_table_lines({ name: '서랍장', size: [600.0, 580.0, 720.0], number: 2, count: 3,
+  parts: [{ role: 'side_left', dims: [720, 580, 18] }, { role: 'side_right', dims: [18, 580, 720] }, { role: 'bottom', dims: [564, 560, 18] },
+          { role: 'drawer_front_0', dims: [596, 200, 18] }, { role: 'drawer_front_1', dims: [596, 200, 18] }, { role: 'drawer_side_left', dims: [500, 150, 15] }, { role: 'shelf_0', dims: [564, 540, 18] }] })
+text = lines.join("\n")
+assert text.include?('내경(= 외곽 - 36): 564'), '내경 = 외곽 - 36'
+assert text.include?('서랍 2단') && text.include?('선반 1장') && text.include?('도어 0장'), "수량 #{text}"
+assert text.include?('측판  720 x 580 x 18T  x2'), "측판 2장 목록 #{text}"
+assert text.include?('서랍 부재'), '서랍 측판은 측판이 아님'
+puts 'sheet_layout units: OK'
