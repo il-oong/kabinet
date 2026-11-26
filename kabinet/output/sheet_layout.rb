@@ -241,7 +241,7 @@ module Kabinet
         w, d, h = info[:size].map { |v| v.round }
         parts = info[:parts] || []
         doors = parts.count { |pt| pt[:role].to_s =~ /door/ && pt[:role].to_s !~ /drawer/ }
-        drawers = parts.count { |pt| pt[:role].to_s =~ /drawer_front/ }
+        drawers = parts.count { |pt| pt[:role].to_s =~ /drawer_front|\Acell_dfr_|\Ainner_dfr_/ }
         shelves = parts.count { |pt| pt[:role].to_s =~ /shelf/ }
         lines = ["장 #{info[:number]} / #{info[:count]}", info[:name].to_s,
                  "외곽 폭 x 깊이 x 높이: #{w} x #{d} x #{h}",

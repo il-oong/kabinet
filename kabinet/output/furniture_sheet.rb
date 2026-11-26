@@ -416,6 +416,11 @@ module Kabinet
         end
       end
 
+      # module_index 는 가구(Assembly)마다 0 부터 시작하므로 둘 이상이면 번호가 섞인다 -> 하나만 허용.
+      def multiple_assemblies?(targets)
+        targets.count { |t| !unit_candidates([t]).empty? } > 1
+      end
+
       def unit_candidates(targets)
         acc = {}
         targets.each { |t| find_unit_groups(t, acc, [t]) }
@@ -427,6 +432,7 @@ module Kabinet
         targets = model.selection.to_a
         raise '가구 그룹 또는 컴포넌트를 선택하세요.' if targets.empty?
         acc = unit_candidates(targets)
+        raise '장별 세부 도면은 가구 하나만 선택했을 때 만들 수 있습니다.' if multiple_assemblies?(targets)
         raise '장(모듈)을 구분할 수 없습니다. Kabinet 으로 만든 가구(생성기)를 선택하세요.' if acc.empty?
         acc.keys.sort.map { |i| { index: i, name: unit_name(acc[i], i) } }
       end
@@ -452,6 +458,7 @@ module Kabinet
 
       def capture_units(model, targets, to_local, right, back, options)
         found = unit_candidates(targets)
+        raise '장별 세부 도면은 가구 하나만 선택했을 때 만들 수 있습니다.' if multiple_assemblies?(targets)
         raise '장(모듈)을 구분할 수 없어 장별 세부 도면을 만들 수 없습니다. Kabinet 으로 만든 가구를 선택하세요.' if found.empty?
         only = Array(options['unit_indices']).map(&:to_i)
         indices = found.keys.sort
@@ -503,9 +510,12 @@ module Kabinet
         views['u_inner'] = classify_edges(model, segs2, 'front', right, back, to_local)
         # 보는 사람 오른쪽 측판을 숨긴 우측면 = 측면 단면 근사(진짜 절단이 아님)
         sides = []
-        keep.each { |g| find_roles(g, %w[side_left side_right], sides) }
-        far = sides.max_by { |g| g_center_x(g, to_local) }
-        hide.call(far) if far
+        entries.each do |en|
+          base = en[:path].inject(Geom::Transformation.new) { |t, e| t * e.transformation }
+          find_roles(en[:entity], %w[side_left side_right], sides, base * en[:entity].transformation)
+        end
+        far = sides.max_by { |pair| g_center_x(pair[0], pair[1], to_local) }
+        hide.call(far[0]) if far
         segs3, = gather.call
         views['u_section'] = classify_edges(model, segs3, 'side', right, back, to_local)
         local_box = lambda do |a, b|
@@ -519,17 +529,18 @@ module Kabinet
         hid.each { |e| e.hidden = false if e.respond_to?(:valid?) ? e.valid? : true }
       end
 
-      def find_roles(entity, roles, out, depth = 0)
+      # out << [group, 그 그룹이 놓인 좌표계 -> 월드 변환]. bounds 는 부모 좌표계 값이라 월드로 올려서 비교해야 한다.
+      def find_roles(entity, roles, out, acc, depth = 0)
         return if depth > 8
         children_of(entity).each do |c|
           next unless group_like?(c)
-          out << c if roles.include?(Kabinet::Persistence::Attributes.role(c).to_s)
-          find_roles(c, roles, out, depth + 1)
+          out << [c, acc] if roles.include?(Kabinet::Persistence::Attributes.role(c).to_s)
+          find_roles(c, roles, out, acc * c.transformation, depth + 1)
         end
       end
 
-      def g_center_x(group, to_local)
-        c = group.bounds.center
+      def g_center_x(group, acc, to_local)
+        c = acc * group.bounds.center
         to_local.call([c.x.to_mm, c.y.to_mm, c.z.to_mm])[0]
       end
 
