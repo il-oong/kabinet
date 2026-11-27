@@ -80,6 +80,17 @@ module Kabinet
         out.length >= 3 ? out : []
       end
 
+      # 선분을 축 평면으로 잘라 keep 쪽만 남긴다. 전부 바깥이면 nil.
+      def self.clip_segment(a, b, axis, pos, keep)
+        ia = keep == :le ? a[axis] <= pos + 1e-6 : a[axis] >= pos - 1e-6
+        ib = keep == :le ? b[axis] <= pos + 1e-6 : b[axis] >= pos - 1e-6
+        return [a, b] if ia && ib
+        return nil if !ia && !ib
+        t = (pos - a[axis]).to_f / (b[axis] - a[axis])
+        c = (0..2).map { |k| a[k] + (b[k] - a[k]) * t }
+        ia ? [a, c] : [c, b]
+      end
+
       # 3~N 점 다각형을 3·4점 면으로 나눠 쓴다(부채꼴 분할).
       def polygon(pts, layer)
         return if pts.length < 3
@@ -109,6 +120,17 @@ module Kabinet
         end
         e += ['70', flags.to_s] if flags != 0
         @faces << e
+        @face_count += 1
+        @used[layer] = (@used[layer] || 0) + 1
+      end
+
+      # 3D 선분(LINE). 면 없이 모서리만 내보낼 때 쓴다.
+      def line(a, b, layer = 'K3D_OTHER')
+        layer = 'K3D_OTHER' unless LAYERS.key?(layer)
+        track(a); track(b)
+        @faces << ['0', 'LINE', '8', layer,
+                   '10', fx(a[0]), '20', fx(a[1]), '30', fx(a[2]),
+                   '11', fx(b[0]), '21', fx(b[1]), '31', fx(b[2])]
         @face_count += 1
         @used[layer] = (@used[layer] || 0) + 1
       end

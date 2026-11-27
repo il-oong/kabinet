@@ -1,5 +1,19 @@
 # Kabinet — 설치 및 검증 가이드
 
+## v1.34.0 — 3D CAD: SketchUp 기본 DWG/DXF 내보내기(변환 없이 모델 그대로) 추가
+
+- 사이드바 「3D CAD 내보내기」 카드에 「SketchUp 기본 DWG / DXF 내보내기」. `Model#export` 로 선택한 가구를 SketchUp 이 직접 CAD 로 쓴다(삼각분할 없음, **SketchUp Pro 필요**). 내보내는 동안만 부재 역할별 태그(`K3D_*`)를 붙여 레이어가 역할별로 나오게 하고, `abort_operation` 으로 모델은 그대로 되돌린다.
+- 직접 쓰는 방식(선/면 DXF, 장별 분할·단면)은 그대로 둔다. 기본 내보내기에는 분할·단면이 적용되지 않는다.
+- **실기 확인 항목(이 환경에서 실행 불가, 미확인)**: ① Pro 에서 파일이 만들어지는지(Make/무료판은 DWG 내보내기 불가) ② `Model#export` 옵션 이름(`selectionset_only`, `triangulated_faces` 등)이 SketchUp 2022 에서 그대로 먹는지 — 안 먹으면 옵션 해시를 `commands/export_3d.rb` `run_native` 에서 조정 ③ 레이어가 역할별(`K3D_SIDE` …)로 나뉘는지(그룹의 태그가 내용물 레이어로 쓰이는지) ④ 내보낸 뒤 모델 태그가 원래대로인지.
+
+## v1.33.0 — 3D CAD 내보내기: 모서리 선(LINE)만 내보내기(기본), 면은 선택
+
+- 문제: v1.32 는 면을 삼각분할해 내보내서 CAD 에서 면마다 X자 대각선이 보였다(STL 처럼).
+- 수정: 기본을 **모델의 실제 모서리를 3D LINE** 으로 내보내도록 바꿨다(역할별 레이어 그대로). 숨김·소프트/스무스(곡면 분할선)·숨긴 태그의 모서리는 제외. 「면(3DFACE)도 포함」을 켜면 이전처럼 면도 같이 나간다(음영·렌더용, 대각선이 보일 수 있음).
+- 단면: 선도 평면에서 잘라 반쪽만 남긴다(절단면 뚜껑 없음). 장별 분할은 그대로.
+- 테스트: `test/dxf3d_test.rb` 에 LINE 쓰기·선분 절단 추가.
+- **실기 확인**: ① 선만 나온 DXF 에 X자 대각선이 없는지 ② 레이어·색 ③ 곡면(둥근 모서리) 부재가 선으로 충분히 보이는지 ④ 단면·장별 분할.
+
 ## v1.32.1 — 3D 내보내기 `uninitialized constant Kabinet::Commands::Export3d` 수정
 
 - 원인: v1.32.0 에서 새 파일(`commands/export_3d.rb`, `output/dxf3d.rb`)을 개발용 reload/update 목록에만 넣고 `main.rb` 시작 `require` 목록에 빠뜨려, 업데이트 후 SketchUp 을 재시작해도 3D 내보내기 클래스가 로드되지 않았다.

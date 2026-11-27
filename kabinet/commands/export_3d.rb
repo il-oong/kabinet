@@ -16,9 +16,9 @@ module Kabinet
 
       # → [{ unit:, layer:, pts: [[x,y,z]mm, ...], hidden: [..] }]
       # base_tr: 선택이 놓인 편집 컨텍스트 -> 월드 변환(중첩 편집 중이면 부모 변환)
-      def collect(targets, base_tr = Geom::Transformation.new)
+      def collect(targets, base_tr = Geom::Transformation.new, faces = false)
         recs = []
-        targets.each { |t| walk(t, base_tr, nil, nil, recs, 0) }
+        targets.each { |t| walk(t, base_tr, nil, nil, recs, faces, 0) }
         recs
       end
 
@@ -26,7 +26,7 @@ module Kabinet
         model.respond_to?(:edit_transform) ? model.edit_transform : Geom::Transformation.new
       end
 
-      def walk(entity, parent_tr, inherited, unit, recs, depth)
+      def walk(entity, parent_tr, inherited, unit, recs, faces, depth)
         return if depth > MAX_DEPTH
         return if entity.respond_to?(:hidden?) && entity.hidden?
         return if entity.respond_to?(:layer) && entity.layer && !entity.layer.visible?
@@ -39,12 +39,26 @@ module Kabinet
         unit = idx.to_i unless idx.nil?
         ents = entity.respond_to?(:definition) ? entity.definition.entities : entity.entities
         ents.each do |c|
-          if c.is_a?(Sketchup::Face)
-            add_face(c, tr, layer || 'K3D_OTHER', unit, recs) unless c.hidden? || (c.layer && !c.layer.visible?)
+          if c.is_a?(Sketchup::Edge)
+            add_edge(c, tr, layer || 'K3D_OTHER', unit, recs) unless skip_edge?(c)
+          elsif c.is_a?(Sketchup::Face)
+            add_face(c, tr, layer || 'K3D_OTHER', unit, recs) if faces && !(c.hidden? || (c.layer && !c.layer.visible?))
           elsif c.is_a?(Sketchup::Group) || c.is_a?(Sketchup::ComponentInstance)
-            walk(c, tr, layer, unit, recs, depth + 1)
+            walk(c, tr, layer, unit, recs, faces, depth + 1)
           end
         end
+      end
+
+      # 숨김·소프트/스무스(곡면 분할선)·숨긴 태그의 모서리는 내보내지 않는다.
+      def skip_edge?(e)
+        e.hidden? || e.soft? || e.smooth? || (e.layer && !e.layer.visible?)
+      end
+
+      def add_edge(edge, tr, layer, unit, recs)
+        a = edge.start.position.transform(tr)
+        b = edge.end.position.transform(tr)
+        recs << { type: :line, unit: unit, layer: layer,
+                  pts: [[a.x.to_f * MM, a.y.to_f * MM, a.z.to_f * MM], [b.x.to_f * MM, b.y.to_f * MM, b.z.to_f * MM]] }
       end
 
       def add_face(face, tr, layer, unit, recs)
@@ -56,7 +70,7 @@ module Kabinet
         mesh.polygons.each do |poly|
           hidden = []
           poly.each_with_index { |i, k| hidden << k if i < 0 }
-          recs << { unit: unit, layer: layer, pts: poly.map { |i| pts[i.abs - 1] }, hidden: hidden }
+          recs << { type: :face, unit: unit, layer: layer, pts: poly.map { |i| pts[i.abs - 1] }, hidden: hidden }
         end
       end
 
@@ -72,9 +86,11 @@ module Kabinet
           keep = axis == 0 ? :le : :ge    # X: 오른쪽 반 제거(오른쪽에서 봄) / Y: 앞쪽 반 제거(앞에서 봄), 앞 = Y 작은 쪽 가정
         end
         recs.each do |r|
-          if axis && pos
-            poly = Kabinet::Output::Dxf3d.clip(r[:pts], axis, pos, keep)
-            dxf.polygon(poly, r[:layer])
+          if r[:type] == :line
+            seg = axis && pos ? Kabinet::Output::Dxf3d.clip_segment(r[:pts][0], r[:pts][1], axis, pos, keep) : r[:pts]
+            dxf.line(seg[0], seg[1], r[:layer]) if seg
+          elsif axis && pos
+            dxf.polygon(Kabinet::Output::Dxf3d.clip(r[:pts], axis, pos, keep), r[:layer])
           else
             dxf.face(r[:pts], r[:layer], r[:hidden])
           end
@@ -89,7 +105,7 @@ module Kabinet
         (g.empty? ? '가구' : g).gsub(/[\\\/\:\*\?\"\<\>\|]/, '_')
       end
 
-      # opts: 'split' => true/false, 'section' => nil/'x'/'y'
+      # opts: 'split' => true/false, 'section' => nil/'x'/'y', 'faces' => true 면(3DFACE)도 포함(기본: 모서리 선만)
       def run(opts = {}, model = Sketchup.active_model)
         targets = selection_targets(model)
         raise '그룹 또는 컴포넌트(가구)를 먼저 선택하세요.' if targets.empty?
@@ -105,8 +121,8 @@ module Kabinet
         if (split || section) && targets.length > 1
           raise '장별 분할·단면은 가구 하나만 선택했을 때 쓸 수 있습니다.'
         end
-        recs = collect(targets, edit_transform(model))
-        raise '내보낼 면이 없습니다(숨김 상태이거나 면이 없는 선택).' if recs.empty?
+        recs = collect(targets, edit_transform(model), opts['faces'] ? true : false)
+        raise '내보낼 선이 없습니다(숨김 상태이거나 모서리가 없는 선택).' if recs.empty?
         files = []
         groups = split ? recs.group_by { |r| r[:unit] } : { nil => recs }
         if split && groups.keys.compact.empty?
@@ -121,6 +137,48 @@ module Kabinet
         end
         raise '절단 결과가 비었습니다.' if files.empty?
         files
+      end
+
+      # ── SketchUp 기본 DWG/DXF 내보내기(SketchUp Pro) ─────────────────────
+      # 모델 형상을 SketchUp 이 직접 CAD 로 쓴다(삼각분할·변환 없음). 내보내기 동안만 부재 역할별 태그를
+      # 붙여 레이어가 역할별로 나오게 하고, 끝나면 작업을 취소해 모델은 그대로 둔다.
+      NATIVE_FORMATS = { 'dwg' => 'DWG', 'dxf' => 'DXF' }.freeze
+
+      def assign_role_tags(entity, model, inherited = nil, depth = 0)
+        return if depth > MAX_DEPTH
+        role = Kabinet::Persistence::Attributes.role(entity)
+        name = entity.name.to_s
+        name = entity.definition.name.to_s if name.empty? && entity.respond_to?(:definition)
+        layer = Kabinet::Output::Dxf3d.layer_for(role, name) || inherited
+        entity.layer = (model.layers[layer] || model.layers.add(layer)) if layer
+        ents = entity.respond_to?(:definition) ? entity.definition.entities : entity.entities
+        ents.each do |c|
+          next unless c.is_a?(Sketchup::Group) || c.is_a?(Sketchup::ComponentInstance)
+          assign_role_tags(c, model, layer, depth + 1)
+        end
+      end
+
+      def run_native(opts = {}, model = Sketchup.active_model)
+        targets = selection_targets(model)
+        raise '그룹 또는 컴포넌트(가구)를 먼저 선택하세요.' if targets.empty?
+        fmt = NATIVE_FORMATS.key?(opts['format'].to_s) ? opts['format'].to_s : 'dwg'
+        path = ::UI.savepanel("3D #{fmt.upcase} 저장 (SketchUp 기본 내보내기)", Dir.home,
+                              "#{base_name(targets)}_3D_#{Time.now.strftime('%Y%m%d_%H%M%S')}.#{fmt}")
+        return nil unless path
+        path = Kabinet::Output::Sheet::Text.utf8(path)
+        path += ".#{fmt}" unless path.downcase.end_with?(".#{fmt}")
+        options = { show_summary: false, selectionset_only: true, triangulated_faces: false,
+                    faces: true, edges: true, construction_geometry: false, dimensions: false, text: false }
+        ok = nil
+        model.start_operation('3D CAD 내보내기용 태그', true)
+        begin
+          targets.each { |t| assign_role_tags(t, model) } if opts['role_layers'] != false
+          ok = model.export(path, options)
+        ensure
+          model.abort_operation
+        end
+        raise 'SketchUp 이 파일을 만들지 못했습니다. DWG/DXF 내보내기는 SketchUp Pro 에서만 됩니다.' unless ok && File.exist?(path)
+        { path: path }
       end
     end
   end

@@ -53,3 +53,24 @@ class Dxf3dTest < Minitest::Test
     assert_includes D.new.to_s, 'EOF'
   end
 end
+
+class Dxf3dLineTest < Minitest::Test
+  D = Kabinet::Output::Dxf3d
+
+  def test_line_entity_and_count
+    d = D.new
+    d.line([0, 0, 0], [10, 0, 5], 'K3D_DOOR')
+    s = d.to_s
+    assert_equal 1, d.face_count
+    assert_includes s, "0\nLINE\n8\nK3D_DOOR\n"
+    assert_includes s, "31\n5.000\n"
+    refute_includes s, '3DFACE'
+  end
+
+  def test_clip_segment
+    assert_equal [[0, 0, 0], [5.0, 0.0, 0.0]], D.clip_segment([0, 0, 0], [10, 0, 0], 0, 5, :le)
+    assert_equal [[5.0, 0.0, 0.0], [10, 0, 0]], D.clip_segment([0, 0, 0], [10, 0, 0], 0, 5, :ge)
+    assert_nil D.clip_segment([6, 0, 0], [10, 0, 0], 0, 5, :le)
+    assert_equal [[1, 0, 0], [2, 0, 0]], D.clip_segment([1, 0, 0], [2, 0, 0], 0, 5, :le)
+  end
+end
