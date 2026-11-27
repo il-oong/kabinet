@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabinet</title>
-  <link rel="stylesheet" href="styles.css?v=1.31.0">
+  <link rel="stylesheet" href="styles.css?v=1.32.0">
 </head>
 <body>
 
@@ -12,7 +12,7 @@
 <aside class="preset-sidebar">
   <div class="preset-sidebar-head">
     <span class="preset-sidebar-title">Kabinet</span>
-    <span class="version-badge">v1.31.0</span>
+    <span class="version-badge">v1.32.0</span>
   </div>
   <input type="search" id="preset-search" class="preset-search" placeholder="프리셋·도구 검색…"
          oninput="kabinet.renderPresetSidebar()">
@@ -482,6 +482,21 @@
 
 <!-- ══ 도면 시트 (DXF) ═══════════════════════════════════════════════════ -->
 <div class="scroll-area view ep-view" id="view-sheet" hidden>
+<div class="card" id="card-dxf3d">
+  <div class="card-title">3D CAD 내보내기 (DXF, 역할별 레이어)</div>
+  <p class="ep-hint">선택한 가구를 측판·상판·선반·도어·서랍 등 <b>부재별 레이어</b>의 3D DXF(면 모델, mm)로 저장합니다. 솔리드가 아니라 면이라 부피 계산·불리언 편집은 안 됩니다. 안 보이는 부분이 겹쳐 보이지 않게 <b>장별 분할</b>이나 <b>단면</b>으로 저장하세요.</p>
+  <label class="ep-check"><input type="checkbox" id="d3-split"> 장(모듈)별로 파일 나눠 저장 (장마다 DXF 하나, 원래 위치 유지)</label>
+  <label class="ep-check">단면:
+    <select id="d3-section">
+      <option value="">없음 (전체)</option>
+      <option value="x">세로 단면 (가구 가운데에서 좌우로 절단, 오른쪽 반 제거)</option>
+      <option value="y">가로 단면 (가구 가운데에서 앞뒤로 절단, 앞쪽 반 제거)</option>
+    </select>
+  </label>
+  <p class="ep-hint">레이어: K3D_SIDE 측판 · K3D_TOP 상판 · K3D_BOTTOM 하판 · K3D_BACK 뒷판 · K3D_SHELF 선반 · K3D_DOOR 도어 · K3D_DRAWER_FRONT 서랍 전판 · K3D_DRAWER 서랍 몸통 · K3D_EP EP · K3D_PLINTH 걸레받이 · K3D_CHANNEL 찬넬 · K3D_HANDLE 손잡이 · K3D_HARDWARE 철물 · K3D_OTHER 기타</p>
+  <button type="button" class="btn-primary ep-big" onclick="kabinet.exportDxf3d()">3D DXF 내보내기 (저장 위치 선택)</button>
+</div>
+
   <div class="card">
     <div class="card-title">도면 시트 — 제작도면 DXF (A3 가로, 1단위 = 1mm)</div>
     <p class="ep-hint">선택한 Kabinet 가구(없으면 모델 안 마지막 가구)로 현장사진 · 상담 3D · 평면도 · 가구 시트 · 측면/단면 · 상세 · 생산 확인표를 한 DXF에 시트별로 나란히 만듭니다.
@@ -562,11 +577,11 @@
 
 </div><!-- /.main-col -->
 
-<script src="app.js?v=1.31.0"></script>
-<script src="modules.js?v=1.31.0"></script>
-<script src="live-preview.js?v=1.31.0"></script>
-<script src="drawing.js?v=1.31.0"></script>
-<script src="drawing_import.js?v=1.31.0"></script>
-<script src="sheet.js?v=1.31.0"></script>
+<script src="app.js?v=1.32.0"></script>
+<script src="modules.js?v=1.32.0"></script>
+<script src="live-preview.js?v=1.32.0"></script>
+<script src="drawing.js?v=1.32.0"></script>
+<script src="drawing_import.js?v=1.32.0"></script>
+<script src="sheet.js?v=1.32.0"></script>
 </body>
 </html>

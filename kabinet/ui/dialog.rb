@@ -371,6 +371,25 @@ module Kabinet
           end
         end
 
+        # ── 선택 가구 → 3D CAD DXF (역할별 레이어, 장별 분할 / 단면 선택) ──
+        d.add_action_callback('kabinet:export_dxf3d') do |_ctx, json_str|
+          begin
+            opts = begin
+                     JSON.parse(json_str.to_s)
+                   rescue StandardError
+                     {}
+                   end
+            files = Kabinet::Commands::Export3d.run(opts)
+            if files
+              msg = files.length == 1 ? "3D DXF 저장 완료: #{File.basename(files[0][:path])} (면 #{files[0][:faces]}개)" :
+                                        "3D DXF #{files.length}개 저장 완료 (장별 분할): #{File.basename(files[0][:path])} 외"
+              d.execute_script("kabinet.onSuccess(#{JSON.generate(Kabinet::Output::Sheet::Text.deep_utf8(msg))})")
+            end
+          rescue StandardError => e
+            d.execute_script("kabinet.onError(#{JSON.generate(e.message.to_s.dup.force_encoding('UTF-8').scrub)})")
+          end
+        end
+
         # ── 선택 그룹/컴포넌트 → 발주도면 DXF (직접 모델링한 가구용) ────
         # 엣지 직교투영 3면도. 옵션(JSON): views / dim_overall / dim_units /
         # include_soft(곡면 엣지 포함) / hlr(은선 제거 레이캐스트)

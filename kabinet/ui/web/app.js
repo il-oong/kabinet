@@ -2419,6 +2419,15 @@ const kabinet = (() => {
     sketchup['kabinet:export_group_dxf'](JSON.stringify(opts));
   }
 
+  // ── 3D CAD(DXF) 내보내기: 역할별 레이어, 장별 분할 / 단면 ─────────────
+  function exportDxf3d() {
+    const split = document.getElementById('d3-split');
+    const sec = document.getElementById('d3-section');
+    const opts = { split: split ? split.checked : false, section: sec && sec.value ? sec.value : null };
+    setStatus('3D DXF 생성 중…', '');
+    sketchup['kabinet:export_dxf3d'](JSON.stringify(opts));
+  }
+
   // ── 스마트 반영: 불러온 어셈블리가 있으면 재생성, 없으면 신규 생성 ────
   function smartApply() {
     if (currentEntityID) regenerate();
@@ -3038,7 +3047,7 @@ const kabinet = (() => {
   return {
     switchTab, onField, onTopPanelToggle, onTopPanelField, onEP, onEpTopFlush,
     generate, regenerate, smartApply, loadSelection, loadSpec, clearEntity, regenerateMissing,
-    exportDrawings, exportCutList, exportDXF, exportGroupDXF, loadSelectionForExport,
+    exportDrawings, exportCutList, exportDXF, exportGroupDXF, exportDxf3d, loadSelectionForExport,
     savePreset, listPresets, loadPresets, applyPreset, deletePreset,
     addModule, removeModule, moveModule,
     loadFurniturePreset, onPresetChange, renderPresetSidebar,
