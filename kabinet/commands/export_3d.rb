@@ -138,6 +138,48 @@ module Kabinet
         raise '절단 결과가 비었습니다.' if files.empty?
         files
       end
+
+      # ── SketchUp 기본 DWG/DXF 내보내기(SketchUp Pro) ─────────────────────
+      # 모델 형상을 SketchUp 이 직접 CAD 로 쓴다(삼각분할·변환 없음). 내보내기 동안만 부재 역할별 태그를
+      # 붙여 레이어가 역할별로 나오게 하고, 끝나면 작업을 취소해 모델은 그대로 둔다.
+      NATIVE_FORMATS = { 'dwg' => 'DWG', 'dxf' => 'DXF' }.freeze
+
+      def assign_role_tags(entity, model, inherited = nil, depth = 0)
+        return if depth > MAX_DEPTH
+        role = Kabinet::Persistence::Attributes.role(entity)
+        name = entity.name.to_s
+        name = entity.definition.name.to_s if name.empty? && entity.respond_to?(:definition)
+        layer = Kabinet::Output::Dxf3d.layer_for(role, name) || inherited
+        entity.layer = (model.layers[layer] || model.layers.add(layer)) if layer
+        ents = entity.respond_to?(:definition) ? entity.definition.entities : entity.entities
+        ents.each do |c|
+          next unless c.is_a?(Sketchup::Group) || c.is_a?(Sketchup::ComponentInstance)
+          assign_role_tags(c, model, layer, depth + 1)
+        end
+      end
+
+      def run_native(opts = {}, model = Sketchup.active_model)
+        targets = selection_targets(model)
+        raise '그룹 또는 컴포넌트(가구)를 먼저 선택하세요.' if targets.empty?
+        fmt = NATIVE_FORMATS.key?(opts['format'].to_s) ? opts['format'].to_s : 'dwg'
+        path = ::UI.savepanel("3D #{fmt.upcase} 저장 (SketchUp 기본 내보내기)", Dir.home,
+                              "#{base_name(targets)}_3D_#{Time.now.strftime('%Y%m%d_%H%M%S')}.#{fmt}")
+        return nil unless path
+        path = Kabinet::Output::Sheet::Text.utf8(path)
+        path += ".#{fmt}" unless path.downcase.end_with?(".#{fmt}")
+        options = { show_summary: false, selectionset_only: true, triangulated_faces: false,
+                    faces: true, edges: true, construction_geometry: false, dimensions: false, text: false }
+        ok = nil
+        model.start_operation('3D CAD 내보내기용 태그', true)
+        begin
+          targets.each { |t| assign_role_tags(t, model) } if opts['role_layers'] != false
+          ok = model.export(path, options)
+        ensure
+          model.abort_operation
+        end
+        raise 'SketchUp 이 파일을 만들지 못했습니다. DWG/DXF 내보내기는 SketchUp Pro 에서만 됩니다.' unless ok && File.exist?(path)
+        { path: path }
+      end
     end
   end
 end

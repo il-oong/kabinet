@@ -1,5 +1,11 @@
 # Kabinet — 설치 및 검증 가이드
 
+## v1.34.0 — 3D CAD: SketchUp 기본 DWG/DXF 내보내기(변환 없이 모델 그대로) 추가
+
+- 사이드바 「3D CAD 내보내기」 카드에 「SketchUp 기본 DWG / DXF 내보내기」. `Model#export` 로 선택한 가구를 SketchUp 이 직접 CAD 로 쓴다(삼각분할 없음, **SketchUp Pro 필요**). 내보내는 동안만 부재 역할별 태그(`K3D_*`)를 붙여 레이어가 역할별로 나오게 하고, `abort_operation` 으로 모델은 그대로 되돌린다.
+- 직접 쓰는 방식(선/면 DXF, 장별 분할·단면)은 그대로 둔다. 기본 내보내기에는 분할·단면이 적용되지 않는다.
+- **실기 확인 항목(이 환경에서 실행 불가, 미확인)**: ① Pro 에서 파일이 만들어지는지(Make/무료판은 DWG 내보내기 불가) ② `Model#export` 옵션 이름(`selectionset_only`, `triangulated_faces` 등)이 SketchUp 2022 에서 그대로 먹는지 — 안 먹으면 옵션 해시를 `commands/export_3d.rb` `run_native` 에서 조정 ③ 레이어가 역할별(`K3D_SIDE` …)로 나뉘는지(그룹의 태그가 내용물 레이어로 쓰이는지) ④ 내보낸 뒤 모델 태그가 원래대로인지.
+
 ## v1.33.0 — 3D CAD 내보내기: 모서리 선(LINE)만 내보내기(기본), 면은 선택
 
 - 문제: v1.32 는 면을 삼각분할해 내보내서 CAD 에서 면마다 X자 대각선이 보였다(STL 처럼).

@@ -2429,6 +2429,11 @@ const kabinet = (() => {
     sketchup['kabinet:export_dxf3d'](JSON.stringify(opts));
   }
 
+  function exportDxf3dNative(fmt) {
+    setStatus('SketchUp 기본 ' + fmt.toUpperCase() + ' 내보내기 중…', '');
+    sketchup['kabinet:export_dxf3d_native'](JSON.stringify({ format: fmt }));
+  }
+
   // ── 스마트 반영: 불러온 어셈블리가 있으면 재생성, 없으면 신규 생성 ────
   function smartApply() {
     if (currentEntityID) regenerate();
@@ -3048,7 +3053,7 @@ const kabinet = (() => {
   return {
     switchTab, onField, onTopPanelToggle, onTopPanelField, onEP, onEpTopFlush,
     generate, regenerate, smartApply, loadSelection, loadSpec, clearEntity, regenerateMissing,
-    exportDrawings, exportCutList, exportDXF, exportGroupDXF, exportDxf3d, loadSelectionForExport,
+    exportDrawings, exportCutList, exportDXF, exportGroupDXF, exportDxf3d, exportDxf3dNative, loadSelectionForExport,
     savePreset, listPresets, loadPresets, applyPreset, deletePreset,
     addModule, removeModule, moveModule,
     loadFurniturePreset, onPresetChange, renderPresetSidebar,

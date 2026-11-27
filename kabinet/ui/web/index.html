@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kabinet</title>
-  <link rel="stylesheet" href="styles.css?v=1.33.0">
+  <link rel="stylesheet" href="styles.css?v=1.34.0">
 </head>
 <body>
 
@@ -12,7 +12,7 @@
 <aside class="preset-sidebar">
   <div class="preset-sidebar-head">
     <span class="preset-sidebar-title">Kabinet</span>
-    <span class="version-badge">v1.33.0</span>
+    <span class="version-badge">v1.34.0</span>
   </div>
   <input type="search" id="preset-search" class="preset-search" placeholder="프리셋·도구 검색…"
          oninput="kabinet.renderPresetSidebar()">
@@ -496,6 +496,9 @@
   </label>
   <p class="ep-hint">레이어: K3D_SIDE 측판 · K3D_TOP 상판 · K3D_BOTTOM 하판 · K3D_BACK 뒷판 · K3D_SHELF 선반 · K3D_DOOR 도어 · K3D_DRAWER_FRONT 서랍 전판 · K3D_DRAWER 서랍 몸통 · K3D_EP EP · K3D_PLINTH 걸레받이 · K3D_CHANNEL 찬넬 · K3D_HANDLE 손잡이 · K3D_HARDWARE 철물 · K3D_OTHER 기타</p>
   <button type="button" class="btn-primary ep-big" onclick="kabinet.exportDxf3d()">3D DXF 내보내기 (저장 위치 선택)</button>
+  <p class="ep-hint"><b>SketchUp 기본 내보내기</b>: 변환 없이 SketchUp 이 모델 그대로 CAD 로 씁니다(<b>SketchUp Pro 필요</b>). 내보내는 동안만 부재 역할별 태그를 붙여 레이어가 나뉘고, 모델은 그대로 둡니다. 위의 장별 분할·단면 옵션은 적용되지 않습니다.</p>
+  <button type="button" class="ep-big" onclick="kabinet.exportDxf3dNative('dwg')">SketchUp 기본 DWG 내보내기</button>
+  <button type="button" class="ep-big" onclick="kabinet.exportDxf3dNative('dxf')">SketchUp 기본 DXF 내보내기</button>
 </div>
 
   <div class="card">
@@ -578,11 +581,11 @@
 
 </div><!-- /.main-col -->
 
-<script src="app.js?v=1.33.0"></script>
-<script src="modules.js?v=1.33.0"></script>
-<script src="live-preview.js?v=1.33.0"></script>
-<script src="drawing.js?v=1.33.0"></script>
-<script src="drawing_import.js?v=1.33.0"></script>
-<script src="sheet.js?v=1.33.0"></script>
+<script src="app.js?v=1.34.0"></script>
+<script src="modules.js?v=1.34.0"></script>
+<script src="live-preview.js?v=1.34.0"></script>
+<script src="drawing.js?v=1.34.0"></script>
+<script src="drawing_import.js?v=1.34.0"></script>
+<script src="sheet.js?v=1.34.0"></script>
 </body>
 </html>

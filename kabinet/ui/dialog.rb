@@ -390,6 +390,24 @@ module Kabinet
           end
         end
 
+        # ── 선택 가구 → SketchUp 기본 DWG/DXF 내보내기(Pro) ──
+        d.add_action_callback('kabinet:export_dxf3d_native') do |_ctx, json_str|
+          begin
+            opts = begin
+                     JSON.parse(json_str.to_s)
+                   rescue StandardError
+                     {}
+                   end
+            r = Kabinet::Commands::Export3d.run_native(opts)
+            if r
+              msg = "SketchUp 기본 내보내기 완료: #{File.basename(r[:path])}"
+              d.execute_script("kabinet.onSuccess(#{JSON.generate(Kabinet::Output::Sheet::Text.deep_utf8(msg))})")
+            end
+          rescue StandardError => e
+            d.execute_script("kabinet.onError(#{JSON.generate(e.message.to_s.dup.force_encoding('UTF-8').scrub)})")
+          end
+        end
+
         # ── 선택 그룹/컴포넌트 → 발주도면 DXF (직접 모델링한 가구용) ────
         # 엣지 직교투영 3면도. 옵션(JSON): views / dim_overall / dim_units /
         # include_soft(곡면 엣지 포함) / hlr(은선 제거 레이캐스트)
