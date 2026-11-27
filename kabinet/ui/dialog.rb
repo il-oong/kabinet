@@ -381,7 +381,9 @@ module Kabinet
                    end
             files = Kabinet::Commands::Export3d.run(opts)
             if files
-              msg = files.length == 1 ? "3D DXF 저장 완료: #{File.basename(files[0][:path])} (요소 #{files[0][:faces]}개)" :
+              skipped = files.map { |f| f[:skipped] || {} }.inject({}) { |a, h| h.each { |k, v| a[k] = a.fetch(k, 0) + v }; a }
+              note = skipped.empty? ? '' : " · 제외: " + skipped.map { |k, v| "#{k} #{v}" }.join(', ')
+              msg = files.length == 1 ? "3D DXF 저장 완료: #{File.basename(files[0][:path])} (요소 #{files[0][:faces]}개#{note})" :
                                         "3D DXF #{files.length}개 저장 완료 (장별 분할): #{File.basename(files[0][:path])} 외"
               d.execute_script("kabinet.onSuccess(#{JSON.generate(Kabinet::Output::Sheet::Text.deep_utf8(msg))})")
             end
