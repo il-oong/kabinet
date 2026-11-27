@@ -1,5 +1,11 @@
 # Kabinet — 설치 및 검증 가이드
 
+## v1.32.1 — 3D 내보내기 `uninitialized constant Kabinet::Commands::Export3d` 수정
+
+- 원인: v1.32.0 에서 새 파일(`commands/export_3d.rb`, `output/dxf3d.rb`)을 개발용 reload/update 목록에만 넣고 `main.rb` 시작 `require` 목록에 빠뜨려, 업데이트 후 SketchUp 을 재시작해도 3D 내보내기 클래스가 로드되지 않았다.
+- 수정: 시작 `require` 에 두 파일 추가. 재발 방지로 `test/main_requires_test.rb`(commands/·output/ 의 모든 파일이 시작 require 에 있는지 검사) 추가.
+- **실기 확인**: 업데이트 후 SketchUp 완전 재시작 → 가구 선택 → 「3D DXF 내보내기」가 오류 없이 파일을 만드는지.
+
 ## v1.32.0 — 3D CAD(DXF) 내보내기 (부재별 레이어, 장별 분할, 단면)
 
 - 사이드바 「도면 시트」 맨 위 카드 **3D CAD 내보내기**. 선택한 가구를 3DFACE(DXF R12, mm, 모델 좌표 그대로)로 저장한다. **솔리드가 아니라 면 모델**이라 부피 계산·불리언 편집은 안 된다.
