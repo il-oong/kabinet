@@ -2423,7 +2423,8 @@ const kabinet = (() => {
   function exportDxf3d() {
     const split = document.getElementById('d3-split');
     const sec = document.getElementById('d3-section');
-    const opts = { split: split ? split.checked : false, section: sec && sec.value ? sec.value : null };
+    const faces = document.getElementById('d3-faces');
+    const opts = { faces: faces ? faces.checked : false, split: split ? split.checked : false, section: sec && sec.value ? sec.value : null };
     setStatus('3D DXF 생성 중…', '');
     sketchup['kabinet:export_dxf3d'](JSON.stringify(opts));
   }
