@@ -381,8 +381,11 @@ module Kabinet
                    end
             files = Kabinet::Commands::Export3d.run(opts)
             if files
-              msg = files.length == 1 ? "3D DXF 저장 완료: #{File.basename(files[0][:path])} (요소 #{files[0][:faces]}개)" :
-                                        "3D DXF #{files.length}개 저장 완료 (장별 분할): #{File.basename(files[0][:path])} 외"
+              # 제외 건수는 수집 전체 값이고 파일마다 같은 해시가 붙으므로 합산하지 않고 하나만 쓴다.
+              skipped = files[0][:skipped] || {}
+              note = skipped.empty? ? '' : " · 제외: " + skipped.map { |k, v| "#{k} #{v}" }.join(', ')
+              msg = files.length == 1 ? "3D DXF 저장 완료: #{File.basename(files[0][:path])} (요소 #{files[0][:faces]}개#{note})" :
+                                        "3D DXF #{files.length}개 저장 완료 (장별 분할): #{File.basename(files[0][:path])} 외#{note}"
               d.execute_script("kabinet.onSuccess(#{JSON.generate(Kabinet::Output::Sheet::Text.deep_utf8(msg))})")
             end
           rescue StandardError => e

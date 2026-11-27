@@ -16,9 +16,11 @@ module Kabinet
 
       # → [{ unit:, layer:, pts: [[x,y,z]mm, ...], hidden: [..] }]
       # base_tr: 선택이 놓인 편집 컨텍스트 -> 월드 변환(중첩 편집 중이면 부모 변환)
-      def collect(targets, base_tr = Geom::Transformation.new, faces = false)
+      # cfg: { faces: 면 포함, all_edges: 숨김·소프트 모서리도 포함, stats: {이유 => 건수} }
+      def collect(targets, base_tr = Geom::Transformation.new, cfg = {})
+        cfg[:stats] ||= Hash.new(0)
         recs = []
-        targets.each { |t| walk(t, base_tr, nil, nil, recs, faces, 0) }
+        targets.each { |t| walk(t, base_tr, nil, nil, recs, cfg, 0) }
         recs
       end
 
@@ -26,10 +28,13 @@ module Kabinet
         model.respond_to?(:edit_transform) ? model.edit_transform : Geom::Transformation.new
       end
 
-      def walk(entity, parent_tr, inherited, unit, recs, faces, depth)
+      def walk(entity, parent_tr, inherited, unit, recs, cfg, depth)
         return if depth > MAX_DEPTH
-        return if entity.respond_to?(:hidden?) && entity.hidden?
-        return if entity.respond_to?(:layer) && entity.layer && !entity.layer.visible?
+        if !cfg[:all_edges] && ((entity.respond_to?(:hidden?) && entity.hidden?) ||
+                                (entity.respond_to?(:layer) && entity.layer && !entity.layer.visible?))
+          cfg[:stats]['숨김 그룹/컴포넌트'] += 1
+          return
+        end
         tr = parent_tr * entity.transformation
         role = Kabinet::Persistence::Attributes.role(entity)
         name = entity.name.to_s
@@ -40,18 +45,25 @@ module Kabinet
         ents = entity.respond_to?(:definition) ? entity.definition.entities : entity.entities
         ents.each do |c|
           if c.is_a?(Sketchup::Edge)
-            add_edge(c, tr, layer || 'K3D_OTHER', unit, recs) unless skip_edge?(c)
+            why = skip_reason(c, cfg[:all_edges])
+            why ? cfg[:stats][why] += 1 : add_edge(c, tr, layer || 'K3D_OTHER', unit, recs)
           elsif c.is_a?(Sketchup::Face)
-            add_face(c, tr, layer || 'K3D_OTHER', unit, recs) if faces && !(c.hidden? || (c.layer && !c.layer.visible?))
+            add_face(c, tr, layer || 'K3D_OTHER', unit, recs) if cfg[:faces] && !(c.hidden? || (c.layer && !c.layer.visible?))
           elsif c.is_a?(Sketchup::Group) || c.is_a?(Sketchup::ComponentInstance)
-            walk(c, tr, layer, unit, recs, faces, depth + 1)
+            walk(c, tr, layer, unit, recs, cfg, depth + 1)
           end
         end
       end
 
       # 숨김·소프트/스무스(곡면 분할선)·숨긴 태그의 모서리는 내보내지 않는다.
-      def skip_edge?(e)
-        e.hidden? || e.soft? || e.smooth? || (e.layer && !e.layer.visible?)
+      # 제외 이유(문자열) 또는 nil. 곡면 분할선(소프트/스무스이면서 면 2개 사이)만 뺀다.
+      # 경계선(면이 0~1개)은 소프트여도 남긴다. all=true 면 아무것도 빼지 않는다.
+      def skip_reason(e, all = false)
+        return nil if all
+        return '숨김 모서리' if e.hidden?
+        return '숨긴 태그의 모서리' if e.layer && !e.layer.visible?
+        return '곡면 분할선(소프트/스무스)' if (e.soft? || e.smooth?) && e.faces.length >= 2
+        nil
       end
 
       def add_edge(edge, tr, layer, unit, recs)
@@ -121,7 +133,8 @@ module Kabinet
         if (split || section) && targets.length > 1
           raise '장별 분할·단면은 가구 하나만 선택했을 때 쓸 수 있습니다.'
         end
-        recs = collect(targets, edit_transform(model), opts['faces'] ? true : false)
+        cfg = { faces: opts['faces'] ? true : false, all_edges: opts['all_edges'] ? true : false }
+        recs = collect(targets, edit_transform(model), cfg)
         raise '내보낼 선이 없습니다(숨김 상태이거나 모서리가 없는 선택).' if recs.empty?
         files = []
         groups = split ? recs.group_by { |r| r[:unit] } : { nil => recs }
@@ -133,7 +146,7 @@ module Kabinet
           next if dxf.face_count.zero?
           out = split ? path.sub(/\.dxf\z/i, u.nil? ? '_기타.dxf' : "_장#{u + 1}.dxf") : path
           dxf.write(Kabinet::Output::Sheet::Text.utf8(out))
-          files << { path: out, faces: dxf.face_count, layers: dxf.layer_counts }
+          files << { path: out, faces: dxf.face_count, layers: dxf.layer_counts, skipped: cfg[:stats].dup }
         end
         raise '절단 결과가 비었습니다.' if files.empty?
         files
