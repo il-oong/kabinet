@@ -2,6 +2,14 @@
 
 새 세션에서 이 파일부터 읽고 이어서 작업하세요. 사용자 선호: **한국어로 답변, 코드는 항상 PR 먼저 만든 뒤 머지, Railway 사용(이 저장소는 SketchUp 플러그인이라 해당 없음)**, 컨텍스트 70% 넘으면 중단하고 정리.
 
+## (v1.32~1.34) 3D CAD(DXF/DWG) 내보내기 — 최신 인계
+- 위치: 사이드바 「도면 시트」 맨 위 카드. 코드: `kabinet/output/dxf3d.rb`(R12 라이터·레이어 분류·평면 절단), `kabinet/commands/export_3d.rb`(수집·분할·단면·`run_native`), `dialog.rb` 콜백 `kabinet:export_dxf3d`, `kabinet:export_dxf3d_native`, UI `index.html`(#card-dxf3d)·`app.js`.
+- 레이어(영문): `K3D_SIDE/TOP/BOTTOM/BACK/SHELF/DOOR/DRAWER_FRONT/DRAWER/EP/PLINTH/CHANNEL/HANDLE/HARDWARE/OTHER`, 부재 `role`(없으면 그룹 이름)로 결정, 못 정하면 상위 값 상속.
+- v1.32 면(3DFACE) → 사용자 CAD 에서 **삼각분할 X자 대각선**이 보여 불만(반복 지적) → v1.33 기본을 **모서리 3D LINE** 으로(면은 「면 포함」 옵션, 기본 꺼짐). v1.34 **SketchUp 기본 DWG/DXF 내보내기**(`Model#export`, Pro 전용, 내보내는 동안만 역할별 태그 부여 후 `abort_operation`).
+- 장별 분할(`module_index`, 가구 하나만)·단면(`x`/`y`, 가운데 절단·뚜껑 없음, 앞=Y 작은 쪽 가정)은 직접 쓰는 방식에만 적용.
+- 겪은 실수: 새 .rb 를 `main.rb` 시작 `require` 에 빠뜨려 `uninitialized constant Export3d`(v1.32.1 수정, `test/main_requires_test.rb` 가 방지). 머지 전에는 업데이터가 수정을 못 받는다는 점도 사용자에게 안내할 것.
+- **미확인(실기 필요)**: SketchUp 에서 실제 내보내기, 선 DXF 에 대각선이 없는지, 곡면 부재가 선으로 충분한지, `Model#export` 옵션 이름(`selectionset_only`, `triangulated_faces` 등)이 2022 에서 먹는지(안 먹으면 `run_native` 옵션 조정), 기본 내보내기도 면 대각선이 생기는지, AutoCAD/한글 CAD 열림, 가로 단면의 제거 방향. 사용자 CAD 이름·버전 미확인.
+
 ## (v1.31.0) 방향 검증·전면 표시·장별 세부 쪽
 - `FurnitureSheet.local_frame/world_view_direction/view_segments`(순수) + `SheetLayout.front_marker/unit_pages/unit_table_lines`. 장 캡처 `capture_units`(module_index 그룹별 숨김→collect→classify), 뷰 이름 `u_front/u_inner/u_top/u_section`. UI `pg-units`·`ep_units` 콜백(`epUnits`).
 - 방향: 코드 경로상 뒤집힘 없음(물리 좌표 테스트 통과) — 사용자 재확인 필요. 측면 단면은 우측 측판 제거 근사.
