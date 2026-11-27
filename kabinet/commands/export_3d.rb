@@ -15,10 +15,15 @@ module Kabinet
       end
 
       # → [{ unit:, layer:, pts: [[x,y,z]mm, ...], hidden: [..] }]
-      def collect(targets)
+      # base_tr: 선택이 놓인 편집 컨텍스트 -> 월드 변환(중첩 편집 중이면 부모 변환)
+      def collect(targets, base_tr = Geom::Transformation.new)
         recs = []
-        targets.each { |t| walk(t, Geom::Transformation.new, nil, nil, recs, 0) }
+        targets.each { |t| walk(t, base_tr, nil, nil, recs, 0) }
         recs
+      end
+
+      def edit_transform(model)
+        model.respond_to?(:edit_transform) ? model.edit_transform : Geom::Transformation.new
       end
 
       def walk(entity, parent_tr, inherited, unit, recs, depth)
@@ -35,7 +40,7 @@ module Kabinet
         ents = entity.respond_to?(:definition) ? entity.definition.entities : entity.entities
         ents.each do |c|
           if c.is_a?(Sketchup::Face)
-            add_face(c, tr, layer || 'K3D_OTHER', unit, recs) unless c.hidden?
+            add_face(c, tr, layer || 'K3D_OTHER', unit, recs) unless c.hidden? || (c.layer && !c.layer.visible?)
           elsif c.is_a?(Sketchup::Group) || c.is_a?(Sketchup::ComponentInstance)
             walk(c, tr, layer, unit, recs, depth + 1)
           end
@@ -96,7 +101,11 @@ module Kabinet
         return nil unless path
         path = Kabinet::Output::Sheet::Text.utf8(path)
         path += '.dxf' unless path.downcase.end_with?('.dxf')
-        recs = collect(targets)
+        # module_index 는 가구마다 0 부터라 가구가 여럿이면 장 번호·절단 위치가 섞인다.
+        if (split || section) && targets.length > 1
+          raise '장별 분할·단면은 가구 하나만 선택했을 때 쓸 수 있습니다.'
+        end
+        recs = collect(targets, edit_transform(model))
         raise '내보낼 면이 없습니다(숨김 상태이거나 면이 없는 선택).' if recs.empty?
         files = []
         groups = split ? recs.group_by { |r| r[:unit] } : { nil => recs }
