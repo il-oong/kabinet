@@ -119,7 +119,7 @@ module Kabinet
       output/sheet/text.rb output/sheet/image_info.rb output/sheet/dxf_writer.rb output/sheet/builder.rb ui/sheet_bridge.rb ui/web/sheet.js
       commands/generate.rb commands/regenerate.rb commands/export.rb
       commands/face_panel.rb commands/space_divide.rb
-      output/drawing2d.rb output/dxf.rb output/order_sheet.rb
+      output/drawing2d.rb output/dxf.rb output/dxf3d.rb commands/export_3d.rb output/order_sheet.rb
       output/group_projection.rb output/dimensions.rb output/views.rb
       output/png_export.rb output/pdf_bundler.rb
       ui/dialog.rb ui/panel_tools.rb ui/place_tool.rb ui/front_view_tool.rb ui/menu.rb updater.rb
@@ -171,7 +171,7 @@ module Kabinet
       'core/ep_board', 'core/furniture_library',
       'commands/generate', 'commands/regenerate', 'commands/export',
       'commands/face_panel', 'commands/space_divide', 'commands/countertop', 'commands/common', 'commands/slab_thickness', 'commands/door_toggle', 'commands/drawing_import',
-      'output/drawing2d', 'output/dxf', 'output/order_sheet',
+      'output/drawing2d', 'output/dxf', 'output/dxf3d', 'commands/export_3d', 'output/order_sheet',
       'output/group_projection', 'output/dimensions', 'output/views',
       'output/png_export', 'output/pdf_bundler',
       'output/sheet_layout', 'output/furniture_sheet', 'output/space_sheet',
